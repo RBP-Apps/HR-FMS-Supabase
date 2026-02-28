@@ -21,10 +21,10 @@ const CallTracker = () => {
   const [historyData, setHistoryData] = useState([]);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState([]);
-  
 
 
-   const fetchMasterData = async () => {
+
+  const fetchMasterData = async () => {
     try {
       const response = await fetch(
         'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Master&action=fetch'
@@ -66,7 +66,7 @@ const CallTracker = () => {
     }
   };
 
- useEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
       setTableLoading(true);
 
@@ -251,7 +251,7 @@ const CallTracker = () => {
   const pendingData = enquiryData.filter(item => {
     const hasFinalStatus = followUpData.some(followUp =>
       followUp.enquiryNo === item.candidateEnquiryNo &&
-      (followUp.status === 'Joining' || followUp.status === 'Reject')
+      (followUp.status.includes('Joining') || followUp.status.includes('Reject'))
     );
     return !hasFinalStatus;
   });
@@ -268,10 +268,16 @@ const CallTracker = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+
+    if (name === 'status' && value.includes('Joining')) {
+      // Remove from pending tab immediately
+      setEnquiryData(prev => prev.filter(item => item.candidateEnquiryNo !== selectedItem.candidateEnquiryNo));
+    }
   };
 
 
@@ -493,7 +499,7 @@ const CallTracker = () => {
       await postToSheet(rowData);
 
       // If status is "Joining", also update the ENQUIRY sheet
-      if (formData.status === 'Joining') {
+      if (formData.status.includes('Joining')) {
         await updateEnquirySheet(selectedItem.candidateEnquiryNo);
       }
 
@@ -559,8 +565,8 @@ const CallTracker = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
             >
@@ -569,8 +575,8 @@ const CallTracker = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
             >
@@ -766,10 +772,10 @@ const CallTracker = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span
                             className={`px-2 py-1 text-xs rounded-full ${item.status === "Joining"
-                                ? "bg-green-100 text-green-800"
-                                : item.status === "Reject"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-blue-100 text-blue-800"
+                              ? "bg-green-100 text-green-800"
+                              : item.status === "Reject"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-blue-100 text-blue-800"
                               }`}
                           >
                             {item.status}

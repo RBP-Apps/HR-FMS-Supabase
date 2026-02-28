@@ -11,6 +11,7 @@ const Joining = () => {
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
   const [joiningData, setJoiningData] = useState([]);
+  const [historyJoiningData, setHistoryJoiningData] = useState([]);
   const [error, setError] = useState(null);
   const [followUpData, setFollowUpData] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -461,7 +462,7 @@ const Joining = () => {
       const departmentIndex = getIndex("Department");
       const abIndex = 27; // Column AB index (0-based index 27)
 
-      const processedEnquiryData = enquiryDataFromRow7
+      const allProcessedEnquiryData = enquiryDataFromRow7
         .map((row) => ({
           id: row[getIndex("Timestamp")],
           indentNo: row[getIndex("Indent Number")],
@@ -490,11 +491,7 @@ const Joining = () => {
           joiningDate: row[abIndex] || "" // Column AB (index 27)
         }))
         // Filter out items with null/empty values in Column AA
-        .filter(item => item.actualDate && item.actualDate.trim() !== "")
-        // Filter out items with non-null values in Column AB
-        .filter(item => !item.joiningDate || item.joiningDate.trim() === "");
-
-
+        .filter(item => item.actualDate && item.actualDate.trim() !== "");
 
       // Process follow-up data for filtering
       if (followUpResult.success && followUpResult.data) {
@@ -510,19 +507,22 @@ const Joining = () => {
 
         setFollowUpData(processedFollowUpData);
 
-        console.log("processedFollowUpData",processedFollowUpData);
-        
-        // Filter data to show only items with "Joining" status in follow-up sheet
-        const joiningItems = processedEnquiryData.filter(item => {
-          const hasJoiningStatus = processedFollowUpData.some(followUp =>
+        // Items where candidate is selected for Joining
+        const itemsWithJoiningStatus = allProcessedEnquiryData.filter(item => {
+          return processedFollowUpData.some(followUp =>
             followUp.enquiryNo === item.candidateEnquiryNo &&
-            followUp.status === 'Joining (भर्ती)'
+            followUp.status.includes('Joining')
           );
-          return hasJoiningStatus;
         });
-        console.log("joiningItems",joiningItems);
 
-        setJoiningData(joiningItems);
+        // Filter out items with non-null values in Column AB (Pending)
+        const pendingItems = itemsWithJoiningStatus.filter(item => !item.joiningDate || item.joiningDate.trim() === "");
+
+        // Filter out items with null/empty values in Column AB (History)
+        const historyItems = itemsWithJoiningStatus.filter(item => item.joiningDate && item.joiningDate.trim() !== "");
+
+        setJoiningData(pendingItems);
+        setHistoryJoiningData(historyItems);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -980,7 +980,7 @@ const Joining = () => {
       rowData[34] = joiningFormData.attendanceRegistration ? 'Yes' : 'No'; // Column AJ: Attendance Registration
       rowData[35] = joiningFormData.pfRegistration ? 'Yes' : 'No';        // Column AK: PF Registration
       rowData[36] = joiningFormData.esicRegistration ? 'Yes' : 'No';      // Column AL: ESIC Registration
-      rowData[39] = selectedItem.actualDate || formattedTimestamp;
+      rowData[40] = selectedItem.actualDate || formattedTimestamp;
 
       await postToJoiningSheet(rowData);
 
@@ -1002,6 +1002,13 @@ const Joining = () => {
   };
 
   const filteredJoiningData = joiningData.filter(item => {
+    const matchesSearch = item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  const filteredHistoryData = historyJoiningData.filter(item => {
     const matchesSearch = item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1046,6 +1053,16 @@ const Joining = () => {
             >
               <Clock size={16} className="inline mr-2" />
               Pending Joinings ({filteredJoiningData.length})
+            </button>
+            <button
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              onClick={() => setActiveTab("history")}
+            >
+              <CheckCircle size={16} className="inline mr-2" />
+              History ({filteredHistoryData.length})
             </button>
           </nav>
         </div>
@@ -1128,21 +1145,12 @@ const Joining = () => {
                     filteredJoiningData.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleJoiningClick(item)}
-                              className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-opacity-90 text-sm"
-                            >
-                              Joining
-                            </button>
-                            <button
-                              onClick={() => handleShareClick(item)}
-                              className="px-3 py-1 text-white bg-blue-600 rounded-md hover:bg-opacity-90 text-sm flex items-center"
-                            >
-                              <Share size={14} className="mr-1" />
-                              Share
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleJoiningClick(item)}
+                            className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-opacity-90 text-sm"
+                          >
+                            Joining
+                          </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {item.indentNo || "-"}
@@ -1196,6 +1204,140 @@ const Joining = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
                             Pending Joining
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === "history" && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Indent No.
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Candidate Enquiry No.
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Applying For Post
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Department
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Candidate Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Photo
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Resume
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {tableLoading ? (
+                    <tr>
+                      <td colSpan="10" className="px-6 py-12 text-center">
+                        <div className="flex justify-center flex-col items-center">
+                          <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                          <span className="text-gray-600 text-sm">
+                            Loading history joinings...
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td colSpan="10" className="px-6 py-12 text-center">
+                        <p className="text-red-500">Error: ${error}</p>
+                        <button
+                          onClick={fetchJoiningData}
+                          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                        >
+                          Retry
+                        </button>
+                      </td>
+                    </tr>
+                  ) : filteredHistoryData.length === 0 ? (
+                    <tr>
+                      <td colSpan="10" className="px-6 py-12 text-center">
+                        <p className="text-gray-500">
+                          No history joinings found.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredHistoryData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.indentNo || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidateEnquiryNo || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.applyingForPost || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.department || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidateName || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidatePhone || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidateEmail || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidatePhoto ? (
+                            <a
+                              href={item.candidatePhoto}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-800"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidateResume ? (
+                            <a
+                              href={item.candidateResume}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-800"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                            Completed
                           </span>
                         </td>
                       </tr>

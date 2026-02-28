@@ -37,6 +37,9 @@ const AfterJoiningWork = () => {
     pfNumber: "",
     esicNumber: "",
     companyDirectory: false,
+    pdoCheckbox: false,
+    pdcFile: null,
+    pdcFileUrl: "",
     assets: [],
   });
 
@@ -126,6 +129,7 @@ const AfterJoiningWork = () => {
         resumeCopy: row[getIndex("Resume Copy")] || "",
         plannedDate: row[getIndex("Planned Date")] || "",
         actual: row[getIndex("Actual")] || "",
+        pdcCheckbox: row[52]?.toString().trim() === "YES" ? "YES" : "-",
       }));
 
       const pendingTasks = processedData.filter(
@@ -185,8 +189,10 @@ const AfterJoiningWork = () => {
           vehicle: matchingRow[7] || "",
           other: matchingRow[8] || "",
           manualImageUrl: matchingRow[9] || "",
+          // punchCode: matchingRow[10] || "", // Column K (index 10)
           pfNumber: matchingRow[11] || "",
           esicNumber: matchingRow[12] || "",
+          pdcFileUrl: matchingRow[13] || "", // Column N (index 13)
         };
       }
 
@@ -266,6 +272,9 @@ const AfterJoiningWork = () => {
       pfNumber: "",
       esicNumber: "",
       companyDirectory: false,
+      pdoCheckbox: false,
+      pdcFile: null,
+      pdcFileUrl: "",
       assets: [],
     });
 
@@ -310,7 +319,7 @@ const AfterJoiningWork = () => {
         (row, idx) =>
           idx > headerRowIndex &&
           row[employeeIdIndex]?.toString().trim() ===
-            item.joiningNo?.toString().trim()
+          item.joiningNo?.toString().trim()
       );
 
       if (rowIndex === -1)
@@ -361,6 +370,11 @@ const AfterJoiningWork = () => {
             ?.toString()
             .trim()
             .toLowerCase() === "yes",
+        pdoCheckbox:
+          allData[rowIndex][52] // Column BA (0-based index: 52)
+            ?.toString()
+            .trim()
+            .toLowerCase() === "yes",
       };
 
       // Merge with assets data if available
@@ -376,7 +390,9 @@ const AfterJoiningWork = () => {
         manualImageUrl: assetsData?.manualImageUrl || "",
         pfNumber: assetsData?.pfNumber || "",
         esicNumber: assetsData?.esicNumber || "",
+        pdcFileUrl: assetsData?.pdcFileUrl || "",
         manualImage: null,
+        pdcFile: null,
         assets: [],
       };
 
@@ -427,12 +443,12 @@ const AfterJoiningWork = () => {
       )
         .toString()
         .padStart(2, "0")}/${now.getFullYear()} ${now
-        .getHours()
-        .toString()
-        .padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now
-        .getSeconds()
-        .toString()
-        .padStart(2, "0")}`;
+          .getHours()
+          .toString()
+          .padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now
+            .getSeconds()
+            .toString()
+            .padStart(2, "0")}`;
 
       const rowData = [
         timestamp,
@@ -448,6 +464,7 @@ const AfterJoiningWork = () => {
         assetsData.punchCode || "", // Add punch code to column K
         assetsData.pfNumber || "",
         assetsData.esicNumber || "",
+        assetsData.pdcFileUrl || "", // Column N
       ];
 
       // First, check if record exists
@@ -527,14 +544,29 @@ const AfterJoiningWork = () => {
         try {
           manualImageUrl = await uploadImageToDrive(
             formData.manualImage,
-            `${
-              selectedItem.joiningNo
+            `${selectedItem.joiningNo
             }_manual_${Date.now()}.${formData.manualImage.name
               .split(".")
               .pop()}`
           );
         } catch (error) {
           toast.error(`Failed to upload manual image: ${error.message}`);
+        }
+      }
+
+      // Upload PDC File if selected and checkbox is checked
+      let finalPdcFileUrl = formData.pdcFileUrl;
+      if (formData.pdoCheckbox && formData.pdcFile) {
+        try {
+          finalPdcFileUrl = await uploadImageToDrive(
+            formData.pdcFile,
+            `${selectedItem.joiningNo
+            }_pdc_${Date.now()}.${formData.pdcFile.name
+              .split(".")
+              .pop()}`
+          );
+        } catch (error) {
+          toast.error(`Failed to upload PDC file: ${error.message}`);
         }
       }
 
@@ -550,6 +582,7 @@ const AfterJoiningWork = () => {
         punchCode: formData.punchCode, // Include punch code
         pfNumber: formData.pfNumber, // ADD THIS
         esicNumber: formData.esicNumber, // ADD THIS
+        pdcFileUrl: formData.pdoCheckbox ? finalPdcFileUrl : "", // Clear URL if unchecked
       });
 
       // Continue with existing logic for updating JOINING sheet
@@ -582,7 +615,7 @@ const AfterJoiningWork = () => {
         (row, idx) =>
           idx > headerRowIndex &&
           row[employeeIdIndex]?.toString().trim() ===
-            selectedItem.joiningNo?.toString().trim()
+          selectedItem.joiningNo?.toString().trim()
       );
       if (rowIndex === -1)
         throw new Error(`Employee ${selectedItem.joiningNo} not found`);
@@ -604,13 +637,13 @@ const AfterJoiningWork = () => {
         assignAssets: formData.assignAssets,
         pfEsic: formData.pfEsic,
         companyDirectory: formData.companyDirectory,
+        pdoCheckbox: formData.pdoCheckbox,
       });
 
       const now = new Date();
       // Format for display: DD/MM/YYYY
-      const formattedTimestamp = `${now.getDate()}/${
-        now.getMonth() + 1
-      }/${now.getFullYear()}`;
+      const formattedTimestamp = `${now.getDate()}/${now.getMonth() + 1
+        }/${now.getFullYear()}`;
 
       // Format for Google Sheets as a proper date object (YYYY-MM-DD format)
       const formattedDateForSheets = `${now.getFullYear()}-${(
@@ -659,6 +692,13 @@ const AfterJoiningWork = () => {
           columnIndex: startColumnIndex + field.offset + 1,
           value: field.value,
         });
+      });
+
+      // Explicitly update Column BA (1-based index: 53)
+      updates.push({
+        rowIndex: rowIndex + 1,
+        columnIndex: 53,
+        value: formData.pdoCheckbox ? "YES" : "",
       });
 
       console.log(
@@ -781,22 +821,20 @@ const AfterJoiningWork = () => {
         <div className="border-b border-gray-300  ">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "history"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -923,12 +961,15 @@ const AfterJoiningWork = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium  text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium  text-gray-500 uppercase tracking-wider">
+                      PDC
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y   divide-white  ">
                   {tableLoading ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center">
+                      <td colSpan="6" className="px-6 py-12 text-center">
                         <div className="flex justify-center flex-col items-center">
                           <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
                           <span className="text-gray-600 text-sm">
@@ -939,7 +980,7 @@ const AfterJoiningWork = () => {
                     </tr>
                   ) : filteredHistoryData.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center">
+                      <td colSpan="6" className="px-6 py-12 text-center">
                         <p className="text-gray-500">No call history found.</p>
                       </td>
                     </tr>
@@ -963,6 +1004,15 @@ const AfterJoiningWork = () => {
                           <span className="px-2 py-1 text-xs rounded-full bg-green-500 font-semibold  text-white">
                             Completed
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold  text-gray-700">
+                          {item.pdcCheckbox === "YES" ? (
+                            <span className="px-2 py-1 text-xs rounded-full bg-indigo-100 font-semibold text-indigo-800">
+                              YES
+                            </span>
+                          ) : (
+                            <span>-</span>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -1276,8 +1326,8 @@ const AfterJoiningWork = () => {
                               {formData.manualImage
                                 ? "Change Manual"
                                 : formData.manualImageUrl
-                                ? "Replace Manual"
-                                : "Aggrement Upload"}
+                                  ? "Replace Manual"
+                                  : "Aggrement Upload"}
                             </label>
                           </div>
                           {/* Show existing manual image if available */}
@@ -1314,6 +1364,83 @@ const AfterJoiningWork = () => {
                     </div>
                   )}
                 </div>
+
+                {/* PDC Checkbox Section */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="pdoCheckbox"
+                      checked={formData.pdoCheckbox}
+                      onChange={() => handleCheckboxChange("pdoCheckbox")}
+                      className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
+                    />
+                    <label
+                      htmlFor="pdoCheckbox"
+                      className="ml-2 text-sm text-gray-500"
+                    >
+                      PDC
+                    </label>
+                  </div>
+
+                  {formData.pdoCheckbox && (
+                    <div className="mt-2 ml-6 p-3 bg-gray-50 rounded-md">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-500">
+                          PDC Upload
+                        </label>
+                        <div className="space-y-2">
+                          <div className="flex items-center">
+                            <input
+                              type="file"
+                              id="pdcFile"
+                              onChange={(e) =>
+                                handleImageUpload(e, "pdcFile")
+                              }
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="pdcFile"
+                              className="cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 flex items-center"
+                            >
+                              <svg
+                                className="w-4 h-4 mr-1"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                ></path>
+                              </svg>
+                              {formData.pdcFile
+                                ? "Change PDC File"
+                                : formData.pdcFileUrl
+                                  ? "Replace PDC File"
+                                  : "Upload PDC File"}
+                            </label>
+                          </div>
+                          {formData.pdcFileUrl && !formData.pdcFile && (
+                            <div className="mt-2">
+                              <a href={formData.pdcFileUrl} target="_blank" rel="noreferrer" className="text-blue-600 text-sm hover:underline">
+                                View Current PDC File
+                              </a>
+                            </div>
+                          )}
+                          {formData.pdcFile && (
+                            <div className="mt-2 text-sm text-green-600">
+                              Selected file: {formData.pdcFile.name}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -1326,9 +1453,8 @@ const AfterJoiningWork = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 min-h-[42px] flex items-center justify-center ${
-                    submitting ? "opacity-90 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 min-h-[42px] flex items-center justify-center ${submitting ? "opacity-90 cursor-not-allowed" : ""
+                    }`}
                   disabled={submitting}
                 >
                   {submitting ? (
