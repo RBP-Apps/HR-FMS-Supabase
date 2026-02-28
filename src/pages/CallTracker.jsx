@@ -381,7 +381,7 @@ const CallTracker = () => {
       params.append('sheetName', 'ENQUIRY');
       params.append('action', 'updateCell');
       params.append('rowIndex', targetRowIndex.toString());
-      params.append('columnIndex', '27'); // Column AA is index 27 (1-based)
+      params.append('columnIndex', '28'); // Column AA is index 27 (1-based)
       params.append('value', formattedDateTime);
 
       const response = await fetch(URL, {
