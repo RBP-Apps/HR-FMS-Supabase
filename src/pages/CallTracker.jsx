@@ -327,7 +327,7 @@ const CallTracker = () => {
     }
   };
 
-  const updateEnquirySheet = async (enquiryNo) => {
+  const updateEnquirySheet = async (enquiryNo, statusValue) => {
     const URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec';
 
     try {
@@ -365,24 +365,13 @@ const CallTracker = () => {
 
       console.log(`Found enquiry ${enquiryNo} at row ${targetRowIndex}`);
 
-      // Format current date and time as 9/21/2020 14:21:19
-      const now = new Date();
-      const month = now.getMonth() + 1; // getMonth() returns 0-11
-      const day = now.getDate();
-      const year = now.getFullYear();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-      const seconds = now.getSeconds();
-
-      const formattedDateTime = `${month}/${day}/${year} ${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
       // Now update the specific cell using updateCell action
       const params = new URLSearchParams();
       params.append('sheetName', 'ENQUIRY');
       params.append('action', 'updateCell');
       params.append('rowIndex', targetRowIndex.toString());
-      params.append('columnIndex', '28'); // Column AA is index 27 (1-based)
-      params.append('value', formattedDateTime);
+      params.append('columnIndex', '25'); // Column Y is index 25 (1-based)
+      params.append('value', statusValue);
 
       const response = await fetch(URL, {
         method: 'POST',
@@ -498,10 +487,10 @@ const CallTracker = () => {
 
       await postToSheet(rowData);
 
-      // If status is "Joining", also update the ENQUIRY sheet
-      if (formData.status.includes('Joining')) {
-        await updateEnquirySheet(selectedItem.candidateEnquiryNo);
-      }
+      // Update ENQUIRY sheet Column Y with the selected status
+      // Extract only English part before any bracket/special character
+      const statusForSheet = formData.status.split('(')[0].trim();
+      await updateEnquirySheet(selectedItem.candidateEnquiryNo, statusForSheet);
 
       toast.success('Update successful!');
       setShowModal(false);

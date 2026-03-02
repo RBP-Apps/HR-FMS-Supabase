@@ -34,7 +34,7 @@ const FindEnquiry = () => {
     candidateResume: null,
     presentAddress: '',
     aadharNo: '',
-    status: 'NeedMore'
+    
   });
 
   // Google Drive folder ID for file uploads
@@ -424,8 +424,8 @@ const FindEnquiry = () => {
         '',                                           // Column X
         '',                                           // Column Y
         '',                                           // Column Z
-        '',                                           // Column AA
-        formData.status,                              // Column AB: Status
+        '',                                           // Column AA: Planned (Empty)
+        '',                                           // Column AB: Actual (Empty)
       ];
 
       console.log('Submitting to ENQUIRY sheet:', rowData);
