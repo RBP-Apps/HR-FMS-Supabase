@@ -980,7 +980,7 @@ const Joining = () => {
       rowData[34] = joiningFormData.attendanceRegistration ? 'Yes' : 'No'; // Column AJ: Attendance Registration
       rowData[35] = joiningFormData.pfRegistration ? 'Yes' : 'No';        // Column AK: PF Registration
       rowData[36] = joiningFormData.esicRegistration ? 'Yes' : 'No';      // Column AL: ESIC Registration
-      rowData[40] = selectedItem.actualDate || formattedTimestamp;
+      rowData[40] = '';  // Column AO: Actual Date (Empty - will be set by After Joining Work)
 
       await postToJoiningSheet(rowData);
 
