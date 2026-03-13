@@ -33,6 +33,126 @@ const Joining = () => {
   const [attendanceTypeOptions, setAttendanceTypeOptions] = useState([]);
 
 
+  // Add these state declarations near your other useState declarations
+const [editMode, setEditMode] = useState(false);
+const [editingItem, setEditingItem] = useState(null);
+const [editFormData, setEditFormData] = useState({});
+const [editSubmitting, setEditSubmitting] = useState(false);
+
+// Add these functions
+const handleEditClick = (item) => {
+  setEditMode(true);
+  setEditingItem(item);
+  setEditFormData({
+    candidateName: item.candidateName || '',
+    candidatePhone: item.candidatePhone || '',
+    candidateEmail: item.candidateEmail || '',
+    applyingForPost: item.applyingForPost || '',
+    department: item.department || '',
+    status: item.status || 'Completed'
+  });
+};
+
+const handleEditInputChange = (e) => {
+  const { name, value } = e.target;
+  setEditFormData(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
+
+const handleEditSubmit = async (item) => {
+  setEditSubmitting(true);
+  
+  try {
+    // First, fetch ENQUIRY sheet data to find the correct row
+    const fetchResponse = await fetch(
+      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch'
+    );
+
+    const fetchResult = await fetchResponse.json();
+
+    if (!fetchResult.success || !fetchResult.data) {
+      throw new Error('Failed to fetch ENQUIRY sheet data');
+    }
+
+    // Find the row with matching enquiry number (Column C is index 2)
+    let targetRowIndex = -1;
+    const sheetData = fetchResult.data;
+
+    for (let i = 0; i < sheetData.length; i++) {
+      if (sheetData[i][2] === item.candidateEnquiryNo) { // Column C (index 2)
+        targetRowIndex = i + 1; // Convert to 1-based index for Google Sheets
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      throw new Error(`Enquiry number ${item.candidateEnquiryNo} not found in ENQUIRY sheet`);
+    }
+
+    // Update fields if they've changed
+    const columnMappings = [
+      { field: 'candidateName', column: 'E' },      // Column E (index 5)
+      { field: 'candidatePhone', column: 'G' },     // Column G (index 7)
+      { field: 'candidateEmail', column: 'H' },     // Column H (index 8)
+      { field: 'applyingForPost', column: 'D' },    // Column D (index 4)
+      { field: 'department', column: 'K' },         // Column K (index 11)
+    ];
+
+    for (const mapping of columnMappings) {
+      const originalValue = item[mapping.field];
+      const newValue = editFormData[mapping.field];
+
+      if (newValue !== originalValue) {
+        const columnIndex = mapping.column.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
+        
+        const updateResponse = await fetch(
+          'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              sheetName: 'ENQUIRY',
+              action: 'updateCell',
+              rowIndex: targetRowIndex.toString(),
+              columnIndex: columnIndex.toString(),
+              value: newValue
+            }),
+          }
+        );
+
+        const updateResult = await updateResponse.json();
+        if (!updateResult.success) {
+          console.error(`Failed to update ${mapping.field}:`, updateResult.error);
+        }
+      }
+    }
+
+    // Update local state
+    const updatedHistoryData = historyJoiningData.map(h => 
+      h.candidateEnquiryNo === item.candidateEnquiryNo ? { ...h, ...editFormData } : h
+    );
+    setHistoryJoiningData(updatedHistoryData);
+    
+    toast.success('Record updated successfully!');
+    setEditMode(false);
+    setEditingItem(null);
+    
+    // Refresh data
+    await fetchJoiningData();
+    
+  } catch (error) {
+    console.error('Error updating:', error);
+    toast.error(`Failed to update: ${error.message}`);
+  } finally {
+    setEditSubmitting(false);
+  }
+};
+
+
   const [joiningFormData, setJoiningFormData] = useState({
     joiningId: '',
     firmName: '',
@@ -1214,7 +1334,7 @@ const Joining = () => {
             </div>
           )}
 
-          {activeTab === "history" && (
+          {/* {activeTab === "history" && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -1346,7 +1466,273 @@ const Joining = () => {
                 </tbody>
               </table>
             </div>
-          )}
+          )} */}
+
+          {activeTab === "history" && (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Action
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Indent No.
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Candidate Enquiry No.
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Applying For Post
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Department
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Candidate Name
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Phone
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Email
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Photo
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Resume
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {tableLoading ? (
+          <tr>
+            <td colSpan="11" className="px-6 py-12 text-center">
+              <div className="flex justify-center flex-col items-center">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                <span className="text-gray-600 text-sm">
+                  Loading history joinings...
+                </span>
+              </div>
+            </td>
+          </tr>
+        ) : error ? (
+          <tr>
+            <td colSpan="11" className="px-6 py-12 text-center">
+              <p className="text-red-500">Error: {error}</p>
+              <button
+                onClick={fetchJoiningData}
+                className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              >
+                Retry
+              </button>
+            </td>
+          </tr>
+        ) : filteredHistoryData.length === 0 ? (
+          <tr>
+            <td colSpan="11" className="px-6 py-12 text-center">
+              <p className="text-gray-500">
+                No history joinings found.
+              </p>
+            </td>
+          </tr>
+        ) : (
+          filteredHistoryData.map((item) => (
+            <tr key={item.id} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditSubmit(item)}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
+                    >
+                      {editSubmitting ? (
+                        <>
+                          <svg
+                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Save
+                        </>
+                      ) : (
+                        "Save"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditMode(false);
+                        setEditingItem(null);
+                      }}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEditClick(item)}
+                    className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                  >
+                    Edit
+                  </button>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <input
+                    type="text"
+                    name="indentNo"
+                    value={editFormData.indentNo || item.indentNo}
+                    onChange={handleEditInputChange}
+                    className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.indentNo || "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.candidateEnquiryNo || "-"}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <input
+                    type="text"
+                    name="applyingForPost"
+                    value={editFormData.applyingForPost}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.applyingForPost || "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <input
+                    type="text"
+                    name="department"
+                    value={editFormData.department}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.department || "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <input
+                    type="text"
+                    name="candidateName"
+                    value={editFormData.candidateName}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidateName || "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <input
+                    type="text"
+                    name="candidatePhone"
+                    value={editFormData.candidatePhone}
+                    onChange={handleEditInputChange}
+                    className="w-28 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidatePhone || "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <input
+                    type="email"
+                    name="candidateEmail"
+                    value={editFormData.candidateEmail}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidateEmail || "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.candidatePhoto ? (
+                  <a
+                    href={item.candidatePhoto}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800"
+                  >
+                    View
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.candidateResume ? (
+                  <a
+                    href={item.candidateResume}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800"
+                  >
+                    View
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
+                  <select
+                    name="status"
+                    value={editFormData.status}
+                    onChange={handleEditInputChange}
+                    className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  >
+                    <option value="Completed">Completed</option>
+                    <option value="Pending">Pending</option>
+                    <option value="On Hold">On Hold</option>
+                  </select>
+                ) : (
+                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                    {item.status || "Completed"}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
         </div>
       </div>
 

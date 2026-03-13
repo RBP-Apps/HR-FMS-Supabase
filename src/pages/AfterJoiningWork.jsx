@@ -15,6 +15,141 @@ const AfterJoiningWork = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+
+  // Add these state declarations near your other useState declarations
+const [editMode, setEditMode] = useState(false);
+const [editingItem, setEditingItem] = useState(null);
+const [editFormData, setEditFormData] = useState({});
+const [editSubmitting, setEditSubmitting] = useState(false);
+
+// Add these functions
+const handleEditClick = (item) => {
+  setEditMode(true);
+  setEditingItem(item);
+  setEditFormData({
+    candidateName: item.candidateName || '',
+    designation: item.designation || '',
+    joiningNo: item.joiningNo || '',
+    dateOfJoining: item.dateOfJoining || '',
+    pdcCheckbox: item.pdcCheckbox || '-'
+  });
+};
+
+const handleEditInputChange = (e) => {
+  const { name, value } = e.target;
+  setEditFormData(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
+
+const handleEditSubmit = async (item) => {
+  setEditSubmitting(true);
+  
+  try {
+    // Fetch JOINING sheet data to find the correct row
+    const fetchResponse = await fetch(
+      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=JOINING&action=fetch'
+    );
+
+    const fetchResult = await fetchResponse.json();
+
+    if (!fetchResult.success || !fetchResult.data) {
+      throw new Error('Failed to fetch JOINING sheet data');
+    }
+
+    // Find the row with matching joining number
+    const allData = fetchResult.data;
+    let headerRowIndex = allData.findIndex(row => 
+      row.some(cell => cell?.toString().trim().toLowerCase().includes('rbp-joining id'))
+    );
+    if (headerRowIndex === -1) headerRowIndex = 5;
+    
+    const headers = allData[headerRowIndex].map(h => h?.toString().trim());
+    const joiningIdIndex = headers.findIndex(h => h?.toLowerCase() === 'rbp-joining id');
+    
+    if (joiningIdIndex === -1) {
+      throw new Error('Could not find RBP-Joining ID column');
+    }
+
+    // Find the specific row
+    let targetRowIndex = -1;
+    for (let i = headerRowIndex + 1; i < allData.length; i++) {
+      if (allData[i][joiningIdIndex]?.toString().trim() === item.joiningNo?.toString().trim()) {
+        targetRowIndex = i + 1; // 1-based index for Google Sheets
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      throw new Error(`Joining number ${item.joiningNo} not found`);
+    }
+
+    // Column indices (1-based)
+    const nameColumnIndex = headers.findIndex(h => h?.toLowerCase() === 'name as per aadhar') + 1;
+    const designationColumnIndex = headers.findIndex(h => h?.toLowerCase() === 'designation') + 1;
+    const dojColumnIndex = headers.findIndex(h => h?.toLowerCase() === 'date of joining') + 1;
+    const pdcColumnIndex = 53; // Column BA is index 53 (1-based)
+
+    // Update fields if they've changed
+    const updates = [
+      { field: 'candidateName', column: nameColumnIndex, value: editFormData.candidateName },
+      { field: 'designation', column: designationColumnIndex, value: editFormData.designation },
+      { field: 'dateOfJoining', column: dojColumnIndex, value: editFormData.dateOfJoining },
+      { field: 'pdcCheckbox', column: pdcColumnIndex, value: editFormData.pdcCheckbox === 'YES' ? 'YES' : '-' }
+    ];
+
+    for (const update of updates) {
+      const originalValue = item[update.field];
+      const newValue = update.value;
+
+      if (newValue !== originalValue) {
+        const updateResponse = await fetch(
+          'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              sheetName: 'JOINING',
+              action: 'updateCell',
+              rowIndex: targetRowIndex.toString(),
+              columnIndex: update.column.toString(),
+              value: update.value
+            }),
+          }
+        );
+
+        const updateResult = await updateResponse.json();
+        if (!updateResult.success) {
+          console.error(`Failed to update ${update.field}:`, updateResult.error);
+        }
+      }
+    }
+
+    // Update local state
+    const updatedHistoryData = historyData.map(h => 
+      h.joiningNo === item.joiningNo ? { ...h, ...editFormData } : h
+    );
+    setHistoryData(updatedHistoryData);
+    
+    toast.success('Record updated successfully!');
+    setEditMode(false);
+    setEditingItem(null);
+    
+    // Refresh data
+    await fetchJoiningData();
+    
+  } catch (error) {
+    console.error('Error updating:', error);
+    toast.error(`Failed to update: ${error.message}`);
+  } finally {
+    setEditSubmitting(false);
+  }
+};
+
+
   const [formData, setFormData] = useState({
     checkSalarySlipResume: false,
     offerLetterReceived: false,
@@ -941,7 +1076,7 @@ const AfterJoiningWork = () => {
             </div>
           )}
 
-          {activeTab === "history" && (
+          {/* {activeTab === "history" && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y   divide-white  ">
                 <thead className="bg-gray-100  ">
@@ -1027,7 +1162,203 @@ const AfterJoiningWork = () => {
                 </div>
               )}
             </div>
-          )}
+          )} */}
+
+          {activeTab === "history" && (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-white">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Action
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Employee ID
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Name
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Designation
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Date Of Joining
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            PDC
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-white">
+        {tableLoading ? (
+          <tr>
+            <td colSpan="7" className="px-6 py-12 text-center">
+              <div className="flex justify-center flex-col items-center">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                <span className="text-gray-600 text-sm">
+                  Loading call history...
+                </span>
+              </div>
+            </td>
+          </tr>
+        ) : filteredHistoryData.length === 0 ? (
+          <tr>
+            <td colSpan="7" className="px-6 py-12 text-center">
+              <p className="text-gray-500">No call history found.</p>
+            </td>
+          </tr>
+        ) : (
+          filteredHistoryData.map((item, index) => (
+            <tr key={index} className="hover:bg-white hover:">
+              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditSubmit(item)}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
+                    >
+                      {editSubmitting ? (
+                        <>
+                          <svg
+                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Save
+                        </>
+                      ) : (
+                        "Save"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditMode(false);
+                        setEditingItem(null);
+                      }}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEditClick(item)}
+                    className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                  >
+                    Edit
+                  </button>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="joiningNo"
+                    value={editFormData.joiningNo}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.joiningNo
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="candidateName"
+                    value={editFormData.candidateName}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidateName
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="designation"
+                    value={editFormData.designation}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.designation
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="dateOfJoining"
+                    value={editFormData.dateOfJoining}
+                    onChange={handleEditInputChange}
+                    className="w-28 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  formatDOB(item.dateOfJoining)
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className="px-2 py-1 text-xs rounded-full bg-green-500 font-semibold text-white">
+                  Completed
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-700">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <select
+                    name="pdcCheckbox"
+                    value={editFormData.pdcCheckbox}
+                    onChange={handleEditInputChange}
+                    className="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  >
+                    <option value="-">-</option>
+                    <option value="YES">YES</option>
+                  </select>
+                ) : (
+                  item.pdcCheckbox === "YES" ? (
+                    <span className="px-2 py-1 text-xs rounded-full bg-indigo-100 font-semibold text-indigo-800">
+                      YES
+                    </span>
+                  ) : (
+                    <span>-</span>
+                  )
+                )}
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+    {filteredHistoryData.length === 0 && (
+      <div className="px-6 py-12 text-center">
+        <p className="text-gray-500">No after joining work history found.</p>
+      </div>
+    )}
+  </div>
+)}
         </div>
       </div>
 

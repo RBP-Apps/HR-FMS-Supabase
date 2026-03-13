@@ -24,6 +24,156 @@ const CallTracker = () => {
 
 
 
+  // Add these state declarations near your other useState declarations
+const [editMode, setEditMode] = useState(false);
+const [editingItem, setEditingItem] = useState(null);
+const [editFormData, setEditFormData] = useState({});
+const [editSubmitting, setEditSubmitting] = useState(false);
+
+// Add these functions
+const handleEditClick = (item) => {
+  setEditMode(true);
+  setEditingItem(item);
+  setEditFormData({
+    status: item.status || '',
+    candidateSays: item.candidateSays || '',
+    nextDate: item.nextDate || ''
+  });
+};
+
+const handleEditInputChange = (e) => {
+  const { name, value } = e.target;
+  setEditFormData(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
+
+const handleEditSubmit = async (item) => {
+  setEditSubmitting(true);
+  
+  try {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+
+    // First, fetch to find the row
+    const fetchResponse = await fetch(
+      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Follow - Up&action=fetch'
+    );
+
+    const fetchResult = await fetchResponse.json();
+    const rawData = fetchResult.data || fetchResult;
+    const dataRows = rawData.length > 0 && Array.isArray(rawData[0]) ? rawData : rawData;
+
+    // Find row index
+    let rowIndex = -1;
+    for (let i = 1; i < dataRows.length; i++) {
+      if (dataRows[i][1] === item.enquiryNo && dataRows[i][3] === item.candidateSays) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      throw new Error('Record not found');
+    }
+
+    // Update Status (Column C - index 3)
+    if (editFormData.status !== item.status) {
+      const statusResponse = await fetch(
+        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            sheetName: 'Follow - Up',
+            action: 'updateCell',
+            rowIndex: rowIndex.toString(),
+            columnIndex: '3',
+            value: editFormData.status
+          }),
+        }
+      );
+      const statusResult = await statusResponse.json();
+      if (!statusResult.success) throw new Error('Failed to update status');
+    }
+
+    // Update Candidate Says (Column D - index 4)
+    if (editFormData.candidateSays !== item.candidateSays) {
+      const saysResponse = await fetch(
+        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            sheetName: 'Follow - Up',
+            action: 'updateCell',
+            rowIndex: rowIndex.toString(),
+            columnIndex: '4',
+            value: editFormData.candidateSays
+          }),
+        }
+      );
+      const saysResult = await saysResponse.json();
+      if (!saysResult.success) throw new Error('Failed to update candidate says');
+    }
+
+    // Update Next Date (Column E - index 5)
+    if (editFormData.nextDate !== item.nextDate) {
+      const dateResponse = await fetch(
+        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            sheetName: 'Follow - Up',
+            action: 'updateCell',
+            rowIndex: rowIndex.toString(),
+            columnIndex: '5',
+            value: editFormData.nextDate
+          }),
+        }
+      );
+      const dateResult = await dateResponse.json();
+      if (!dateResult.success) throw new Error('Failed to update next date');
+    }
+
+    // Update local state
+    const updatedHistoryData = historyData.map(h => 
+      h === item ? { ...h, ...editFormData } : h
+    );
+    setHistoryData(updatedHistoryData);
+    
+    toast.success('Follow-up updated successfully!');
+    setEditMode(false);
+    setEditingItem(null);
+    
+    // Refresh data
+    await fetchFollowUpData();
+    
+  } catch (error) {
+    console.error('Error updating:', error);
+    toast.error(`Failed to update: ${error.message}`);
+  } finally {
+    setEditSubmitting(false);
+  }
+};
+
+
+
   const fetchMasterData = async () => {
     try {
       const response = await fetch(
@@ -712,7 +862,7 @@ const CallTracker = () => {
             </div>
           )}
 
-          {activeTab === "history" && (
+          {/* {activeTab === "history" && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -785,7 +935,176 @@ const CallTracker = () => {
                 </tbody>
               </table>
             </div>
-          )}
+          )} */}
+
+          {activeTab === "history" && (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Action
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Enquiry No
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Candidate Says
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Next Date
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Timestamp
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {tableLoading ? (
+          <tr>
+            <td colSpan="6" className="px-6 py-12 text-center">
+              <div className="flex justify-center flex-col items-center">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                <span className="text-gray-600 text-sm">
+                  Loading call history...
+                </span>
+              </div>
+            </td>
+          </tr>
+        ) : filteredHistoryData.length === 0 ? (
+          <tr>
+            <td colSpan="6" className="px-6 py-12 text-center">
+              <p className="text-gray-500">No call history found.</p>
+            </td>
+          </tr>
+        ) : (
+          filteredHistoryData.map((item, index) => (
+            <tr key={index} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                {editMode && editingItem === item ? (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditSubmit(item)}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
+                    >
+                      {editSubmitting ? (
+                        <>
+                          <svg
+                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Save
+                        </>
+                      ) : (
+                        "Save"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditMode(false);
+                        setEditingItem(null);
+                      }}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEditClick(item)}
+                    className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                  >
+                    Edit
+                  </button>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.enquiryNo}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem === item ? (
+                  <select
+                    name="status"
+                    value={editFormData.status}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  >
+                    <option value="">Select Status</option>
+                    {status.map((dept, idx) => (
+                      <option key={idx} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      item.status === "Joining"
+                        ? "bg-green-100 text-green-800"
+                        : item.status === "Reject"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {item.status}
+                  </span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem === item ? (
+                  <textarea
+                    name="candidateSays"
+                    value={editFormData.candidateSays}
+                    onChange={handleEditInputChange}
+                    rows={2}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidateSays
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem === item ? (
+                  <input
+                    type="date"
+                    name="nextDate"
+                    value={editFormData.nextDate}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.nextDate || "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.timestamp || "-"}
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
         </div>
       </div>
 

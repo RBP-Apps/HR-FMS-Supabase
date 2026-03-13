@@ -20,6 +20,219 @@ const FindEnquiry = () => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
 
+
+  const [editMode, setEditMode] = useState(false);
+const [editingItem, setEditingItem] = useState(null);
+const [editFormData, setEditFormData] = useState({});
+
+
+const getColumnIndexFromLetter = (column) => {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let index = 0;
+  for (let i = 0; i < column.length; i++) {
+    index = index * 26 + (letters.indexOf(column[i]) + 1);
+  }
+  return index.toString();
+};
+
+
+const handleEditClick = (item) => {
+  setEditMode(true);
+  setEditingItem(item);
+  setEditFormData({
+    applyingForPost: item.applyingForPost || '',
+    candidateName: item.candidateName || '',
+    candidateDOB: item.candidateDOB || '',
+    candidatePhone: item.candidatePhone || '',
+    candidateEmail: item.candidateEmail || '',
+    previousCompany: item.previousCompany || '',
+    jobExperience: item.jobExperience || '',
+    department: item.department || '',
+    previousPosition: item.previousPosition || '',
+    maritalStatus: item.maritalStatus || '',
+    presentAddress: item.presentAddress || '',
+    aadharNo: item.aadharNo || '',
+    status: item.status || 'NeedMore'
+  });
+};
+
+// Add this function to handle edit input changes
+const handleEditInputChange = (e) => {
+  const { name, value } = e.target;
+  setEditFormData(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
+
+// Add this function to save edited data
+const handleSaveEdit = async () => {
+  try {
+    setSubmitting(true);
+
+    // Find the original item to get its data
+    const originalItem = editingItem;
+    
+    // Create timestamp for update (optional - you might want to add an "Updated At" column)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+
+    // Prepare the updated row data (maintaining the same structure as your insert)
+    const rowData = [
+      originalItem.id,                                   // Column A: Timestamp (original)
+      originalItem.indentNo,                             // Column B: Indent Number
+      originalItem.candidateEnquiryNo,                   // Column C: Candidate Enquiry Number
+      editFormData.applyingForPost || originalItem.applyingForPost,  // Column D: Applying For the Post
+      editFormData.candidateName || originalItem.candidateName,      // Column E: Candidate Name
+      editFormData.candidateDOB || originalItem.candidateDOB,        // Column F: DCB (DOB)
+      editFormData.candidatePhone || originalItem.candidatePhone,    // Column G: Candidate Phone Number
+      editFormData.candidateEmail || originalItem.candidateEmail,    // Column H: Candidate Email
+      editFormData.previousCompany || originalItem.previousCompany,  // Column I: Previous Company Name
+      editFormData.jobExperience || originalItem.jobExperience,      // Column J: Job Experience
+      editFormData.department || originalItem.department,            // Column K: Department
+      editFormData.previousPosition || originalItem.previousPosition, // Column L: Previous Position
+      originalItem.reasonForLeaving || '',               // Column M: Reason For Leaving
+      editFormData.maritalStatus || originalItem.maritalStatus,      // Column N: Marital Status
+      originalItem.lastEmployerMobile || '',              // Column O: Last Employer Mobile
+      originalItem.candidatePhoto || '',                  // Column P: Candidate Photo (URL)
+      originalItem.referenceBy || '',                      // Column Q: Reference By
+      editFormData.presentAddress || originalItem.presentAddress,    // Column R: Present Address
+      editFormData.aadharNo || originalItem.aadharNo,                // Column S: Aadhar No
+      originalItem.candidateResume || '',                 // Column T: Candidate Resume (URL)
+      '',                                                  // Column U
+      '',                                                  // Column V
+      '',                                                  // Column W
+      '',                                                  // Column X
+      '',                                                  // Column Y
+      '',                                                  // Column Z
+      '',                                                  // Column AA: Planned (Empty)
+      editFormData.status || originalItem.status,          // Column AB: Status
+    ];
+
+    console.log('Updating ENQUIRY sheet:', rowData);
+
+    // First, we need to find the row number of this entry in the sheet
+    // Since we can't update by ID directly, we'll fetch all data and find the row
+    const fetchResponse = await fetch(
+      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch'
+    );
+
+    if (!fetchResponse.ok) {
+      throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+    }
+
+    const fetchResult = await fetchResponse.json();
+
+    if (!fetchResult.success) {
+      throw new Error('Failed to fetch ENQUIRY data: ' + (fetchResult.error || 'Unknown error'));
+    }
+
+    // Find the row index based on Timestamp and Candidate Enquiry Number
+    let rowIndex = -1;
+    const headers = fetchResult.data[5]; // Row 6 contains headers
+    const dataRows = fetchResult.data.slice(6); // Data starts from row 7
+
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      // Match based on Timestamp (Column A) and Candidate Enquiry Number (Column C)
+      if (row[0] === originalItem.id && row[2] === originalItem.candidateEnquiryNo) {
+        rowIndex = i + 7; // +7 because data starts at row 7 (1-based index)
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      throw new Error(`Could not find the record to update`);
+    }
+
+    console.log('Found row index:', rowIndex);
+
+    // Now update each column that changed
+    const columnMappings = [
+      { field: 'applyingForPost', column: 'D' },  // Column D
+      { field: 'candidateName', column: 'E' },    // Column E
+      { field: 'candidateDOB', column: 'F' },      // Column F
+      { field: 'candidatePhone', column: 'G' },    // Column G
+      { field: 'candidateEmail', column: 'H' },    // Column H
+      { field: 'previousCompany', column: 'I' },   // Column I
+      { field: 'jobExperience', column: 'J' },     // Column J
+      { field: 'department', column: 'K' },        // Column K
+      { field: 'previousPosition', column: 'L' },  // Column L
+      { field: 'maritalStatus', column: 'N' },     // Column N
+      { field: 'presentAddress', column: 'R' },    // Column R
+      { field: 'aadharNo', column: 'S' },          // Column S
+      { field: 'status', column: 'AB' }            // Column AB
+    ];
+
+    // Update each field that was changed
+    for (const mapping of columnMappings) {
+      const originalValue = originalItem[mapping.field];
+      const newValue = editFormData[mapping.field];
+
+      // Only update if the value has changed
+      if (newValue !== undefined && newValue !== originalValue) {
+        console.log(`Updating ${mapping.field} from "${originalValue}" to "${newValue}"`);
+
+        const updateResponse = await fetch(
+          'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              sheetName: 'ENQUIRY',
+              action: 'updateCell',
+              rowIndex: rowIndex.toString(),
+              columnIndex: getColumnIndexFromLetter(mapping.column),
+              value: newValue
+            }),
+          }
+        );
+
+        const updateResult = await updateResponse.json();
+        console.log(`${mapping.field} update result:`, updateResult);
+
+        if (!updateResult.success) {
+          console.error(`Failed to update ${mapping.field}:`, updateResult.error);
+          toast.error(`Failed to update ${mapping.field}`);
+        }
+      }
+    }
+
+    // Update local state
+    const updatedData = enquiryData.map(item => 
+      item.id === editingItem.id ? { ...item, ...editFormData } : item
+    );
+    setEnquiryData(updatedData);
+    
+    // Reset edit mode
+    setEditMode(false);
+    setEditingItem(null);
+    
+    toast.success('Enquiry updated successfully!');
+    
+    // Refresh data from server to ensure sync
+    await fetchAllData();
+
+  } catch (error) {
+    console.error('Error updating enquiry:', error);
+    toast.error(`Failed to update enquiry: ${error.message}`);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
+
+
+
   const [formData, setFormData] = useState({
     candidateName: '',
     candidateDOB: '',
@@ -766,7 +979,7 @@ const FindEnquiry = () => {
             </div>
           )}
 
-          {activeTab === "history" && (
+          {/* {activeTab === "history" && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -897,7 +1110,273 @@ const FindEnquiry = () => {
                 </tbody>
               </table>
             </div>
-          )}
+          )} */}
+
+          {activeTab === "history" && (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Action
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Indent No.
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Enquiry No.
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Post
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Department
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Candidate Name
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Phone
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Email
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Experience
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Photo
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Resume
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {tableLoading ? (
+          <tr>
+            <td colSpan="12" className="px-6 py-12 text-center">
+              <div className="flex justify-center flex-col items-center">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                <span className="text-gray-600 text-sm">
+                  Loading enquiry history...
+                </span>
+              </div>
+            </td>
+          </tr>
+        ) : filteredHistoryData.length === 0 ? (
+          <tr>
+            <td colSpan="12" className="px-6 py-12 text-center">
+              <p className="text-gray-500">
+                No enquiry history found.
+              </p>
+            </td>
+          </tr>
+        ) : (
+          filteredHistoryData.map((item) => (
+            <tr key={item.id} className="hover:bg-gray-50">
+             <td className="px-6 py-4 whitespace-nowrap text-sm">
+  {editMode && editingItem?.id === item.id ? (
+    <div className="flex space-x-2">
+      <button
+        onClick={handleSaveEdit}
+        disabled={submitting}
+        className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
+      >
+        {submitting ? (
+          <>
+            <svg
+              className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            Save
+          </>
+        ) : (
+          "Save"
+        )}
+      </button>
+      <button
+        onClick={() => {
+          setEditMode(false);
+          setEditingItem(null);
+        }}
+        disabled={submitting}
+        className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
+      >
+        Cancel
+      </button>
+    </div>
+  ) : (
+    <button
+      onClick={() => handleEditClick(item)}
+      disabled={submitting}
+      className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+    >
+      Edit
+    </button>
+  )}
+</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.indentNo}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.candidateEnquiryNo}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.id === item.id ? (
+                  <input
+                    type="text"
+                    name="applyingForPost"
+                    value={editFormData.applyingForPost || item.applyingForPost}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.applyingForPost
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.id === item.id ? (
+                  <input
+                    type="text"
+                    name="department"
+                    value={editFormData.department}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.department
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.id === item.id ? (
+                  <input
+                    type="text"
+                    name="candidateName"
+                    value={editFormData.candidateName}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidateName
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.id === item.id ? (
+                  <input
+                    type="text"
+                    name="candidatePhone"
+                    value={editFormData.candidatePhone}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidatePhone
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.id === item.id ? (
+                  <input
+                    type="email"
+                    name="candidateEmail"
+                    value={editFormData.candidateEmail}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidateEmail
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.id === item.id ? (
+                  <input
+                    type="text"
+                    name="jobExperience"
+                    value={editFormData.jobExperience}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.jobExperience
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.candidatePhoto ? (
+                  <a
+                    href={item.candidatePhoto}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800"
+                  >
+                    View
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.candidateResume ? (
+                  <a
+                    href={item.candidateResume}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800"
+                  >
+                    View
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {editMode && editingItem?.id === item.id ? (
+                  <select
+                    name="status"
+                    value={editFormData.status}
+                    onChange={handleEditInputChange}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  >
+                    <option value="NeedMore">Need More</option>
+                    <option value="Complete">Complete</option>
+                  </select>
+                ) : (
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    item.status === 'Complete'
+                      ? 'bg-green-100 text-green-800'
+                      : item.status === 'NeedMore'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {item.status === 'NeedMore' ? 'Need More' : (item.status || '-')}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
         </div>
       </div>
 
@@ -1065,19 +1544,7 @@ const FindEnquiry = () => {
                   </select>
                 </div>
 
-                {/* <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
-                    Aadhar No. (आधार नं) *
-                  </label>
-                  <input
-                    type="text"
-                    name="aadharNo"
-                    value={formData.aadharNo}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                    required
-                  />
-                </div> */}
+              
               </div>
 
               <div>
