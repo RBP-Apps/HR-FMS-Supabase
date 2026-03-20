@@ -157,6 +157,7 @@ const Sidebar = ({ onClose }) => {
       ],
     },
     { path: "/add_users", icon: Users, label: "Add Users" },
+    { path: "/master_hr", icon: Users, label: "Master" },
 
     // { path: '/report', icon: NotebookPen, label: 'Report' },
     // { path: '/payroll', icon: BadgeDollarSign, label: 'Payroll' },

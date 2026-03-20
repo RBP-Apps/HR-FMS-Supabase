@@ -34,6 +34,7 @@ import GatePass from "./pages/GatePass";
 import GatePassRequest from "./pages/GatePassRequest";
 import LeavingApproval from "./pages/LeavingApproval";
 import AddUsers from "./pages/AddUsers";
+import Master from "./pages/Master";
 
 function App() {
   return (
@@ -76,6 +77,7 @@ function App() {
             <Route path="misreport" element={<MisReport />} />
             <Route path="leaving_approval" element={<LeavingApproval />} />
             <Route path="add_users" element={<AddUsers />} />
+            <Route path="master_hr" element={<Master />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
