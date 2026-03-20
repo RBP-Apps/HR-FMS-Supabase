@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Filter, Search, Clock, CheckCircle, ImageIcon } from "lucide-react";
 import useDataStore from "../store/dataStore";
+import supabase from "../utils/supabase";
 
 const Employee = () => {
   const [activeTab, setActiveTab] = useState("joining");
@@ -11,6 +12,15 @@ const Employee = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(""); // "joining" | "leaving"
+
+  const [editingLeavingRow, setEditingLeavingRow] = useState(null);
+  const [editLeavingData, setEditLeavingData] = useState({});
+
+  const [editingRow, setEditingRow] = useState(null);
+  const [editData, setEditData] = useState({});
 
   const formatDOB = (dateString) => {
     if (!dateString) return "";
@@ -27,96 +37,116 @@ const Employee = () => {
     return `${day}/${month}/${year}`;
   };
 
-  // const fetchJoiningData = async () => {
-  //   setLoading(true);
-  //   setTableLoading(true);
-  //   setError(null);
+  const renderLeavingCell = (value, field, index) => {
+    // agar edit mode me hai
+    if (editingLeavingRow === index) {
+      return (
+        <input
+          value={editLeavingData[field] || ""}
+          onChange={(e) => handleLeavingChange(field, e.target.value)}
+          className="border px-2 py-1 rounded w-full text-xs"
+        />
+      );
+    }
 
-  //   try {
-  //     const response = await fetch(
-  //       "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=JOINING&action=fetch"
-  //     );
+    // normal view mode
+    return value || "-";
+  };
 
-  //     if (!response.ok) {
-  //       throw new Error(`HTTP error! status: ${response.status}`);
-  //     }
+  const handleLeavingEditClick = (item, index) => {
+    setEditingLeavingRow(index);
+    setEditLeavingData({ ...item });
+    setModalType("leaving");
+    setShowModal(true);
+  };
 
-  //     const result = await response.json();
-  //     console.log("Raw JOINING API response:", result);
+  const handleLeavingChange = (field, value) => {
+    setEditLeavingData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-  //     if (!result.success) {
-  //       throw new Error(
-  //         result.error || "Failed to fetch data from JOINING sheet"
-  //       );
-  //     }
+  const handleLeavingSave = async () => {
+    try {
+      setSubmitting(true);
 
-  //     // Handle both array formats (direct data or result.data)
-  //     const rawData = result.data || result;
+      const { error } = await supabase
+        .from("joining")
+        .update({
+          name_as_per_aadhar: editLeavingData.name,
+          designation: editLeavingData.designation,
+          salary: editLeavingData.salary,
+          mobile_number: editLeavingData.mobileNo,
+          father_name: editLeavingData.fatherName,
+          leaving_date: editLeavingData.dateOfLeaving,
+          leaving_reason: editLeavingData.reasonOfLeaving,
+          status: "Inactive",
+        })
+        .eq("rbp_joining_id", editLeavingData.employeeId);
 
-  //     if (!Array.isArray(rawData)) {
-  //       throw new Error("Expected array data not received");
-  //     }
+      if (error) throw error;
 
-  //     // Get headers from row 6 (index 5 in 0-based array)
-  //     const headers = rawData[5];
+      setEditingLeavingRow(null);
+      setEditLeavingData({});
+      fetchLeavingData();
+    } catch (err) {
+      console.error("Error saving leaving data:", err);
+      toast.error("Failed to save changes");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  //     // Process data starting from row 7 (index 6)
-  //     const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
+  const handleLeavingCancel = () => {
+    setEditingLeavingRow(null);
+    setEditLeavingData({});
+  };
 
-  //     const getIndex = (headerName) => {
-  //       const index = headers.findIndex(
-  //         (h) =>
-  //           h && h.toString().trim().toLowerCase() === headerName.toLowerCase()
-  //       );
-  //       if (index === -1) {
-  //         console.warn(`Column "${headerName}" not found in sheet`);
-  //       }
-  //       return index;
-  //     };
+  const handleEditClick = (item, index) => {
+    setEditingRow(index);
+    setEditData({ ...item });
+    setModalType("joining");
+    setShowModal(true);
+  };
 
-  //     const processedData = dataRows.map((row) => ({
-  //       employeeId: row[1] || "", // Column B (index 1)
-  //       candidateName: row[2] || "", // Column C (index 2)
-  //       fatherName: row[3] || "", // Column D (index 3)
-  //       dateOfJoining: row[4] || "", // Column E (index 4)
-  //       designation: row[5] || "", // Column F (index 5)
-  //       aadharPhoto: row[6] || "", // Column G (index 6)
-  //       candidatePhoto: row[7] || "", // Column H (index 7)
-  //       address: row[8] || "", // Column I (index 8)
-  //       dateOfBirth: row[9] || "", // Column J (index 9)
-  //       gender: row[10] || "", // Column K (index 10)
-  //       mobileNo: row[11] || "", // Column L (index 11)
-  //       familyNo: row[12] || "", // Column M (index 12)
-  //       relationshipWithFamily: row[13] || "", // Column N (index 13)
-  //       accountNo: row[14] || "", // Column O (index 14)
-  //       ifsc: row[15] || "", // Column P (index 15)
-  //       branch: row[16] || "", // Column Q (index 16)
-  //       passbook: row[17] || "", // Column R (index 17)
-  //       emailId: row[18] || "", // Column S (index 18)
-  //       department: row[20] || "", // Column U (index 20)
-  //       equipment: row[21] || "", // Column V (index 21)
-  //       aadharNo: row[22] || "", // Column W (index 22) - Fixed index
-  //       // Keep existing filter fields
-  //       columnAA: row[26] || "",
-  //       columnY: row[24] || "",
-  //     }));
+  const handleChange = (field, value) => {
+    setEditData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-  //     // Filter logic: Column AQ has value AND Column AO is null/empty
-  //     const activeEmployees = processedData.filter(
-  //       (employee) => employee.columnAA && !employee.columnY
-  //     );
+  const handleSave = async () => {
+    try {
+      setSubmitting(true);
 
-  //     setJoiningData(activeEmployees);
-  //   } catch (error) {
-  //     console.error("Error fetching joining data:", error);
-  //     setError(error.message);
-  //     toast.error(`Failed to load joining data: ${error.message}`);
-  //   } finally {
-  //     setLoading(false);
-  //     setTableLoading(false);
-  //   }
-  // };
+      const { error } = await supabase
+        .from("joining")
+        .update({
+          name_as_per_aadhar: editData.nameAsPerAadhar,
+          designation: editData.designation,
+          salary: editData.salary,
+          mobile_number: editData.mobileNumber,
+          father_name: editData.fatherName,
+        })
+        .eq("rbp_joining_id", editData.employeeId);
 
+      if (error) throw error;
+
+      setEditingRow(null);
+      fetchJoiningData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingRow(null);
+    setEditData({});
+  };
 
   const fetchJoiningData = async () => {
     setLoading(true);
@@ -124,94 +154,62 @@ const Employee = () => {
     setError(null);
 
     try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=JOINING&action=fetch"
-      );
+      const { data, error } = await supabase
+        .from("joining")
+        .select("*")
+        .eq("status", "Active"); // same filter logic
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (error) throw error;
 
-      const result = await response.json();
-      console.log("Raw JOINING API response:", result);
+      const processedData = data.map((row) => ({
+        employeeId: row.rbp_joining_id || "",
+        status: row.status || "",
+        firmName: row.firm_name || "",
+        nameAsPerAadhar: row.name_as_per_aadhar || "",
+        bloodGroup: row.blood_group || "",
+        fatherName: row.father_name || "",
+        dateOfJoining: row.date_of_joining || "",
+        workLocation: row.work_location || "",
+        designation: row.designation || "",
+        salary: row.salary || "",
 
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from JOINING sheet"
-        );
-      }
+        aadharFrontPhoto: row.aadhar_front_photo || "",
+        aadharBackPhoto: row.aadhar_back_photo || "",
+        panCard: row.pan_card || "",
 
-      // Handle both array formats (direct data or result.data)
-      const rawData = result.data || result;
+        relationshipWithFamily: row.family_relationship || "",
+        currentAddress: row.current_address || "",
+        aadharAddress: row.aadhar_address || "",
 
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
+        dateOfBirth: row.date_of_birth || "",
+        gender: row.gender || "",
 
-      // Get headers from row 6 (index 5 in 0-based array)
-      const headers = rawData[5];
+        mobileNumber: row.mobile_number || "",
+        familyNumber: row.family_number || "",
 
-      // Process data starting from row 7 (index 6)
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
+        pastPfId: row.past_pf_id || "",
+        pastEsicNumber: row.past_esic_number || "",
 
-      const getIndex = (headerName) => {
-        const index = headers.findIndex(
-          (h) =>
-            h && h.toString().trim().toLowerCase() === headerName.toLowerCase()
-        );
-        if (index === -1) {
-          console.warn(`Column "${headerName}" not found in sheet`);
-        }
-        return index;
-      };
+        currentBankAcNo: row.bank_account_number || "",
+        ifscCode: row.ifsc_code || "",
+        branchName: row.branch_name || "",
 
-      const processedData = dataRows.map((row) => ({
-        // Column B to AI according to your table headers sequence
-        employeeId: row[1] || "", // Column B (index 1) - Employee ID
-        status: row[2] || "", // Column C (index 2) - Status
-        firmName: row[3] || "", // Column D (index 3) - Firm Name
-        nameAsPerAadhar: row[4] || "", // Column E (index 4) - Name As Per Aadhar
-        bloodGroup: row[5] || "", // Column F (index 5) - Blood Group
-        fatherName: row[6] || "", // Column G (index 6) - Father Name
-        dateOfJoining: row[7] || "", // Column H (index 7) - Date Of Joining
-        workLocation: row[8] || "", // Column I (index 8) - Work Location
-        designation: row[9] || "", // Column J (index 9) - Designation
-        salary: row[10] || "", // Column K (index 10) - Salary
-        aadharFrontPhoto: row[11] || "", // Column L (index 11) - Aadhar Frontside photo
-        aadharBackPhoto: row[12] || "", // Column M (index 12) - Aadhar Backside photo
-        panCard: row[13] || "", // Column N (index 13) - Pan Card
-        relationshipWithFamily: row[14] || "", // Column O (index 14) - Relationship with family Person
-        currentAddress: row[15] || "", // Column P (index 15) - Current Address
-        aadharAddress: row[16] || "", // Column Q (index 16) - Address as per aadhar card
-        dateOfBirth: row[17] || "", // Column R (index 17) - Date of birth aadhar card
-        gender: row[18] || "", // Column S (index 18) - Gender
-        mobileNumber: row[19] || "", // Column T (index 19) - Mobile Number
-        familyNumber: row[20] || "", // Column U (index 20) - Family Number
-        pastPfId: row[21] || "", // Column V (index 21) - Past PF Id No.
-        pastEsicNumber: row[22] || "", // Column W (index 22) - Past Esic Number
-        currentBankAcNo: row[23] || "", // Column X (index 23) - Current Bank Ac No.
-        ifscCode: row[24] || "", // Column Y (index 24) - IFSC Code
-        branchName: row[25] || "", // Column Z (index 25) - Branch Name
-        personalEmail: row[26] || "", // Column AA (index 26) - Personal Email-Id
-        companyProvidesPf: row[27] || "", // Column AB (index 27) - Does Company Provide PF
-        companyProvidesEsic: row[28] || "", // Column AC (index 28) - Does Company Provide ESIC
-        companyProvidesEmail: row[29] || "", // Column AD (index 29) - Does Company Provide Mail-Id
-        attendanceType: row[30] || "", // Column AE (index 30) - Attendance Type
-        validateCandidate: row[31] || "", // Column AF (index 31) - Validate the Candidate
-        issueGmailId: row[32] || "", // Column AG (index 32) - Issue Gmail id
-        issueJoiningLetter: row[33] || "", // Column AH (index 33) - Issue Joining letter
-        attendanceRegistration: row[34] || "", // Column AI (index 34) - Attendance Registration
+        personalEmail: row.personal_email || "",
+
+        companyProvidesPf: row.company_pf_provided ? "Yes" : "No",
+        companyProvidesEsic: row.company_esic_provided ? "Yes" : "No",
+        companyProvidesEmail: row.company_mail_provided ? "Yes" : "No",
+
+        attendanceType: row.attendance_type || "",
+
+        validateCandidate: row.candidate_validated ? "Yes" : "No",
+        issueGmailId: row.gmail_id_issued ? "Yes" : "No",
+        issueJoiningLetter: row.joining_letter_issued ? "Yes" : "No",
+
+        attendanceRegistration: row.attendance_registration ? "Yes" : "No",
       }));
 
-      // NEW FILTER LOGIC: Only fetch records where Status is "Active"
-      const activeEmployees = processedData.filter(
-        (employee) => employee.status && employee.status.toLowerCase() === "active"
-      );
-
-      console.log("Active employees count:", activeEmployees.length);
-      console.log("Sample active employee:", activeEmployees[0]);
-
-      setJoiningData(activeEmployees);
+      setJoiningData(processedData);
     } catch (error) {
       console.error("Error fetching joining data:", error);
       setError(error.message);
@@ -222,134 +220,42 @@ const Employee = () => {
     }
   };
 
-
-  // const fetchLeavingData = async () => {
-  //   setLoading(true);
-  //   setTableLoading(true);
-  //   setError(null);
-
-  //   try {
-  //     const response = await fetch(
-  //       "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=LEAVING&action=fetch"
-  //     );
-
-  //     if (!response.ok) {
-  //       throw new Error(`HTTP error! status: ${response.status}`);
-  //     }
-
-  //     const result = await response.json();
-
-  //     if (!result.success) {
-  //       throw new Error(
-  //         result.error || "Failed to fetch data from LEAVING sheet"
-  //       );
-  //     }
-
-  //     const rawData = result.data || result;
-
-  //     if (!Array.isArray(rawData)) {
-  //       throw new Error("Expected array data not received");
-  //     }
-
-  //     // Process data starting from row 7 (index 6) - skip headers
-  //     const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-
-  //     const processedData = dataRows.map((row) => ({
-  //       timestamp: row[0] || "",
-  //       employeeId: row[1] || "",
-  //       name: row[2] || "",
-  //       dateOfLeaving: row[3] || "",
-  //       mobileNo: row[4] || "",
-  //       reasonOfLeaving: row[5] || "",
-  //       firmName: row[6] || "",
-  //       fatherName: row[7] || "",
-  //       dateOfJoining: row[8] || "",
-  //       workingLocation: row[9] || "",
-  //       designation: row[10] || "",
-  //       salary: row[11] || "",
-  //       plannedDate: row[12] || "", // Column M (index 12)
-  //       actual: row[13] || "",
-  //     }));
-
-  //     // Filter logic: plannedDate (Column M) has value
-  //     const leavingEmployees = processedData.filter(
-  //       (employee) => employee.plannedDate
-  //     );
-
-  //     setLeavingData(leavingEmployees);
-  //   } catch (error) {
-  //     console.error("Error fetching leaving data:", error);
-  //     setError(error.message);
-  //     toast.error(`Failed to load leaving data: ${error.message}`);
-  //   } finally {
-  //     setLoading(false);
-  //     setTableLoading(false);
-  //   }
-  // };
-
   const fetchLeavingData = async () => {
-  setLoading(true);
-  setTableLoading(true);
-  setError(null);
+    setLoading(true);
+    setTableLoading(true);
+    setError(null);
 
-  try {
-    const response = await fetch(
-      "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=JOINING&action=fetch"
-    );
+    try {
+      const { data, error } = await supabase
+        .from("joining")
+        .select("*")
+        .eq("status", "Inactive"); // same logic
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) throw error;
+
+      const processedData = data.map((row) => ({
+        employeeId: row.rbp_joining_id || "",
+        status: row.status || "",
+        name: row.name_as_per_aadhar || "",
+        dateOfJoining: row.date_of_joining || "",
+        dateOfLeaving: row.leaving_date || "",
+        mobileNo: row.mobile_number || "",
+        fatherName: row.father_name || "",
+        designation: row.designation || "",
+        salary: row.salary || "",
+        reasonOfLeaving: row.leaving_reason || "",
+      }));
+
+      setLeavingData(processedData);
+    } catch (error) {
+      console.error("Error fetching leaving data:", error);
+      setError(error.message);
+      toast.error(`Failed to load leaving data: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setTableLoading(false);
     }
-
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error(
-        result.error || "Failed to fetch data from JOINING sheet"
-      );
-    }
-
-    const rawData = result.data || result;
-
-    if (!Array.isArray(rawData)) {
-      throw new Error("Expected array data not received");
-    }
-
-    // Get headers from row 6 (index 5 in 0-based array)
-    const headers = rawData[5];
-
-    // Process data starting from row 7 (index 6)
-    const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-
-    const processedData = dataRows.map((row) => ({
-      employeeId: row[1] || "",
-      status: row[2] || "",
-      name: row[4] || "", // nameAsPerAadhar
-      dateOfJoining: row[7] || "",
-      dateOfLeaving: row[37] || "", // You can add a separate leaving date column if available
-      mobileNo: row[19] || "",
-      fatherName: row[6] || "",
-      designation: row[9] || "",
-      salary: row[10] || "",
-      reasonOfLeaving: row[38] || "" // Add if you have this column
-    }));
-
-    // Filter for inactive employees
-    const inactiveEmployees = processedData.filter(
-      (employee) => employee.status && employee.status.toLowerCase() === "inactive"
-    );
-
-    setLeavingData(inactiveEmployees);
-  } catch (error) {
-    console.error("Error fetching leaving data:", error);
-    setError(error.message);
-    toast.error(`Failed to load leaving data: ${error.message}`);
-  } finally {
-    setLoading(false);
-    setTableLoading(false);
-  }
-};
-
+  };
   useEffect(() => {
     fetchJoiningData();
     fetchLeavingData();
@@ -405,20 +311,22 @@ const Employee = () => {
         <div className="border-b border-gray-300 ">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "joining"
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                activeTab === "joining"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
               onClick={() => setActiveTab("joining")}
             >
               <CheckCircle size={16} className="inline mr-2" />
               Active ({filteredJoiningData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "leaving"
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                activeTab === "leaving"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
               onClick={() => setActiveTab("leaving")}
             >
               <Clock size={16} className="inline mr-2" />
@@ -437,6 +345,9 @@ const Employee = () => {
                 <table className="min-w-full divide-y divide-white">
                   <thead className="bg-gray-100 sticky top-0 z-10">
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Action
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Employee ID
                       </th>
@@ -571,35 +482,86 @@ const Employee = () => {
                           key={index}
                           className="hover:bg-white hover:bg-opacity-5"
                         >
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.employeeId}
+                          <td className="px-6 py-4 text-sm">
+                            {editingRow === index ? (
+                              <div className="flex space-x-2">
+                                {/* SAVE BUTTON */}
+                                <button
+                                  onClick={handleSave}
+                                  disabled={submitting}
+                                  className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center"
+                                >
+                                  {submitting ? (
+                                    <>
+                                      <svg
+                                        className="animate-spin h-3 w-3 mr-1"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <circle
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          stroke="white"
+                                          strokeWidth="4"
+                                          fill="none"
+                                        />
+                                      </svg>
+                                      Save
+                                    </>
+                                  ) : (
+                                    "Save"
+                                  )}
+                                </button>
+
+                                {/* CANCEL BUTTON */}
+                                <button
+                                  onClick={handleCancel}
+                                  disabled={submitting}
+                                  className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleEditClick(item, index)}
+                                className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                              >
+                                Edit
+                              </button>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.status}
+                            {item.employeeId || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.firmName}
+                            {item.status || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.nameAsPerAadhar}
+                            {item.firmName || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.bloodGroup}
+                            {item.nameAsPerAadhar || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.fatherName}
+                            {item.bloodGroup || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.dateOfJoining ? formatDOB(item.dateOfJoining) : "-"}
+                            {item.fatherName || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {item.dateOfJoining
+                              ? formatDOB(item.dateOfJoining)
+                              : "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {item.workLocation}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.designation}
+                            {item.designation || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.salary}
+                            {item.salary || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {item.aadharFrontPhoto ? (
@@ -653,13 +615,15 @@ const Employee = () => {
                             {item.aadharAddress}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.dateOfBirth ? formatDOB(item.dateOfBirth) : "-"}
+                            {item.dateOfBirth
+                              ? formatDOB(item.dateOfBirth)
+                              : "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {item.gender}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.mobileNumber}
+                            {item.mobileNumber || "-"}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {item.familyNumber}
@@ -725,13 +689,12 @@ const Employee = () => {
           {activeTab === "leaving" && (
             <div className="overflow-x-auto">
               <div className="max-h-96 overflow-y-auto">
-                {" "}
-                {/* Added scroll container */}
-                <table className="min-w-full divide-y divide-white ">
+                <table className="min-w-full divide-y divide-white">
                   <thead className="bg-gray-100 sticky top-0 z-10">
-                    {" "}
-                    {/* Made header sticky */}
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Action
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Employee ID
                       </th>
@@ -750,7 +713,6 @@ const Employee = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Father Name
                       </th>
-                      {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Location</th> */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Designation
                       </th>
@@ -762,7 +724,7 @@ const Employee = () => {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white ">
+                  <tbody className="divide-y divide-white">
                     {tableLoading ? (
                       <tr>
                         <td colSpan="10" className="px-6 py-12 text-center">
@@ -788,12 +750,64 @@ const Employee = () => {
                       </tr>
                     ) : (
                       filteredLeavingData.map((item, index) => (
-                        <tr key={index} className="hover:bg-white ">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.employeeId}
+                        <tr key={index} className="hover:bg-white">
+                          <td className="px-6 py-4 text-sm">
+                            {editingLeavingRow === index ? (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={handleLeavingSave}
+                                  disabled={submitting}
+                                  className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center"
+                                >
+                                  {submitting ? (
+                                    <>
+                                      <svg
+                                        className="animate-spin h-3 w-3 mr-1"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <circle
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          stroke="white"
+                                          strokeWidth="4"
+                                          fill="none"
+                                        />
+                                      </svg>
+                                      Save
+                                    </>
+                                  ) : (
+                                    "Save"
+                                  )}
+                                </button>
+                                <button
+                                  onClick={handleLeavingCancel}
+                                  disabled={submitting}
+                                  className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  handleLeavingEditClick(item, index)
+                                }
+                                className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                              >
+                                Edit
+                              </button>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.name}
+                            {renderLeavingCell(
+                              item.employeeId,
+                              "employeeId",
+                              index,
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {renderLeavingCell(item.name, "name", index)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.dateOfJoining
@@ -801,25 +815,44 @@ const Employee = () => {
                               : "-"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.dateOfLeaving
-                              ? formatDOB(item.dateOfLeaving)
-                              : "-"}
+                            {renderLeavingCell(
+                              item.dateOfLeaving
+                                ? formatDOB(item.dateOfLeaving)
+                                : "-",
+                              "dateOfLeaving",
+                              index,
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.mobileNo}
+                            {renderLeavingCell(
+                              item.mobileNo,
+                              "mobileNo",
+                              index,
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.fatherName}
-                          </td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.workingLocation || '-'}</td> */}
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.designation}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.salary}
+                            {renderLeavingCell(
+                              item.fatherName,
+                              "fatherName",
+                              index,
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.reasonOfLeaving}
+                            {renderLeavingCell(
+                              item.designation,
+                              "designation",
+                              index,
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {renderLeavingCell(item.salary, "salary", index)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {renderLeavingCell(
+                              item.reasonOfLeaving,
+                              "reasonOfLeaving",
+                              index,
+                            )}
                           </td>
                         </tr>
                       ))
@@ -828,15 +861,86 @@ const Employee = () => {
                 </table>
                 {!tableLoading && filteredLeavingData.length === 0 && (
                   <div className="px-6 py-12 text-center">
-                    <p className="text-gray-500 ">
-                      No leaving employees found.
-                    </p>
+                    <p className="text-gray-500">No leaving employees found.</p>
                   </div>
                 )}
               </div>
             </div>
           )}
         </div>
+
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-lg w-[800px] max-h-[85vh] overflow-y-auto">
+              <h2 className="text-xl font-semibold mb-4">
+                {modalType === "joining"
+                  ? "Edit Joining Employee"
+                  : "Edit Leaving Employee"}
+              </h2>
+
+              {/* ================= JOINING FORM ================= */}
+              {modalType === "joining" && (
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.keys(editData).map((key) => (
+                    <div key={key}>
+                      <label className="text-xs font-medium capitalize">
+                        {key}
+                      </label>
+
+                      <input
+                        value={editData[key] || ""}
+                        onChange={(e) => handleChange(key, e.target.value)}
+                        className="border p-2 rounded w-full"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ================= LEAVING FORM ================= */}
+              {Object.keys(editLeavingData).map((key) => (
+                <div key={key}>
+                  <label className="text-xs font-medium capitalize">
+                    {key}
+                  </label>
+
+                  <input
+                    value={editLeavingData[key] || ""}
+                    onChange={(e) => handleLeavingChange(key, e.target.value)}
+                    className="border p-2 rounded w-full"
+                  />
+                </div>
+              ))}
+              {/* ================= BUTTONS ================= */}
+              <div className="flex justify-end space-x-2 mt-6">
+                <button
+                  onClick={() => {
+                    setShowModal(false);
+                    handleCancel();
+                    handleLeavingCancel();
+                  }}
+                  className="px-4 py-2 bg-gray-500 text-white rounded"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={async () => {
+                    if (modalType === "joining") {
+                      await handleSave();
+                    } else {
+                      await handleLeavingSave();
+                    }
+                    setShowModal(false);
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

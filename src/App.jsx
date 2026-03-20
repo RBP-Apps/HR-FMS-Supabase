@@ -33,6 +33,7 @@ import Joining from "./pages/Joining";
 import GatePass from "./pages/GatePass";
 import GatePassRequest from "./pages/GatePassRequest";
 import LeavingApproval from "./pages/LeavingApproval";
+import AddUsers from "./pages/AddUsers";
 
 function App() {
   return (
@@ -74,6 +75,7 @@ function App() {
             <Route path="payroll" element={<Payroll />} />
             <Route path="misreport" element={<MisReport />} />
             <Route path="leaving_approval" element={<LeavingApproval />} />
+            <Route path="add_users" element={<AddUsers />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

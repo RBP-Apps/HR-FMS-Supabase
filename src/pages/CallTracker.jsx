@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Clock, CheckCircle, X, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
+import supabase from "../utils/supabase";
+
 
 const CallTracker = () => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -23,23 +25,32 @@ const CallTracker = () => {
   const [status, setStatus] = useState([]);
 
 
+  const [showEditModal, setShowEditModal] = useState(false);
+const [editFormData, setEditFormData] = useState({
+  candidateSays: '',
+  status: '',
+  nextDate: ''
+});
+
+
 
   // Add these state declarations near your other useState declarations
 const [editMode, setEditMode] = useState(false);
 const [editingItem, setEditingItem] = useState(null);
-const [editFormData, setEditFormData] = useState({});
+// const [editFormData, setEditFormData] = useState({});
 const [editSubmitting, setEditSubmitting] = useState(false);
 
 // Add these functions
 const handleEditClick = (item) => {
-  setEditMode(true);
-  setEditingItem(item);
+  setSelectedItem(item);
   setEditFormData({
     status: item.status || '',
     candidateSays: item.candidateSays || '',
     nextDate: item.nextDate || ''
   });
+  setShowEditModal(true);
 };
+
 
 const handleEditInputChange = (e) => {
   const { name, value } = e.target;
@@ -49,350 +60,178 @@ const handleEditInputChange = (e) => {
   }));
 };
 
-const handleEditSubmit = async (item) => {
-  setEditSubmitting(true);
-  
+const handleEditSubmit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true); // Reuse existing submitting state
+
   try {
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const { error } = await supabase
+      .from("follow_up")
+      .update({
+        status: editFormData.status,
+        candidate_says: editFormData.candidateSays,
+        next_call_date: editFormData.nextDate || null,
+      })
+      .eq("enquiry_number", selectedItem.enquiryNo)
+      .eq("candidate_says", selectedItem.candidateSays);
 
-    const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    if (error) throw error;
 
-    // First, fetch to find the row
-    const fetchResponse = await fetch(
-      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Follow - Up&action=fetch'
+    const updatedHistoryData = historyData.map((h) =>
+      h.enquiryNo === selectedItem.enquiryNo && h.candidateSays === selectedItem.candidateSays
+        ? { ...h, ...editFormData }
+        : h
     );
 
-    const fetchResult = await fetchResponse.json();
-    const rawData = fetchResult.data || fetchResult;
-    const dataRows = rawData.length > 0 && Array.isArray(rawData[0]) ? rawData : rawData;
-
-    // Find row index
-    let rowIndex = -1;
-    for (let i = 1; i < dataRows.length; i++) {
-      if (dataRows[i][1] === item.enquiryNo && dataRows[i][3] === item.candidateSays) {
-        rowIndex = i + 1;
-        break;
-      }
-    }
-
-    if (rowIndex === -1) {
-      throw new Error('Record not found');
-    }
-
-    // Update Status (Column C - index 3)
-    if (editFormData.status !== item.status) {
-      const statusResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            sheetName: 'Follow - Up',
-            action: 'updateCell',
-            rowIndex: rowIndex.toString(),
-            columnIndex: '3',
-            value: editFormData.status
-          }),
-        }
-      );
-      const statusResult = await statusResponse.json();
-      if (!statusResult.success) throw new Error('Failed to update status');
-    }
-
-    // Update Candidate Says (Column D - index 4)
-    if (editFormData.candidateSays !== item.candidateSays) {
-      const saysResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            sheetName: 'Follow - Up',
-            action: 'updateCell',
-            rowIndex: rowIndex.toString(),
-            columnIndex: '4',
-            value: editFormData.candidateSays
-          }),
-        }
-      );
-      const saysResult = await saysResponse.json();
-      if (!saysResult.success) throw new Error('Failed to update candidate says');
-    }
-
-    // Update Next Date (Column E - index 5)
-    if (editFormData.nextDate !== item.nextDate) {
-      const dateResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            sheetName: 'Follow - Up',
-            action: 'updateCell',
-            rowIndex: rowIndex.toString(),
-            columnIndex: '5',
-            value: editFormData.nextDate
-          }),
-        }
-      );
-      const dateResult = await dateResponse.json();
-      if (!dateResult.success) throw new Error('Failed to update next date');
-    }
-
-    // Update local state
-    const updatedHistoryData = historyData.map(h => 
-      h === item ? { ...h, ...editFormData } : h
-    );
     setHistoryData(updatedHistoryData);
-    
-    toast.success('Follow-up updated successfully!');
-    setEditMode(false);
-    setEditingItem(null);
-    
-    // Refresh data
+    setFollowUpData(updatedHistoryData);
+
+    toast.success("Follow-up updated successfully!");
+    setShowEditModal(false);
+    setSelectedItem(null);
+
     await fetchFollowUpData();
-    
   } catch (error) {
-    console.error('Error updating:', error);
+    console.error("Error updating:", error);
     toast.error(`Failed to update: ${error.message}`);
   } finally {
-    setEditSubmitting(false);
+    setSubmitting(false);
   }
 };
 
 
 
-  const fetchMasterData = async () => {
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Master&action=fetch'
-      );
+const fetchMasterData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("master_hr")
+      .select("call_tracker_status");
 
-      const result = await response.json();
+    if (error) throw error;
 
-      if (result.success && result.data && result.data.length > 0) {
+    const statusList = [
+      ...new Set(
+        (data || [])
+          .map((row) => row.call_tracker_status)
+          .filter(Boolean)
+      ),
+    ];
 
-        const status = [];
+    setStatus(statusList);
 
-        // Skip header row, start from index 1
-        for (let i = 1; i < result.data.length; i++) {
-          const row = result.data[i];
-
-          // Column C - Department
-          if (row[4] && row[4].trim() !== '' && !status.includes(row[4].trim())) {
-            status.push(row[4].trim());
-          }
-
-        }
-        setStatus(status);
-        return {
-          success: true,
-          departments: status,
-        };
-      } else {
-        return {
-          success: false,
-          error: 'No data found in Master sheet'
-        };
-      }
-    } catch (error) {
-      console.error('Error fetching master data:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      setTableLoading(true);
-
-      // Fetch master data first
-      await fetchMasterData();
-
-      // Then fetch indent data
-      const result = await fetchIndentDataFromRow7();
-      if (result.success) {
-        console.log('Data from row 7:', result.data);
-      } else {
-        console.error('Error:', result.error);
-      }
-      setTableLoading(false);
+    return {
+      success: true,
+      departments: statusList,
     };
-    loadData();
-  }, []);
+  } catch (error) {
+    console.error("Error fetching master data:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
 
-
-
-
-  const fetchEnquiryData = async () => {
-    setLoading(true);
+useEffect(() => {
+  const loadData = async () => {
     setTableLoading(true);
-    setError(null);
 
-    try {
-      const [enquiryResponse, followUpResponse] = await Promise.all([
-        fetch(
-          "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch"
-        ),
-        fetch(
-          "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Follow - Up&action=fetch"
-        ),
-      ]);
+    await fetchMasterData();
+    await fetchEnquiryData();
+    await fetchFollowUpData();
 
-      if (!enquiryResponse.ok || !followUpResponse.ok) {
-        throw new Error(
-          `HTTP error! status: ${enquiryResponse.status} or ${followUpResponse.status}`
-        );
-      }
-
-      const [enquiryResult, followUpResult] = await Promise.all([
-        enquiryResponse.json(),
-        followUpResponse.json(),
-      ]);
-
-      if (
-        !enquiryResult.success ||
-        !enquiryResult.data ||
-        enquiryResult.data.length < 7
-      ) {
-        throw new Error(
-          enquiryResult.error || "Not enough rows in enquiry sheet data"
-        );
-      }
-
-      // Process enquiry data
-      const enquiryHeaders = enquiryResult.data[5].map((h) => h.trim());
-      const enquiryDataFromRow7 = enquiryResult.data.slice(6);
-
-      const getIndex = (headerName) =>
-        enquiryHeaders.findIndex((h) => h === headerName);
-
-      const processedEnquiryData = enquiryDataFromRow7
-        .filter((row) => {
-          const plannedIndex = getIndex("Planned");
-          const actualIndex = getIndex("Actual");
-          const planned = row[plannedIndex];
-          const actual = row[actualIndex];
-          return planned && (!actual || actual === "");
-        })
-        .map((row) => ({
-          id: row[getIndex("Timestamp")],
-          indentNo: row[getIndex("Indent Number")],
-          candidateEnquiryNo: row[getIndex("Candidate Enquiry Number")],
-          applyingForPost: row[getIndex("Applying For the Post")],
-          department: row[getIndex("Department")],
-          candidateName: row[getIndex("Candidate Name")],
-          candidateDOB: row[getIndex("DOB")], // Fetch DOB from Column F (index 5)
-          candidatePhone: row[getIndex("Candidate Phone Number")],
-          candidateEmail: row[getIndex("Candidate Email")],
-          previousCompany: row[getIndex("Previous Company Name")],
-          jobExperience: row[getIndex("Job Experience")] || "",
-          lastSalary: row[getIndex("Last Salary Drawn")] || "",
-          previousPosition: row[getIndex("Previous Position")] || "",
-          reasonForLeaving:
-            row[getIndex("Reason Of Leaving Previous Company")] || "",
-          maritalStatus: row[getIndex("Marital Status")] || "",
-          lastEmployerMobile: row[getIndex("Last Employer Mobile Number")] || "",
-          candidatePhoto: row[getIndex("Candidate Photo")] || "",
-          candidateResume: row[19] || "",
-          referenceBy: row[getIndex("Reference By")] || "",
-          presentAddress: row[getIndex("Present Address")] || "",
-          aadharNo: row[getIndex("Aadhar Number")] || "",
-          designation: row[getIndex("Applying For the Post")] || "", // Fetch Designation from Column D (index 3)
-        }));
-
-      setEnquiryData(processedEnquiryData);
-
-      // Process follow-up data for filtering
-      if (followUpResult.success && followUpResult.data) {
-        const rawFollowUpData = followUpResult.data || followUpResult;
-        const followUpRows = Array.isArray(rawFollowUpData[0])
-          ? rawFollowUpData.slice(1)
-          : rawFollowUpData;
-
-        const processedFollowUpData = followUpRows.map((row) => ({
-          enquiryNo: row[1] || "", // Column B (index 1) - Enquiry No
-          status: row[2] || "", // Column C (index 2) - Status
-        }));
-
-        setFollowUpData(processedFollowUpData);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setError(error.message);
-      toast.error("Failed to fetch data");
-    } finally {
-      setLoading(false);
-      setTableLoading(false);
-    }
+    setTableLoading(false);
   };
 
-  const fetchFollowUpData = async () => {
-    setLoading(true);
-    setTableLoading(true);
-    setError(null);
+  loadData();
+}, []);
 
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Follow - Up&action=fetch'
-      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
 
-      const result = await response.json();
-      console.log('Raw API response:', result);
 
-      if (!result.success) {
-        throw new Error(result.error || 'Google Script returned an error');
-      }
+ const fetchEnquiryData = async () => {
+  setLoading(true);
+  setTableLoading(true);
+  setError(null);
 
-      // Handle both array formats (direct data or result.data)
-      const rawData = result.data || result;
+  try {
+    const { data: enquiryRows, error } = await supabase
+      .from("enquiry")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
+    if (error) throw error;
 
-      // Process data - skip header row if present
-      const dataRows = rawData.length > 0 && Array.isArray(rawData[0]) ? rawData.slice(1) : rawData;
-
-      const processedData = dataRows.map(row => ({
-        timestamp: row[0] || '',       // Column A (index 0) - Timestamp
-        enquiryNo: row[1] || '',       // Column B (index 1) - Enquiry No
-        status: row[2] || '',          // Column C (index 2) - Status
-        candidateSays: row[3] || '',   // Column D (index 3) - Candidates Says
-        nextDate: row[4] || ''         // Column E (index 4) - Next Date
+    const processedEnquiryData = (enquiryRows || [])
+      .filter((row) => row.planned_1 && !row.actual_1)
+      .map((row) => ({
+        id: row.timestamp,
+        indentNo: row.indent_number,
+        candidateEnquiryNo: row.candidate_enquiry_number,
+        applyingForPost: row.applying_post,
+        department: row.department,
+        candidateName: row.candidate_name,
+        candidateDOB: row.dob,
+        candidatePhone: row.candidate_phone,
+        candidateEmail: row.candidate_email,
+        previousCompany: row.previous_company_name,
+        jobExperience: row.job_experience,
+        previousPosition: row.previous_position,
+        reasonForLeaving: row.reason_of_leaving,
+        maritalStatus: row.marital_status,
+        lastEmployerMobile: row.last_employer_mobile,
+        candidatePhoto: row.candidate_photo,
+        candidateResume: row.resume_copy,
+        referenceBy: row.reference_by,
+        presentAddress: row.present_address,
+        aadharNo: row.aadhar_number,
+        designation: row.applying_post,
+        status: row.tracker_status || "",
       }));
 
-      console.log('Processed follow-up data:', processedData);
-      setHistoryData(processedData);
+    setEnquiryData(processedEnquiryData);
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    setError(error.message);
+    toast.error("Failed to fetch data");
+  } finally {
+    setLoading(false);
+    setTableLoading(false);
+  }
+};
 
-    } catch (error) {
-      console.error('Error in fetchFollowUpData:', error);
-      setError(error.message);
-      toast.error(`Failed to load follow-ups: ${error.message}`);
-    } finally {
-      setLoading(false);
-      setTableLoading(false);
-    }
-  };
+const fetchFollowUpData = async () => {
+  setLoading(true);
+  setTableLoading(true);
+  setError(null);
 
+  try {
+    const { data, error } = await supabase
+      .from("follow_up")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const processedData = (data || []).map((row) => ({
+      timestamp: row.created_at,
+      enquiryNo: row.enquiry_number,
+      status: row.status,
+      candidateSays: row.candidate_says,
+      nextDate: row.next_call_date,
+    }));
+
+    setFollowUpData(processedData);
+    setHistoryData(processedData);
+  } catch (error) {
+    console.error("Error fetching follow up:", error);
+    setError(error.message);
+    toast.error("Failed to load follow-ups");
+  } finally {
+    setLoading(false);
+    setTableLoading(false);
+  }
+};
   useEffect(() => {
     fetchEnquiryData();
     fetchFollowUpData();
@@ -431,129 +270,44 @@ const handleEditSubmit = async (item) => {
   };
 
 
-  const postToSheet = async (rowData) => {
-    const URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec';
+const postToSheet = async (rowData) => {
+  try {
+    const { error } = await supabase.from("follow_up").insert([
+      {
+        enquiry_number: rowData[1],
+        status: rowData[2],
+        candidate_says: rowData[3],
+        next_call_date: rowData[4] || null,
+      },
+    ]);
 
-    try {
-      console.log('Attempting to post:', {
-        sheetName: 'Follow - Up',
-        rowData: rowData
-      });
+    if (error) throw error;
 
-      const params = new URLSearchParams();
-      params.append('sheetName', 'Follow - Up');
-      params.append('action', 'insert');
-      params.append('rowData', JSON.stringify(rowData));
+    return { success: true };
+  } catch (error) {
+    console.error("Insert error:", error);
+    throw new Error(`Failed to insert follow up: ${error.message}`);
+  }
+};
 
-      const response = await fetch(URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params,
-      });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
+const updateEnquirySheet = async (enquiryNo, statusValue) => {
+  try {
+    const { error } = await supabase
+      .from("enquiry")
+      .update({
+        tracker_status: statusValue,
+      })
+      .eq("candidate_enquiry_number", enquiryNo);
 
-      const data = await response.json();
-      console.log('Server response:', data);
+    if (error) throw error;
 
-      if (!data.success) {
-        throw new Error(data.error || 'Server returned unsuccessful response');
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Full error details:', {
-        error: error.message,
-        stack: error.stack,
-        rowData: rowData,
-        timestamp: new Date().toISOString()
-      });
-      throw new Error(`Failed to update sheet: ${error.message}`);
-    }
-  };
-
-  const updateEnquirySheet = async (enquiryNo, statusValue) => {
-    const URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec';
-
-    try {
-      console.log('Attempting to update ENQUIRY sheet for:', enquiryNo);
-
-      // First, fetch the ENQUIRY sheet data to find the correct row
-      const fetchResponse = await fetch(
-        `${URL}?sheet=ENQUIRY&action=fetch`
-      );
-
-      if (!fetchResponse.ok) {
-        throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-      }
-
-      const fetchResult = await fetchResponse.json();
-
-      if (!fetchResult.success || !fetchResult.data) {
-        throw new Error('Failed to fetch ENQUIRY sheet data');
-      }
-
-      // Find the row with matching enquiry number (Column C is index 2)
-      let targetRowIndex = -1;
-      const sheetData = fetchResult.data;
-
-      for (let i = 0; i < sheetData.length; i++) {
-        if (sheetData[i][2] === enquiryNo) { // Column C (index 2)
-          targetRowIndex = i + 1; // Convert to 1-based index for Google Sheets
-          break;
-        }
-      }
-
-      if (targetRowIndex === -1) {
-        throw new Error(`Enquiry number ${enquiryNo} not found in ENQUIRY sheet`);
-      }
-
-      console.log(`Found enquiry ${enquiryNo} at row ${targetRowIndex}`);
-
-      // Now update the specific cell using updateCell action
-      const params = new URLSearchParams();
-      params.append('sheetName', 'ENQUIRY');
-      params.append('action', 'updateCell');
-      params.append('rowIndex', targetRowIndex.toString());
-      params.append('columnIndex', '25'); // Column Y is index 25 (1-based)
-      params.append('value', statusValue);
-
-      const response = await fetch(URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('ENQUIRY sheet update response:', data);
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to update ENQUIRY sheet');
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Error updating ENQUIRY sheet:', {
-        error: error.message,
-        stack: error.stack,
-        enquiryNo: enquiryNo,
-        timestamp: new Date().toISOString()
-      });
-      throw new Error(`Failed to update ENQUIRY sheet: ${error.message}`);
-    }
-  };
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating enquiry:", error);
+    throw new Error(`Failed to update enquiry: ${error.message}`);
+  }
+};
 
   // utils/dateFormatter.js
   const formatDateTime = (isoString) => {
@@ -639,8 +393,9 @@ const handleEditSubmit = async (item) => {
 
       // Update ENQUIRY sheet Column Y with the selected status
       // Extract only English part before any bracket/special character
-      const statusForSheet = formData.status.split('(')[0].trim();
-      await updateEnquirySheet(selectedItem.candidateEnquiryNo, statusForSheet);
+      
+      // const statusForSheet = formData.status.split('(')[0].trim();
+      // await updateEnquirySheet(selectedItem.candidateEnquiryNo, statusForSheet);
 
       toast.success('Update successful!');
       setShowModal(false);
@@ -937,7 +692,7 @@ const handleEditSubmit = async (item) => {
             </div>
           )} */}
 
-          {activeTab === "history" && (
+    {activeTab === "history" && (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
@@ -984,116 +739,34 @@ const handleEditSubmit = async (item) => {
           filteredHistoryData.map((item, index) => (
             <tr key={index} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm">
-                {editMode && editingItem === item ? (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEditSubmit(item)}
-                      disabled={editSubmitting}
-                      className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
-                    >
-                      {editSubmitting ? (
-                        <>
-                          <svg
-                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Save
-                        </>
-                      ) : (
-                        "Save"
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditMode(false);
-                        setEditingItem(null);
-                      }}
-                      disabled={editSubmitting}
-                      className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleEditClick(item)}
-                    className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
-                  >
-                    Edit
-                  </button>
-                )}
+                <button
+                  onClick={() => handleEditClick(item)}
+                  className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                >
+                  Edit
+                </button>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.enquiryNo}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem === item ? (
-                  <select
-                    name="status"
-                    value={editFormData.status}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  >
-                    <option value="">Select Status</option>
-                    {status.map((dept, idx) => (
-                      <option key={idx} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      item.status === "Joining"
-                        ? "bg-green-100 text-green-800"
-                        : item.status === "Reject"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-blue-100 text-blue-800"
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                )}
+                <span
+                  className={`px-2 py-1 text-xs rounded-full ${
+                    item.status === "Joining"
+                      ? "bg-green-100 text-green-800"
+                      : item.status === "Reject"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {item.status}
+                </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem === item ? (
-                  <textarea
-                    name="candidateSays"
-                    value={editFormData.candidateSays}
-                    onChange={handleEditInputChange}
-                    rows={2}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.candidateSays
-                )}
+                {item.candidateSays}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem === item ? (
-                  <input
-                    type="date"
-                    name="nextDate"
-                    value={editFormData.nextDate}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.nextDate || "-"
-                )}
+                {item.nextDate || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.timestamp || "-"}
@@ -1106,6 +779,132 @@ const handleEditSubmit = async (item) => {
   </div>
 )}
         </div>
+        {/* Edit Modal */}
+{showEditModal && selectedItem && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+      <div className="flex justify-between items-center p-6 border-b border-gray-300">
+        <h3 className="text-lg font-medium text-gray-900">
+          Edit Follow-up
+        </h3>
+        <button
+          onClick={() => {
+            setShowEditModal(false);
+            setSelectedItem(null);
+          }}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <X size={20} />
+        </button>
+      </div>
+      <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Candidate Enquiry No.
+          </label>
+          <input
+            type="text"
+            value={selectedItem.enquiryNo}
+            disabled
+            className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 text-gray-700"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Status *
+          </label>
+          <select
+            name="status"
+            value={editFormData.status}
+            onChange={handleEditInputChange}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required
+          >
+            <option value="">Select Status</option>
+            {status.map((dept, index) => (
+              <option key={index} value={dept}>{dept}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Candidate Says *
+          </label>
+          <textarea
+            name="candidateSays"
+            value={editFormData.candidateSays}
+            onChange={handleEditInputChange}
+            rows={3}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Next Date
+          </label>
+          <input
+            type="date"
+            name="nextDate"
+            value={editFormData.nextDate}
+            onChange={handleEditInputChange}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setShowEditModal(false);
+              setSelectedItem(null);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 min-h-[42px] flex items-center justify-center ${submitting ? "opacity-90 cursor-not-allowed" : ""
+              }`}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <div className="flex items-center">
+                <svg
+                  className="animate-spin h-4 w-4 text-white mr-2"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <span>Updating...</span>
+              </div>
+            ) : (
+              "Update"
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
       </div>
 
       {/* Call Modal */}
@@ -1145,7 +944,7 @@ const handleEditSubmit = async (item) => {
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">Select Department</option>
+                  <option value="">Select Status</option>
                   {status.map((dept, index) => (
                     <option key={index} value={dept}>{dept}</option>
                   ))}

@@ -1,10 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Users, Clock, CheckCircle, Eye, X, Download, Upload, Share } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import {
+  Search,
+  Users,
+  Clock,
+  CheckCircle,
+  Eye,
+  X,
+  Download,
+  Upload,
+  Share,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import supabase from "../utils/supabase";
 
 const Joining = () => {
-  const [activeTab, setActiveTab] = useState('pending');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState("pending");
+  const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showJoiningModal, setShowJoiningModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -17,198 +28,353 @@ const Joining = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareFormData, setShareFormData] = useState({
-    recipientName: '',
-    recipientEmail: '',
-    subject: 'Candidate Joining Details',
-    message: 'Please find the candidate joining details attached below.',
+    recipientName: "",
+    recipientEmail: "",
+    subject: "Candidate Joining Details",
+    message: "Please find the candidate joining details attached below.",
   });
   const [firmNames, setFirmNames] = useState([]);
   const [formData, setFormData] = useState({
-    candidateSays: '',
-    status: '',
-    nextDate: ''
+    candidateSays: "",
+    status: "",
+    nextDate: "",
   });
-  const [nextJoiningId, setNextJoiningId] = useState('');
+  const [nextJoiningId, setNextJoiningId] = useState("");
   const [relationshipOptions, setRelationshipOptions] = useState([]);
   const [attendanceTypeOptions, setAttendanceTypeOptions] = useState([]);
 
 
-  // Add these state declarations near your other useState declarations
-const [editMode, setEditMode] = useState(false);
-const [editingItem, setEditingItem] = useState(null);
-const [editFormData, setEditFormData] = useState({});
-const [editSubmitting, setEditSubmitting] = useState(false);
+  const [showEditJoiningModal, setShowEditJoiningModal] = useState(false);
+const [editJoiningFormData, setEditJoiningFormData] = useState({});
 
-// Add these functions
-const handleEditClick = (item) => {
-  setEditMode(true);
-  setEditingItem(item);
-  setEditFormData({
-    candidateName: item.candidateName || '',
-    candidatePhone: item.candidatePhone || '',
-    candidateEmail: item.candidateEmail || '',
-    applyingForPost: item.applyingForPost || '',
-    department: item.department || '',
-    status: item.status || 'Completed'
-  });
-};
 
-const handleEditInputChange = (e) => {
-  const { name, value } = e.target;
-  setEditFormData(prev => ({
-    ...prev,
-    [name]: value
-  }));
-};
 
-const handleEditSubmit = async (item) => {
-  setEditSubmitting(true);
+
+  // Add these functions
+const handleEditClick = async (item) => {
+  setSelectedItem(item);
   
   try {
-    // First, fetch ENQUIRY sheet data to find the correct row
-    const fetchResponse = await fetch(
-      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch'
-    );
+    // Fetch existing joining data for this candidate using candidate_enquiry_number
+    const { data, error } = await supabase
+      .from("joining")
+      .select("*")
+      .eq("rbp_joining_id", `RBP-${String(item.candidateEnquiryNo).padStart(3, "0")}`) // Try to match by formatted ID
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    const fetchResult = await fetchResponse.json();
+    if (error) throw error;
 
-    if (!fetchResult.success || !fetchResult.data) {
-      throw new Error('Failed to fetch ENQUIRY sheet data');
-    }
-
-    // Find the row with matching enquiry number (Column C is index 2)
-    let targetRowIndex = -1;
-    const sheetData = fetchResult.data;
-
-    for (let i = 0; i < sheetData.length; i++) {
-      if (sheetData[i][2] === item.candidateEnquiryNo) { // Column C (index 2)
-        targetRowIndex = i + 1; // Convert to 1-based index for Google Sheets
-        break;
-      }
-    }
-
-    if (targetRowIndex === -1) {
-      throw new Error(`Enquiry number ${item.candidateEnquiryNo} not found in ENQUIRY sheet`);
-    }
-
-    // Update fields if they've changed
-    const columnMappings = [
-      { field: 'candidateName', column: 'E' },      // Column E (index 5)
-      { field: 'candidatePhone', column: 'G' },     // Column G (index 7)
-      { field: 'candidateEmail', column: 'H' },     // Column H (index 8)
-      { field: 'applyingForPost', column: 'D' },    // Column D (index 4)
-      { field: 'department', column: 'K' },         // Column K (index 11)
-    ];
-
-    for (const mapping of columnMappings) {
-      const originalValue = item[mapping.field];
-      const newValue = editFormData[mapping.field];
-
-      if (newValue !== originalValue) {
-        const columnIndex = mapping.column.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
+    if (data && data.length > 0) {
+      const joiningRecord = data[0];
+      
+      // Populate form with existing joining data
+      setEditJoiningFormData({
+        joiningId: joiningRecord.rbp_joining_id || "",
+        firmName: joiningRecord.firm_name || "",
+        nameAsPerAadhar: joiningRecord.name_as_per_aadhar || item.candidateName || "",
+        bloodGroup: joiningRecord.blood_group || "",
+        fatherName: joiningRecord.father_name || "",
+        dateOfJoining: joiningRecord.date_of_joining ? joiningRecord.date_of_joining.split('T')[0] : "",
+        workLocation: joiningRecord.work_location || "",
+        designation: joiningRecord.designation || item.applyingForPost || "",
+        salary: joiningRecord.salary || "",
+        aadharFrontPhoto: joiningRecord.aadhar_front_photo || null,
+        aadharBackPhoto: joiningRecord.aadhar_back_photo || null,
+        panCard: joiningRecord.pan_card || null,
+        candidatePhoto: null,
+        relationship: joiningRecord.family_relationship || "",
+        familyPersonName: joiningRecord.family_person_name || "", // New field
+        currentAddress: joiningRecord.current_address || item.presentAddress || "",
+        aadharAddress: joiningRecord.aadhar_address || "",
+        dobAsPerAadhar: joiningRecord.date_of_birth ? joiningRecord.date_of_birth.split('T')[0] : item.candidateDOB || "",
+        gender: joiningRecord.gender || "",
+        mobileNumber: joiningRecord.mobile_number || item.candidatePhone || "",
+        familyNumber: joiningRecord.family_number || "",
+        pastPfId: joiningRecord.past_pf_id || "",
+        pastEsicNumber: joiningRecord.past_esic_number || "",
+        currentBankAcNo: joiningRecord.bank_account_number || "",
+        ifscCode: joiningRecord.ifsc_code || "",
+        branchName: joiningRecord.branch_name || "",
+        bankPassbookPhoto: joiningRecord.bank_passbook_photo || null,
+        personalEmail: joiningRecord.personal_email || item.candidateEmail || "",
+        companyProvidesPf: joiningRecord.company_pf_provided ? "Yes" : "No",
+        companyProvidesEsic: joiningRecord.company_esic_provided ? "Yes" : "No",
+        companyProvidesEmail: joiningRecord.company_mail_provided ? "Yes" : "No",
+        attendanceType: joiningRecord.attendance_type || "",
+        validateCandidate: joiningRecord.candidate_validated || false,
+        issueGmailId: joiningRecord.gmail_id_issued || false,
+        issueJoiningLetter: joiningRecord.joining_letter_issued || false,
+        attendanceRegistration: joiningRecord.attendance_registration || false,
+        pfRegistration: joiningRecord.pf_registration || false,
+        esicRegistration: joiningRecord.esic_registration || false,
+        department: joiningRecord.department || item.department || "",
+        equipment: joiningRecord.equipment || "",
         
-        const updateResponse = await fetch(
-          'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              sheetName: 'ENQUIRY',
-              action: 'updateCell',
-              rowIndex: targetRowIndex.toString(),
-              columnIndex: columnIndex.toString(),
-              value: newValue
-            }),
-          }
-        );
-
-        const updateResult = await updateResponse.json();
-        if (!updateResult.success) {
-          console.error(`Failed to update ${mapping.field}:`, updateResult.error);
-        }
-      }
+        // Store existing file URLs
+        existingAadharFrontUrl: joiningRecord.aadhar_front_photo || null,
+        existingAadharBackUrl: joiningRecord.aadhar_back_photo || null,
+        existingPanUrl: joiningRecord.pan_card || null,
+        existingBankPassbookUrl: joiningRecord.bank_passbook_photo || null,
+      });
+    } else {
+      // If no joining record found, populate with enquiry data
+      setEditJoiningFormData({
+        joiningId: `RBP-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`,
+        firmName: "",
+        nameAsPerAadhar: item.candidateName || "",
+        bloodGroup: "",
+        fatherName: "",
+        dateOfJoining: "",
+        workLocation: "",
+        designation: item.applyingForPost || "",
+        salary: "",
+        aadharFrontPhoto: null,
+        aadharBackPhoto: null,
+        panCard: null,
+        candidatePhoto: null,
+        relationship: "",
+        familyPersonName: "", // New field
+        currentAddress: item.presentAddress || "",
+        aadharAddress: "",
+        dobAsPerAadhar: item.candidateDOB || "",
+        gender: "",
+        mobileNumber: item.candidatePhone || "",
+        familyNumber: "",
+        pastPfId: "",
+        pastEsicNumber: "",
+        currentBankAcNo: "",
+        ifscCode: "",
+        branchName: "",
+        bankPassbookPhoto: null,
+        personalEmail: item.candidateEmail || "",
+        companyProvidesPf: "",
+        companyProvidesEsic: "",
+        companyProvidesEmail: "",
+        attendanceType: "",
+        validateCandidate: false,
+        issueGmailId: false,
+        issueJoiningLetter: false,
+        attendanceRegistration: false,
+        pfRegistration: false,
+        esicRegistration: false,
+        department: item.department || "",
+        equipment: "",
+      });
     }
-
-    // Update local state
-    const updatedHistoryData = historyJoiningData.map(h => 
-      h.candidateEnquiryNo === item.candidateEnquiryNo ? { ...h, ...editFormData } : h
-    );
-    setHistoryJoiningData(updatedHistoryData);
     
-    toast.success('Record updated successfully!');
-    setEditMode(false);
-    setEditingItem(null);
-    
-    // Refresh data
-    await fetchJoiningData();
-    
+    setShowEditJoiningModal(true);
   } catch (error) {
-    console.error('Error updating:', error);
-    toast.error(`Failed to update: ${error.message}`);
-  } finally {
-    setEditSubmitting(false);
+    console.error("Error fetching joining data:", error);
+    toast.error("Failed to load joining data");
   }
 };
 
 
-  const [joiningFormData, setJoiningFormData] = useState({
-    joiningId: '',
-    firmName: '',
-    nameAsPerAadhar: '',
-    bloodGroup: '',
-    fatherName: '',
-    dateOfJoining: '',
-    workLocation: '',
-    designation: '',
-    salary: '',
-    aadharFrontPhoto: null,
-    aadharBackPhoto: null,
-    panCard: null,
-    candidatePhoto: null,
-    relationship: '',
-    currentAddress: '',
-    aadharAddress: '',
-    dobAsPerAadhar: '',
-    gender: '',
-    mobileNumber: '',
-    familyNumber: '',
-    pastPfId: '',
-    pastEsicNumber: '',
-    currentBankAcNo: '',
-    ifscCode: '',
-    branchName: '',
-    bankPassbookPhoto: null,
-    personalEmail: '',
-    companyProvidesPf: '',
-    companyProvidesEsic: '',
-    companyProvidesEmail: '',
-    // status: '',
-    attendanceType: '',
-    // plannedDate: '',
-    validateCandidate: false,
-    issueGmailId: false,
-    issueJoiningLetter: false,
-    attendanceRegistration: false,
-    pfRegistration: false,
-    esicRegistration: false,
-    department: '',
-    equipment: ''
-  });
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+const handleEditSubmit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true);
+
+  try {
+    // Upload only the required files if new files are selected
+    const uploadPromises = {};
+    const fileFields = [
+      "aadharFrontPhoto",
+      "aadharBackPhoto",
+      "panCard",
+      "bankPassbookPhoto",
+    ];
+
+    for (const field of fileFields) {
+      if (editJoiningFormData[field] && editJoiningFormData[field] instanceof File) {
+        uploadPromises[field] = uploadFileToDrive(editJoiningFormData[field]);
+      } else {
+        uploadPromises[field] = Promise.resolve(null); // Keep existing URLs
+      }
+    }
+
+    // Wait for all uploads to complete
+    const uploadedUrls = await Promise.all(
+      Object.values(uploadPromises).map((promise) =>
+        promise.catch((error) => {
+          console.error("Upload failed:", error);
+          return null;
+        }),
+      ),
+    );
+
+    // Map uploaded URLs to their respective fields
+    const fileUrls = {};
+    Object.keys(uploadPromises).forEach((field, index) => {
+      fileUrls[field] = uploadedUrls[index];
+    });
+
+    // Update JOINING table
+    const { error: updateError } = await supabase
+      .from("joining")
+      .update({
+        firm_name: editJoiningFormData.firmName,
+        name_as_per_aadhar: editJoiningFormData.nameAsPerAadhar,
+        blood_group: editJoiningFormData.bloodGroup,
+        father_name: editJoiningFormData.fatherName,
+        date_of_joining: editJoiningFormData.dateOfJoining ? new Date(editJoiningFormData.dateOfJoining) : null,
+        work_location: editJoiningFormData.workLocation,
+        designation: editJoiningFormData.designation,
+        salary: editJoiningFormData.salary ? parseFloat(editJoiningFormData.salary) : null,
+        aadhar_front_photo: fileUrls.aadharFrontPhoto || editJoiningFormData.existingAadharFrontUrl,
+        aadhar_back_photo: fileUrls.aadharBackPhoto || editJoiningFormData.existingAadharBackUrl,
+        pan_card: fileUrls.panCard || editJoiningFormData.existingPanUrl,
+        family_relationship: editJoiningFormData.relationship,
+        current_address: editJoiningFormData.currentAddress,
+        aadhar_address: editJoiningFormData.aadharAddress,
+        date_of_birth: editJoiningFormData.dobAsPerAadhar ? new Date(editJoiningFormData.dobAsPerAadhar) : null,
+        gender: editJoiningFormData.gender,
+        mobile_number: editJoiningFormData.mobileNumber,
+        family_number: editJoiningFormData.familyNumber,
+        past_pf_id: editJoiningFormData.pastPfId,
+        past_esic_number: editJoiningFormData.pastEsicNumber,
+        bank_account_number: editJoiningFormData.currentBankAcNo,
+        ifsc_code: editJoiningFormData.ifscCode,
+        branch_name: editJoiningFormData.branchName,
+        bank_passbook_photo: fileUrls.bankPassbookPhoto || editJoiningFormData.existingBankPassbookUrl,
+        personal_email: editJoiningFormData.personalEmail,
+        company_pf_provided: editJoiningFormData.companyProvidesPf === "Yes",
+        company_esic_provided: editJoiningFormData.companyProvidesEsic === "Yes",
+        company_mail_provided: editJoiningFormData.companyProvidesEmail === "Yes",
+        attendance_type: editJoiningFormData.attendanceType,
+        candidate_validated: editJoiningFormData.validateCandidate,
+        gmail_id_issued: editJoiningFormData.issueGmailId,
+        joining_letter_issued: editJoiningFormData.issueJoiningLetter,
+        attendance_registration: editJoiningFormData.attendanceRegistration,
+        pf_registration: editJoiningFormData.pfRegistration,
+        esic_registration: editJoiningFormData.esicRegistration,
+        department: editJoiningFormData.department,
+        equipment: editJoiningFormData.equipment,
+      })
+      .eq("rbp_joining_id", editJoiningFormData.joiningId);
+
+    if (updateError) throw updateError;
+
+    // Update ENQUIRY table
+    const { error: enquiryUpdateError } = await supabase
+      .from("enquiry")
+      .update({
+        candidate_name: editJoiningFormData.nameAsPerAadhar,
+        candidate_phone: editJoiningFormData.mobileNumber,
+        candidate_email: editJoiningFormData.personalEmail,
+        applying_post: editJoiningFormData.designation,
+        department: editJoiningFormData.department,
+      })
+      .eq("candidate_enquiry_number", selectedItem.candidateEnquiryNo);
+
+    if (enquiryUpdateError) throw enquiryUpdateError;
+
+    toast.success("Joining details updated successfully!");
+    setShowEditJoiningModal(false);
+    setSelectedItem(null);
+
+    // Refresh data
+    await fetchJoiningData();
+  } catch (error) {
+    console.error("Error updating joining details:", error);
+    toast.error(`Failed to update: ${error.message}`);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
+const handleEditJoiningInputChange = (e) => {
+  const { name, value, type, checked } = e.target;
+  setEditJoiningFormData((prev) => ({
+    ...prev,
+    [name]: type === "checkbox" ? checked : value,
+  }));
+};
+
+// Update handleEditJoiningFileChange function
+const handleEditJoiningFileChange = (e, fieldName) => {
+  const file = e.target.files[0];
+  if (file) {
+    setEditJoiningFormData((prev) => ({
+      ...prev,
+      [fieldName]: file,
+    }));
+  }
+};
+
+
+
+const [joiningFormData, setJoiningFormData] = useState({
+  joiningId: "",
+  firmName: "",
+  nameAsPerAadhar: "",
+  bloodGroup: "",
+  fatherName: "",
+  dateOfJoining: "",
+  workLocation: "",
+  designation: "",
+  salary: "",
+  aadharFrontPhoto: null,
+  aadharBackPhoto: null,
+  panCard: null,
+  candidatePhoto: null,
+  relationship: "",
+  familyPersonName: "", // Add this new field
+  currentAddress: "",
+  aadharAddress: "",
+  dobAsPerAadhar: "",
+  gender: "",
+  mobileNumber: "",
+  familyNumber: "",
+  pastPfId: "",
+  pastEsicNumber: "",
+  currentBankAcNo: "",
+  ifscCode: "",
+  branchName: "",
+  bankPassbookPhoto: null,
+  personalEmail: "",
+  companyProvidesPf: "",
+  companyProvidesEsic: "",
+  companyProvidesEmail: "",
+  attendanceType: "",
+  validateCandidate: false,
+  issueGmailId: false,
+  issueJoiningLetter: false,
+  attendanceRegistration: false,
+  pfRegistration: false,
+  esicRegistration: false,
+  department: "",
+  equipment: "",
+});
 
   function handleEmailShare(params) {
     try {
-      console.log("Handling email share with params:", JSON.stringify({
-        recipientEmail: params.recipientEmail,
-        subject: params.subject,
-        message: params.message ? params.message.substring(0, 100) + "..." : "empty",
-        hasDocuments: !!params.documents
-      }));
+      console.log(
+        "Handling email share with params:",
+        JSON.stringify({
+          recipientEmail: params.recipientEmail,
+          subject: params.subject,
+          message: params.message
+            ? params.message.substring(0, 100) + "..."
+            : "empty",
+          hasDocuments: !!params.documents,
+        }),
+      );
 
       // Validate required parameters
       if (!params.recipientEmail || !params.subject || !params.message) {
-        throw new Error("Missing required email parameters: recipientEmail, subject, or message");
+        throw new Error(
+          "Missing required email parameters: recipientEmail, subject, or message",
+        );
       }
 
       // Parse documents if provided
@@ -225,7 +391,7 @@ const handleEditSubmit = async (item) => {
       var emailSubject = params.subject;
       var htmlBody = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <p>${params.message.replace(/\n/g, '<br>')}</p>
+        <p>${params.message.replace(/\n/g, "<br>")}</p>
     `;
 
       // Add document details to email body if available
@@ -242,19 +408,19 @@ const handleEditSubmit = async (item) => {
           htmlBody += `
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Candidate Name:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${doc.name || 'N/A'}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.name || "N/A"}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Enquiry No:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${doc.serialNo || 'N/A'}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.serialNo || "N/A"}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Position:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${doc.documentType || 'N/A'}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.documentType || "N/A"}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Department:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${doc.category || 'N/A'}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.category || "N/A"}</td>
           </tr>
         `;
 
@@ -299,10 +465,10 @@ const handleEditSubmit = async (item) => {
         plainBody += "==================\n\n";
         for (var i = 0; i < documents.length; i++) {
           var doc = documents[i];
-          plainBody += `Candidate Name: ${doc.name || 'N/A'}\n`;
-          plainBody += `Enquiry No: ${doc.serialNo || 'N/A'}\n`;
-          plainBody += `Position: ${doc.documentType || 'N/A'}\n`;
-          plainBody += `Department: ${doc.category || 'N/A'}\n`;
+          plainBody += `Candidate Name: ${doc.name || "N/A"}\n`;
+          plainBody += `Enquiry No: ${doc.serialNo || "N/A"}\n`;
+          plainBody += `Position: ${doc.documentType || "N/A"}\n`;
+          plainBody += `Department: ${doc.category || "N/A"}\n`;
           if (doc.imageUrl) {
             plainBody += `Photo: ${doc.imageUrl}\n`;
           }
@@ -319,156 +485,144 @@ const handleEditSubmit = async (item) => {
         to: params.recipientEmail,
         subject: emailSubject,
         body: plainBody,
-        htmlBody: htmlBody
+        htmlBody: htmlBody,
       });
 
       console.log("Email sent successfully to:", params.recipientEmail);
 
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        message: "Email sent successfully to " + params.recipientEmail
-      })).setMimeType(ContentService.MimeType.JSON);
-
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: true,
+          message: "Email sent successfully to " + params.recipientEmail,
+        }),
+      ).setMimeType(ContentService.MimeType.JSON);
     } catch (error) {
       console.error("Error sending email:", error);
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: "Failed to send email: " + error.toString()
-      })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: false,
+          error: "Failed to send email: " + error.toString(),
+        }),
+      ).setMimeType(ContentService.MimeType.JSON);
     }
   }
 
   // Actual working version with real data fetching
   const fetchLastJoiningId = async () => {
     try {
-      console.log("Fetching last joining ID from Google Sheets...");
+      console.log("Fetching last joining ID from Supabase...");
 
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=JOINING&action=fetch"
-      );
+      const { data, error } = await supabase
+        .from("joining")
+        .select("rbp_joining_id")
+        .order("rbp_joining_id", { ascending: false })
+        .limit(1);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      if (error) throw error;
 
       let lastId = 0;
       let foundIds = [];
 
-      if (result.success && result.data && result.data.length > 0) {
-        // Process all rows to find joining IDs in column B (index 1)
-        result.data.forEach((row, index) => {
-          if (row && row.length > 1) {
-            const joiningId = row[1]; // Column B
+      if (data && data.length > 0) {
+        data.forEach((item) => {
+          const joiningId = item.rbp_joining_id;
 
-            if (joiningId && typeof joiningId === 'string' && joiningId.trim() !== '') {
-              foundIds.push(joiningId);
+          if (joiningId && joiningId.trim() !== "") {
+            foundIds.push(joiningId);
 
-              // Handle both SKA-001 and SKA001 formats
-              const cleanId = joiningId.toString().replace('RBP-', 'RBP').trim();
+            // Handle both RBP-001 and RBP001 formats
+            const cleanId = joiningId.toString().replace("RBP-", "RBP").trim();
 
-              if (cleanId.startsWith('RBP')) {
-                const numericPart = cleanId.replace('RBP', '');
-                const idNumber = parseInt(numericPart);
+            if (cleanId.startsWith("RBP")) {
+              const numericPart = cleanId.replace("RBP", "");
+              const idNumber = parseInt(numericPart);
 
-                if (!isNaN(idNumber) && idNumber > lastId) {
-                  lastId = idNumber;
-                }
+              if (!isNaN(idNumber) && idNumber > lastId) {
+                lastId = idNumber;
               }
             }
           }
         });
       }
 
-
       // If no IDs found, start from 1, else increment
       const nextIdNumber = lastId === 0 ? 1 : lastId + 1;
-      const nextId = `RBP-${nextIdNumber.toString().padStart(3, '0')}`;
-
+      const nextId = `RBP-${nextIdNumber.toString().padStart(3, "0")}`;
 
       setNextJoiningId(nextId);
-      setJoiningFormData(prev => ({
+      setJoiningFormData((prev) => ({
         ...prev,
-        joiningId: nextId
+        joiningId: nextId,
       }));
-
     } catch (error) {
-      // Fallback to SKA-001
-      const fallbackId = 'RBP-001';
-
+      console.error("Error fetching last joining ID:", error);
+      // Fallback to RBP-001
+      const fallbackId = "RBP-001";
       setNextJoiningId(fallbackId);
-      setJoiningFormData(prev => ({
+      setJoiningFormData((prev) => ({
         ...prev,
-        joiningId: fallbackId
+        joiningId: fallbackId,
       }));
     }
   };
 
-
   const fetchMasterData = async () => {
     try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Master&action=fetch'
-      );
+      const { data, error } = await supabase
+        .from("master_hr")
+        .select("family_relationship, attendance_type");
 
-      const result = await response.json();
+      if (error) throw error;
 
-      if (result.success && result.data && result.data.length > 0) {
-        // Column F (index 5) - Relationship with Family Person
-        // Column G (index 6) - Attendance Type
+      const relationships = [];
+      const attendanceTypes = [];
 
-        const relationships = [];
-        const attendanceTypes = [];
-
-        // Skip header row, start from index 1
-        for (let i = 1; i < result.data.length; i++) {
-          const row = result.data[i];
-
-          // Column F - Relationship with Family Person
-          if (row[5] && row[5].trim() !== '' && !relationships.includes(row[5].trim())) {
-            relationships.push(row[5].trim());
+      if (data && data.length > 0) {
+        data.forEach((row) => {
+          if (
+            row.family_relationship &&
+            row.family_relationship.trim() !== "" &&
+            !relationships.includes(row.family_relationship.trim())
+          ) {
+            relationships.push(row.family_relationship.trim());
           }
 
-          // Column G - Attendance Type
-          if (row[6] && row[6].trim() !== '' && !attendanceTypes.includes(row[6].trim())) {
-            attendanceTypes.push(row[6].trim());
+          if (
+            row.attendance_type &&
+            row.attendance_type.trim() !== "" &&
+            !attendanceTypes.includes(row.attendance_type.trim())
+          ) {
+            attendanceTypes.push(row.attendance_type.trim());
           }
-        }
-
-        setRelationshipOptions(relationships);
-        setAttendanceTypeOptions(attendanceTypes);
-
-        return {
-          success: true,
-          relationships: relationships,
-          attendanceTypes: attendanceTypes
-        };
-      } else {
-        return {
-          success: false,
-          error: 'No data found in Master sheet'
-        };
+        });
       }
+
+      setRelationshipOptions(relationships);
+      setAttendanceTypeOptions(attendanceTypes);
+
+      return {
+        success: true,
+        relationships: relationships,
+        attendanceTypes: attendanceTypes,
+      };
     } catch (error) {
-      console.error('Error fetching master data:', error);
+      console.error("Error fetching master data:", error);
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   };
 
-
   const handleShareClick = (item) => {
     setSelectedItem(item);
     // Create the share link with enquiry number
-    const shareLink = `https://joining-from-employee.vercel.app//?enquiry=${item.candidateEnquiryNo || ''}`;
+    const shareLink = `https://joining-from-employee.vercel.app//?enquiry=${item.candidateEnquiryNo || ""}`;
 
     setShareFormData({
-      recipientName: item.candidateName || '', // Auto-fill from Column E
-      recipientEmail: item.candidateEmail || '', // Auto-fill from Column H
-      subject: 'Candidate Joining Details - ' + item.candidateName,
+      recipientName: item.candidateName || "", // Auto-fill from Column E
+      recipientEmail: item.candidateEmail || "", // Auto-fill from Column H
+      subject: "Candidate Joining Details - " + item.candidateName,
       message: `Dear Recipient,\n\nPlease find the joining details for candidate ${item.candidateName} who is applying for the position of ${item.applyingForPost}.\n\nCandidate Details:\n- Name: ${item.candidateName}\n- Position: ${item.applyingForPost}\n- Department: ${item.department}\n- Phone: ${item.candidatePhone}\n- Email: ${item.candidateEmail}\n- Candidate Enquiry Number: ${item.candidateEnquiryNo}\n\nJoining Form Link: ${shareLink}\n\nBest regards,\nHR Team`,
     });
 
@@ -482,45 +636,18 @@ const handleEditSubmit = async (item) => {
     setSubmitting(true);
 
     try {
-      const documents = [{
-        name: selectedItem.candidateName,
-        serialNo: selectedItem.candidateEnquiryNo,
-        documentType: selectedItem.applyingForPost,
-        category: selectedItem.department,
-        imageUrl: selectedItem.candidatePhoto || ''
-      }];
+      // Create shareable link
+      const shareLink = `${window.location.origin}/?enquiry=${selectedItem.candidateEnquiryNo || ""}`;
 
-      const URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec';
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareLink);
 
-      const params = new URLSearchParams();
-      params.append('action', 'shareViaEmail');
-      params.append('recipientEmail', shareFormData.recipientEmail);
-      params.append('subject', shareFormData.subject);
-      params.append('message', shareFormData.message);
-      params.append('documents', JSON.stringify(documents));
-
-      const response = await fetch(URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to send email');
-      }
-
-      toast.success('Details shared successfully!');
+      // You can also send email using a service like EmailJS or your backend
+      // For now, just show success message with the link
+      toast.success(`Link copied to clipboard: ${shareLink}`);
       setShowShareModal(false);
     } catch (error) {
-      console.error('Error sharing details:', error);
+      console.error("Error sharing details:", error);
       toast.error(`Failed to share details: ${error.message}`);
     } finally {
       setSubmitting(false);
@@ -529,9 +656,9 @@ const handleEditSubmit = async (item) => {
 
   const handleShareInputChange = (e) => {
     const { name, value } = e.target;
-    setShareFormData(prev => ({
+    setShareFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -541,109 +668,78 @@ const handleEditSubmit = async (item) => {
     setError(null);
 
     try {
-      const [enquiryResponse, followUpResponse] = await Promise.all([
-        fetch(
-          "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch"
-        ),
-        fetch(
-          "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Follow - Up&action=fetch"
-        ),
-      ]);
+      // Fetch from enquiry table
+      const { data: enquiryData, error: enquiryError } = await supabase
+        .from("enquiry")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (!enquiryResponse.ok || !followUpResponse.ok) {
-        throw new Error(
-          `HTTP error! status: ${enquiryResponse.status} or ${followUpResponse.status}`
-        );
-      }
+      if (enquiryError) throw enquiryError;
 
-      const [enquiryResult, followUpResult] = await Promise.all([
-        enquiryResponse.json(),
-        followUpResponse.json(),
-      ]);
+      // Fetch from follow_up table
+      const { data: followUpData, error: followUpError } = await supabase
+        .from("follow_up")
+        .select("enquiry_number, status");
 
-      if (
-        !enquiryResult.success ||
-        !enquiryResult.data ||
-        enquiryResult.data.length < 7
-      ) {
-        throw new Error(
-          enquiryResult.error || "Not enough rows in enquiry sheet data"
-        );
-      }
+      if (followUpError) throw followUpError;
 
       // Process enquiry data
-      const enquiryHeaders = enquiryResult.data[5].map((h) => h.trim());
-      const enquiryDataFromRow7 = enquiryResult.data.slice(6);
-
-
-      const getIndex = (headerName) =>
-        enquiryHeaders.findIndex((h) => h === headerName);
-
-      const departmentIndex = getIndex("Department");
-      const abIndex = 27; // Column AB index (0-based index 27)
-
-      const allProcessedEnquiryData = enquiryDataFromRow7
+      const allProcessedEnquiryData = enquiryData
         .map((row) => ({
-          id: row[getIndex("Timestamp")],
-          indentNo: row[getIndex("Indent Number")],
-          candidateEnquiryNo: row[getIndex("Candidate Enquiry Number")],
-          applyingForPost: row[getIndex("Applying For the Post")],
-          department: row[departmentIndex] || "",
-          candidateName: row[getIndex("Candidate Name")],
-          candidateDOB: row[getIndex("DOB")],
-          candidatePhone: row[getIndex("Candidate Phone Number")],
-          candidateEmail: row[getIndex("Candidate Email")],
-          previousCompany: row[getIndex("Previous Company Name")],
-          jobExperience: row[getIndex("Job Experience")] || "",
-          lastSalary: row[getIndex("Last Salary Drawn")] || "",
-          previousPosition: row[getIndex("Previous Position")] || "",
-          reasonForLeaving:
-            row[getIndex("Reason Of Leaving Previous Company")] || "",
-          maritalStatus: row[getIndex("Marital Status")] || "",
-          lastEmployerMobile: row[getIndex("Last Employer Mobile Number")] || "",
-          candidatePhoto: row[getIndex("Candidate Photo")] || "",
-          candidateResume: row[19] || "",
-          referenceBy: row[getIndex("Reference By")] || "",
-          presentAddress: row[getIndex("Present Address")] || "",
-          aadharNo: row[getIndex("Aadhar Number")] || "",
-          designation: row[getIndex("Applying For the Post")] || "",
-          actualDate: row[26] || "", // Column AA (index 26) - Actual date
-          joiningDate: row[abIndex] || "" // Column AB (index 27)
+          id: row.id,
+          indentNo: row.indent_number,
+          candidateEnquiryNo: row.candidate_enquiry_number,
+          applyingForPost: row.applying_post,
+          department: row.department || "",
+          candidateName: row.candidate_name,
+          candidateDOB: row.dob,
+          candidatePhone: row.candidate_phone,
+          candidateEmail: row.candidate_email,
+          previousCompany: row.previous_company_name,
+          jobExperience: row.job_experience || "",
+          lastSalary: "", // Not in new schema
+          previousPosition: row.previous_position || "",
+          reasonForLeaving: row.reason_of_leaving || "",
+          maritalStatus: row.marital_status || "",
+          lastEmployerMobile: row.last_employer_mobile || "",
+          candidatePhoto: row.candidate_photo || "",
+          candidateResume: row.resume_copy || "",
+          referenceBy: row.reference_by || "",
+          presentAddress: row.present_address || "",
+          aadharNo: row.aadhar_number || "",
+          designation: row.applying_post || "",
+          actualDate: row.actual_1 || "", // Column AA equivalent
+          joiningDate: row.actual_2 || "", // Column AB equivalent
         }))
-        // Filter out items with null/empty values in Column AA
-        .filter(item => item.actualDate && item.actualDate.trim() !== "");
+        // Filter out items with null/empty values in actual_1
+        .filter(
+          (item) => item.actualDate && item.actualDate.toString().trim() !== "",
+        );
 
-      // Process follow-up data for filtering
-      if (followUpResult.success && followUpResult.data) {
-        const rawFollowUpData = followUpResult.data || followUpResult;
-        const followUpRows = Array.isArray(rawFollowUpData[0])
-          ? rawFollowUpData.slice(1)
-          : rawFollowUpData;
+      setFollowUpData(followUpData || []);
 
-        const processedFollowUpData = followUpRows.map((row) => ({
-          enquiryNo: row[1] || "", // Column B (index 1) - Enquiry No
-          status: row[2] || "", // Column C (index 2) - Status
-        }));
+      // Items where candidate is selected for Joining
+      const itemsWithJoiningStatus = allProcessedEnquiryData.filter((item) => {
+        return followUpData?.some(
+          (followUp) =>
+            followUp.enquiry_number === item.candidateEnquiryNo &&
+            followUp.status?.includes("Joining"),
+        );
+      });
 
-        setFollowUpData(processedFollowUpData);
+      // Filter out items with non-null values in actual_2 (Pending)
+      const pendingItems = itemsWithJoiningStatus.filter(
+        (item) =>
+          !item.joiningDate || item.joiningDate.toString().trim() === "",
+      );
 
-        // Items where candidate is selected for Joining
-        const itemsWithJoiningStatus = allProcessedEnquiryData.filter(item => {
-          return processedFollowUpData.some(followUp =>
-            followUp.enquiryNo === item.candidateEnquiryNo &&
-            followUp.status.includes('Joining')
-          );
-        });
+      // Filter out items with null/empty values in actual_2 (History)
+      const historyItems = itemsWithJoiningStatus.filter(
+        (item) => item.joiningDate && item.joiningDate.toString().trim() !== "",
+      );
 
-        // Filter out items with non-null values in Column AB (Pending)
-        const pendingItems = itemsWithJoiningStatus.filter(item => !item.joiningDate || item.joiningDate.trim() === "");
-
-        // Filter out items with null/empty values in Column AB (History)
-        const historyItems = itemsWithJoiningStatus.filter(item => item.joiningDate && item.joiningDate.trim() !== "");
-
-        setJoiningData(pendingItems);
-        setHistoryJoiningData(historyItems);
-      }
+      setJoiningData(pendingItems);
+      setHistoryJoiningData(historyItems);
     } catch (error) {
       console.error("Error fetching data:", error);
       setError(error.message);
@@ -654,29 +750,22 @@ const handleEditSubmit = async (item) => {
     }
   };
 
-
   const fetchFirmNames = async () => {
     try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Master&action=fetch"
-      );
+      const { data, error } = await supabase
+        .from("master_hr")
+        .select("firm_name")
+        .not("firm_name", "is", null)
+        .order("firm_name");
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (error) throw error;
 
-      const result = await response.json();
+      const firms = data
+        .map((row) => row.firm_name)
+        .filter((firm) => firm && firm.trim() !== "")
+        .sort();
 
-      if (result.success && result.data && result.data.length > 0) {
-        // Extract firm names from column B (index 1)
-        const firms = result.data
-          .slice(1) // Skip header row
-          .map(row => row[1]) // Column B data
-          .filter(firm => firm && firm.trim() !== '') // Remove empty values
-          .sort(); // Sort alphabetically
-
-        setFirmNames(firms);
-      }
+      setFirmNames(firms);
     } catch (error) {
       console.error("Error fetching firm names:", error);
       toast.error("Failed to load firm names");
@@ -690,70 +779,71 @@ const handleEditSubmit = async (item) => {
     fetchMasterData();
   }, []);
 
-
   const handleViewClick = (item) => {
     setSelectedItem(item);
     setShowModal(true);
   };
 
-  const handleJoiningClick = (item) => {
-    setSelectedItem(item);
-    setJoiningFormData({
-      joiningId: nextJoiningId,
-      firmName: '',  // यह add करना था
-      nameAsPerAadhar: item.candidateName || '',
-      bloodGroup: '',  // यह add करना था
-      fatherName: '',
-      dateOfJoining: '',
-      workLocation: '',  // यह add करना था
-      designation: item.designation || '',
-      salary: '',
-      aadharFrontPhoto: null,
-      aadharBackPhoto: null,
-      panCard: null,
-      candidatePhoto: null,
-      relationship: '',  // यह add करना था
-      currentAddress: item.presentAddress || '',
-      aadharAddress: '',  // यह add करना था
-      dobAsPerAadhar: formatDOB(item.candidateDOB) || '',
-      gender: '',
-      mobileNumber: item.candidatePhone || '',  // यह field name change करना था
-      familyNumber: '',  // यह add करना था
-      pastPfId: '',          // यह add करें
-      pastEsicNumber: '',    // यह add करें
-      currentBankAcNo: '',  // यह field name change करना था
-      ifscCode: '',
-      branchName: '',
-      bankPassbookPhoto: null,
-      personalEmail: item.candidateEmail || '',
-      companyProvidesPf: '',  // यह add करना था
-      companyProvidesEsic: '',  // यह add करना था
-      companyProvidesEmail: '',  // यह add करना था
-      // status: '',
-      attendanceType: '',  // यह add करना था
-      // plannedDate: '',  // यह add करना था
-      validateCandidate: false,
-      issueGmailId: false,
-      issueJoiningLetter: false,
-      attendanceRegistration: false,
-      pfRegistration: false,
-      esicRegistration: false,
-      department: item.department || '',
-      equipment: ''
-    });
-    setShowJoiningModal(true);
-  };
+const handleJoiningClick = (item) => {
+  setSelectedItem(item);
+  setJoiningFormData({
+    joiningId: nextJoiningId,
+    firmName: "", 
+    nameAsPerAadhar: item.candidateName || "",
+    bloodGroup: "", 
+    fatherName: "",
+    dateOfJoining: "",
+    workLocation: "",
+    designation: item.designation || "",
+    salary: "",
+    aadharFrontPhoto: null,
+    aadharBackPhoto: null,
+    panCard: null,
+    candidatePhoto: null,
+    relationship: "",
+    familyPersonName: "", // Add this new field
+    currentAddress: item.presentAddress || "",
+    aadharAddress: "",
+    dobAsPerAadhar: formatDOB(item.candidateDOB) || "",
+    gender: "",
+    mobileNumber: item.candidatePhone || "",
+    familyNumber: "",
+    pastPfId: "",
+    pastEsicNumber: "",
+    currentBankAcNo: "",
+    ifscCode: "",
+    branchName: "",
+    bankPassbookPhoto: null,
+    personalEmail: item.candidateEmail || "",
+    companyProvidesPf: "",
+    companyProvidesEsic: "",
+    companyProvidesEmail: "",
+    attendanceType: "",
+    validateCandidate: false,
+    issueGmailId: false,
+    issueJoiningLetter: false,
+    attendanceRegistration: false,
+    pfRegistration: false,
+    esicRegistration: false,
+    department: item.department || "",
+    equipment: "",
+  });
+  setShowJoiningModal(true);
+};
+
+
+
 
   const formatDate = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
 
     let date;
 
     if (dateString instanceof Date) {
       date = dateString;
-    } else if (typeof dateString === 'string') {
-      if (dateString.includes('/')) {
-        const parts = dateString.split('/');
+    } else if (typeof dateString === "string") {
+      if (dateString.includes("/")) {
+        const parts = dateString.split("/");
         if (parts.length === 3) {
           date = new Date(parts[2], parts[1] - 1, parts[0]);
         }
@@ -763,22 +853,22 @@ const handleEditSubmit = async (item) => {
     }
 
     if (!date || isNaN(date.getTime())) {
-      return dateString || '';
+      return dateString || "";
     }
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
 
     return `${day}/${month}/${year}`;
   };
 
   const formatDOB = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
 
     // If it's already in dd/mm/yyyy format, return as is
-    if (typeof dateString === 'string' && dateString.includes('/')) {
-      const parts = dateString.split('/');
+    if (typeof dateString === "string" && dateString.includes("/")) {
+      const parts = dateString.split("/");
       if (parts.length === 3) {
         // Check if it's already in dd/mm/yyyy format
         const day = parseInt(parts[0]);
@@ -803,8 +893,8 @@ const handleEditSubmit = async (item) => {
       return dateString; // Return original if can't parse
     }
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
 
     return `${day}/${month}/${year}`;
@@ -812,11 +902,11 @@ const handleEditSubmit = async (item) => {
 
   // Add a function to format date for storage (mm/dd/yyyy)
   const formatDateForStorage = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
 
     // If it's in dd/mm/yyyy format, convert to mm/dd/yyyy
-    if (typeof dateString === 'string' && dateString.includes('/')) {
-      const parts = dateString.split('/');
+    if (typeof dateString === "string" && dateString.includes("/")) {
+      const parts = dateString.split("/");
       if (parts.length === 3) {
         const day = parseInt(parts[0]);
         const month = parseInt(parts[1]);
@@ -834,8 +924,8 @@ const handleEditSubmit = async (item) => {
       return dateString;
     }
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
 
     return `${month}/${day}/${year}`;
@@ -843,139 +933,139 @@ const handleEditSubmit = async (item) => {
 
   const handleJoiningInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setJoiningFormData(prev => ({
+    setJoiningFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
   const handleFileChange = (e, fieldName) => {
     const file = e.target.files[0];
     if (file) {
-      setJoiningFormData(prev => ({
+      setJoiningFormData((prev) => ({
         ...prev,
-        [fieldName]: file
+        [fieldName]: file,
       }));
     }
   };
 
   const postToJoiningSheet = async (rowData) => {
-    const URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec';
-
     try {
-      console.log('Attempting to post:', {
-        sheetName: 'JOINING',
-        rowData: rowData
-      });
+      console.log("Attempting to insert into joining table:", rowData);
 
-      const params = new URLSearchParams();
-      params.append('sheetName', 'JOINING');
-      params.append('action', 'insert');
-      params.append('rowData', JSON.stringify(rowData));
+      // Convert array to object with column names
+      const joiningRecord = {
+        timestamp_date: rowData[0] ? new Date(rowData[0]) : new Date(),
+        rbp_joining_id: rowData[1],
+        status: rowData[2],
+        firm_name: rowData[3],
+        name_as_per_aadhar: rowData[4],
+        blood_group: rowData[5],
+        father_name: rowData[6],
+        date_of_joining: rowData[7] ? new Date(rowData[7]) : null,
+        work_location: rowData[8],
+        designation: rowData[9],
+        salary: rowData[10] ? parseFloat(rowData[10]) : null,
+        aadhar_front_photo: rowData[11],
+        aadhar_back_photo: rowData[12],
+        pan_card: rowData[13],
+        family_relationship: rowData[14],
+        current_address: rowData[15],
+        aadhar_address: rowData[16],
+        date_of_birth: rowData[17] ? new Date(rowData[17]) : null,
+        gender: rowData[18],
+        mobile_number: rowData[19],
+        family_number: rowData[20],
+        past_pf_id: rowData[21],
+        past_esic_number: rowData[22],
+        bank_account_number: rowData[23],
+        ifsc_code: rowData[24],
+        branch_name: rowData[25],
+        personal_email: rowData[26],
+        company_pf_provided: rowData[27] === "Yes",
+        company_esic_provided: rowData[28] === "Yes",
+        company_mail_provided: rowData[29] === "Yes",
+        attendance_type: rowData[30],
+        candidate_validated: rowData[31] === "Yes",
+        gmail_id_issued: rowData[32] === "Yes",
+        joining_letter_issued: rowData[33] === "Yes",
+        attendance_registration: rowData[34] === "Yes",
+        pf_registration: rowData[35] === "Yes",
+        esic_registration: rowData[36] === "Yes",
+        department: rowData[37], // Added from selectedItem
+        created_at: new Date(),
+      };
 
-      const response = await fetch(URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params,
-      });
+      const { data, error } = await supabase
+        .from("joining")
+        .insert([joiningRecord])
+        .select();
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-      console.log('Server response:', data);
-
-      if (!data.success) {
-        throw new Error(data.error || 'Server returned unsuccessful response');
-      }
-
-      return data;
+      console.log("Supabase response:", data);
+      return { success: true, data };
     } catch (error) {
-      console.error('Full error details:', {
+      console.error("Full error details:", {
         error: error.message,
         stack: error.stack,
-        rowData: rowData,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-      throw new Error(`Failed to update sheet: ${error.message}`);
+      throw new Error(`Failed to insert into joining table: ${error.message}`);
     }
   };
 
-  const uploadFileToDrive = async (file, folderId = '1JdzCqR_yEkUE3dfTVcc3oVi7SoPk2Dy7') => {
+  const uploadFileToDrive = async (file, bucketName = "joining-documents") => {
     try {
-      const reader = new FileReader();
-      const base64Data = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `joining/${fileName}`;
 
-      const params = new URLSearchParams();
-      params.append('action', 'uploadFile');
-      params.append('base64Data', base64Data);
-      params.append('fileName', file.name);
-      params.append('mimeType', file.type);
-      params.append('folderId', folderId);
+      const { data, error } = await supabase.storage
+        .from("joining-documents")
+        .upload(filePath, file);
 
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: params,
-        }
-      );
+      if (error) throw error;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // Get public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("joining-documents").getPublicUrl(filePath);
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'File upload failed');
-      }
-
-      return data.fileUrl;
+      return publicUrl;
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error("Error uploading file:", error);
       toast.error(`Failed to upload file: ${error.message}`);
       throw error;
     }
   };
 
   const updateEnquirySheet = async (enquiryNo, timestamp) => {
-    const URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec';
-
     try {
-      const params = new URLSearchParams();
-      params.append('sheetName', 'ENQUIRY');
-      params.append('action', 'updateEnquiryColumn');
-      params.append('enquiryNo', enquiryNo);
-      params.append('timestamp', timestamp);
+      // First find the enquiry record
+      const { data: enquiryRecords, error: findError } = await supabase
+        .from("enquiry")
+        .select("id")
+        .eq("candidate_enquiry_number", enquiryNo)
+        .limit(1);
 
-      const response = await fetch(URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params,
-      });
+      if (findError) throw findError;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (!enquiryRecords || enquiryRecords.length === 0) {
+        throw new Error(`Enquiry number ${enquiryNo} not found`);
       }
 
-      const data = await response.json();
-      return data.success;
+      // Update the actual_2 field (Column AB equivalent)
+      const { error: updateError } = await supabase
+        .from("enquiry")
+        .update({ actual_2: timestamp })
+        .eq("candidate_enquiry_number", enquiryNo);
+
+      if (updateError) throw updateError;
+
+      return true;
     } catch (error) {
-      console.error('Error updating enquiry sheet:', error);
-      throw new Error(`Failed to update enquiry sheet: ${error.message}`);
+      console.error("Error updating enquiry table:", error);
+      throw new Error(`Failed to update enquiry table: ${error.message}`);
     }
   };
 
@@ -987,28 +1077,28 @@ const handleEditSubmit = async (item) => {
       // Upload only the required files
       const uploadPromises = {};
       const fileFields = [
-        'aadharFrontPhoto',
-        'aadharBackPhoto',
-        'panCard',
-        'bankPassbookPhoto'
+        "aadharFrontPhoto",
+        "aadharBackPhoto",
+        "panCard",
+        "bankPassbookPhoto",
       ];
 
       for (const field of fileFields) {
         if (joiningFormData[field]) {
           uploadPromises[field] = uploadFileToDrive(joiningFormData[field]);
         } else {
-          uploadPromises[field] = Promise.resolve('');
+          uploadPromises[field] = Promise.resolve("");
         }
       }
 
       // Wait for all uploads to complete
       const uploadedUrls = await Promise.all(
-        Object.values(uploadPromises).map(promise =>
-          promise.catch(error => {
-            console.error('Upload failed:', error);
-            return ''; // Return empty string if upload fails
-          })
-        )
+        Object.values(uploadPromises).map((promise) =>
+          promise.catch((error) => {
+            console.error("Upload failed:", error);
+            return ""; // Return empty string if upload fails
+          }),
+        ),
       );
 
       // Map uploaded URLs to their respective fields
@@ -1021,13 +1111,13 @@ const handleEditSubmit = async (item) => {
       const formattedTimestamp = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
 
       const formatDateForStorage = (dateString) => {
-        if (!dateString) return '';
+        if (!dateString) return "";
 
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return dateString;
 
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         const year = date.getFullYear();
 
         return `${month}/${day}/${year}`;
@@ -1035,11 +1125,11 @@ const handleEditSubmit = async (item) => {
 
       // Format DOB for storage (mm/dd/yyyy)
       const formatDOBForStorage = (dateString) => {
-        if (!dateString) return '';
+        if (!dateString) return "";
 
         // If it's in dd/mm/yyyy format, convert to mm/dd/yyyy
-        if (typeof dateString === 'string' && dateString.includes('/')) {
-          const parts = dateString.split('/');
+        if (typeof dateString === "string" && dateString.includes("/")) {
+          const parts = dateString.split("/");
           if (parts.length === 3) {
             return `${parts[1]}/${parts[0]}/${parts[2]}`;
           }
@@ -1051,8 +1141,8 @@ const handleEditSubmit = async (item) => {
           return dateString;
         }
 
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         const year = date.getFullYear();
 
         return `${month}/${day}/${year}`;
@@ -1062,74 +1152,79 @@ const handleEditSubmit = async (item) => {
       // पुराने rowData array को replace करें इससे:
 
       const rowData = [];
-      rowData[0] = formattedTimestamp;                    // Column A: Timestamp
-      rowData[1] = joiningFormData.joiningId;             // Column B: Joining ID
-      rowData[2] = 'Active';                // Column AD: Status
-      rowData[3] = joiningFormData.firmName;              // Column C: Firm Name
-      rowData[4] = joiningFormData.nameAsPerAadhar;       // Column D: Name As Per Aadhar
-      rowData[5] = joiningFormData.bloodGroup;            // Column E: Blood Group
-      rowData[6] = joiningFormData.fatherName;            // Column F: Father Name
+      rowData[0] = formattedTimestamp; // Column A: Timestamp
+      rowData[1] = joiningFormData.joiningId; // Column B: Joining ID
+      rowData[2] = "Active"; // Column AD: Status
+      rowData[3] = joiningFormData.firmName; // Column C: Firm Name
+      rowData[4] = joiningFormData.nameAsPerAadhar; // Column D: Name As Per Aadhar
+      rowData[5] = joiningFormData.bloodGroup; // Column E: Blood Group
+      rowData[6] = joiningFormData.fatherName; // Column F: Father Name
       rowData[7] = formatDateForStorage(joiningFormData.dateOfJoining); // Column G: Date Of Joining
-      rowData[8] = joiningFormData.workLocation;          // Column H: Work Location
-      rowData[9] = joiningFormData.designation;           // Column I: Designation
-      rowData[10] = joiningFormData.salary;                // Column J: Salary
-      rowData[11] = fileUrls.aadharFrontPhoto;            // Column K: Aadhar Frontside Photo
-      rowData[12] = fileUrls.aadharBackPhoto;             // Column L: Aadhar Backside Photo
-      rowData[13] = fileUrls.panCard;                     // Column M: PAN Card
-      rowData[14] = joiningFormData.relationship;         // Column N: Relationship with Family Person
-      rowData[15] = joiningFormData.currentAddress;       // Column O: Current Address
-      rowData[16] = joiningFormData.aadharAddress;        // Column P: Address as per Aadhar Card
+      rowData[8] = joiningFormData.workLocation; // Column H: Work Location
+      rowData[9] = joiningFormData.designation; // Column I: Designation
+      rowData[10] = joiningFormData.salary; // Column J: Salary
+      rowData[11] = fileUrls.aadharFrontPhoto; // Column K: Aadhar Frontside Photo
+      rowData[12] = fileUrls.aadharBackPhoto; // Column L: Aadhar Backside Photo
+      rowData[13] = fileUrls.panCard; // Column M: PAN Card
+      rowData[14] = joiningFormData.relationship; // Column N: Relationship with Family Person
+      rowData[15] = joiningFormData.currentAddress; // Column O: Current Address
+      rowData[16] = joiningFormData.aadharAddress; // Column P: Address as per Aadhar Card
       rowData[17] = formatDOBForStorage(joiningFormData.dobAsPerAadhar); // Column Q: Date Of Birth
-      rowData[18] = joiningFormData.gender;               // Column R: Gender
-      rowData[19] = joiningFormData.mobileNumber;         // Column S: Mobile Number
-      rowData[20] = joiningFormData.familyNumber;         // Column T: Family Number
-      rowData[21] = joiningFormData.pastPfId || '';       // Column U: Past PF Id No.
-      rowData[22] = joiningFormData.pastEsicNumber || ''; // Column V: Past Esic Number
-      rowData[23] = joiningFormData.currentBankAcNo;      // Column W: Current Bank Account Number
-      rowData[24] = joiningFormData.ifscCode;             // Column X: IFSC Code
-      rowData[25] = joiningFormData.branchName;           // Column Y: Branch Name
-      rowData[26] = joiningFormData.personalEmail;        // Column Z: Personal Email ID
-      rowData[27] = joiningFormData.companyProvidesPf;    // Column AA: Company Provide PF?
-      rowData[28] = joiningFormData.companyProvidesEsic;  // Column AB: Company Provide ESIC?
+      rowData[18] = joiningFormData.gender; // Column R: Gender
+      rowData[19] = joiningFormData.mobileNumber; // Column S: Mobile Number
+      rowData[20] = joiningFormData.familyNumber; // Column T: Family Number
+      rowData[21] = joiningFormData.pastPfId || ""; // Column U: Past PF Id No.
+      rowData[22] = joiningFormData.pastEsicNumber || ""; // Column V: Past Esic Number
+      rowData[23] = joiningFormData.currentBankAcNo; // Column W: Current Bank Account Number
+      rowData[24] = joiningFormData.ifscCode; // Column X: IFSC Code
+      rowData[25] = joiningFormData.branchName; // Column Y: Branch Name
+      rowData[26] = joiningFormData.personalEmail; // Column Z: Personal Email ID
+      rowData[27] = joiningFormData.companyProvidesPf; // Column AA: Company Provide PF?
+      rowData[28] = joiningFormData.companyProvidesEsic; // Column AB: Company Provide ESIC?
       rowData[29] = joiningFormData.companyProvidesEmail; // Column AC: Company Provide Email?
-      rowData[30] = joiningFormData.attendanceType;       // Column AE: Attendance Type
+      rowData[30] = joiningFormData.attendanceType; // Column AE: Attendance Type
       // rowData[31] = formatDateForStorage(joiningFormData.plannedDate); // Column AF: Planned Date
-      rowData[31] = joiningFormData.validateCandidate ? 'Yes' : 'No';     // Column AG: Validate Candidate
-      rowData[32] = joiningFormData.issueGmailId ? 'Yes' : 'No';          // Column AH: Issue Gmail ID
-      rowData[33] = joiningFormData.issueJoiningLetter ? 'Yes' : 'No';    // Column AI: Issue Joining Letter
-      rowData[34] = joiningFormData.attendanceRegistration ? 'Yes' : 'No'; // Column AJ: Attendance Registration
-      rowData[35] = joiningFormData.pfRegistration ? 'Yes' : 'No';        // Column AK: PF Registration
-      rowData[36] = joiningFormData.esicRegistration ? 'Yes' : 'No';      // Column AL: ESIC Registration
-      rowData[40] = '';  // Column AO: Actual Date (Empty - will be set by After Joining Work)
+      rowData[31] = joiningFormData.validateCandidate ? "Yes" : "No"; // Column AG: Validate Candidate
+      rowData[32] = joiningFormData.issueGmailId ? "Yes" : "No"; // Column AH: Issue Gmail ID
+      rowData[33] = joiningFormData.issueJoiningLetter ? "Yes" : "No"; // Column AI: Issue Joining Letter
+      rowData[34] = joiningFormData.attendanceRegistration ? "Yes" : "No"; // Column AJ: Attendance Registration
+      rowData[35] = joiningFormData.pfRegistration ? "Yes" : "No"; // Column AK: PF Registration
+      rowData[36] = joiningFormData.esicRegistration ? "Yes" : "No"; // Column AL: ESIC Registration
+      rowData[40] = ""; // Column AO: Actual Date (Empty - will be set by After Joining Work)
 
       await postToJoiningSheet(rowData);
 
       // Update ENQUIRY sheet Column AB with the timestamp
-      await updateEnquirySheet(selectedItem.candidateEnquiryNo, formattedTimestamp);
+      await updateEnquirySheet(
+        selectedItem.candidateEnquiryNo,
+        formattedTimestamp,
+      );
 
       console.log("Joining Form Data:", rowData);
 
-      toast.success('Employee added successfully!');
+      toast.success("Employee added successfully!");
       setShowJoiningModal(false);
       setSelectedItem(null);
       fetchJoiningData();
     } catch (error) {
-      console.error('Error submitting joining form:', error);
+      console.error("Error submitting joining form:", error);
       toast.error(`Failed to submit joining form: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const filteredJoiningData = joiningData.filter(item => {
-    const matchesSearch = item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredJoiningData = joiningData.filter((item) => {
+    const matchesSearch =
+      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
-  const filteredHistoryData = historyJoiningData.filter(item => {
-    const matchesSearch = item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredHistoryData = historyJoiningData.filter((item) => {
+    const matchesSearch =
+      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
@@ -1165,20 +1260,22 @@ const handleEditSubmit = async (item) => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                activeTab === "pending"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending Joinings ({filteredJoiningData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                activeTab === "history"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -1334,141 +1431,7 @@ const handleEditSubmit = async (item) => {
             </div>
           )}
 
-          {/* {activeTab === "history" && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Indent No.
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Candidate Enquiry No.
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Applying For Post
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Candidate Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Photo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Resume
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {tableLoading ? (
-                    <tr>
-                      <td colSpan="10" className="px-6 py-12 text-center">
-                        <div className="flex justify-center flex-col items-center">
-                          <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
-                          <span className="text-gray-600 text-sm">
-                            Loading history joinings...
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : error ? (
-                    <tr>
-                      <td colSpan="10" className="px-6 py-12 text-center">
-                        <p className="text-red-500">Error: ${error}</p>
-                        <button
-                          onClick={fetchJoiningData}
-                          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                        >
-                          Retry
-                        </button>
-                      </td>
-                    </tr>
-                  ) : filteredHistoryData.length === 0 ? (
-                    <tr>
-                      <td colSpan="10" className="px-6 py-12 text-center">
-                        <p className="text-gray-500">
-                          No history joinings found.
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredHistoryData.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.indentNo || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEnquiryNo || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.applyingForPost || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.department || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateName || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhone || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEmail || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhoto ? (
-                            <a
-                              href={item.candidatePhoto}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateResume ? (
-                            <a
-                              href={item.candidateResume}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                            Completed
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )} */}
-
-          {activeTab === "history" && (
+   {activeTab === "history" && (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
@@ -1544,141 +1507,33 @@ const handleEditSubmit = async (item) => {
           filteredHistoryData.map((item) => (
             <tr key={item.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEditSubmit(item)}
-                      disabled={editSubmitting}
-                      className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
-                    >
-                      {editSubmitting ? (
-                        <>
-                          <svg
-                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Save
-                        </>
-                      ) : (
-                        "Save"
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditMode(false);
-                        setEditingItem(null);
-                      }}
-                      disabled={editSubmitting}
-                      className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleEditClick(item)}
-                    className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
-                  >
-                    Edit
-                  </button>
-                )}
+                <button
+                  onClick={() => handleEditClick(item)}
+                  className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                >
+                  Edit Joining
+                </button>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <input
-                    type="text"
-                    name="indentNo"
-                    value={editFormData.indentNo || item.indentNo}
-                    onChange={handleEditInputChange}
-                    className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.indentNo || "-"
-                )}
+                {item.indentNo || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.candidateEnquiryNo || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <input
-                    type="text"
-                    name="applyingForPost"
-                    value={editFormData.applyingForPost}
-                    onChange={handleEditInputChange}
-                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.applyingForPost || "-"
-                )}
+                {item.applyingForPost || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <input
-                    type="text"
-                    name="department"
-                    value={editFormData.department}
-                    onChange={handleEditInputChange}
-                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.department || "-"
-                )}
+                {item.department || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <input
-                    type="text"
-                    name="candidateName"
-                    value={editFormData.candidateName}
-                    onChange={handleEditInputChange}
-                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.candidateName || "-"
-                )}
+                {item.candidateName || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <input
-                    type="text"
-                    name="candidatePhone"
-                    value={editFormData.candidatePhone}
-                    onChange={handleEditInputChange}
-                    className="w-28 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.candidatePhone || "-"
-                )}
+                {item.candidatePhone || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <input
-                    type="email"
-                    name="candidateEmail"
-                    value={editFormData.candidateEmail}
-                    onChange={handleEditInputChange}
-                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.candidateEmail || "-"
-                )}
+                {item.candidateEmail || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.candidatePhoto ? (
@@ -1709,22 +1564,9 @@ const handleEditSubmit = async (item) => {
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.candidateEnquiryNo === item.candidateEnquiryNo ? (
-                  <select
-                    name="status"
-                    value={editFormData.status}
-                    onChange={handleEditInputChange}
-                    className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  >
-                    <option value="Completed">Completed</option>
-                    <option value="Pending">Pending</option>
-                    <option value="On Hold">On Hold</option>
-                  </select>
-                ) : (
-                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                    {item.status || "Completed"}
-                  </span>
-                )}
+                <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                  {item.status || "Completed"}
+                </span>
               </td>
             </tr>
           ))
@@ -1734,6 +1576,671 @@ const handleEditSubmit = async (item) => {
   </div>
 )}
         </div>
+             {showEditJoiningModal && selectedItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b border-gray-300">
+              <h3 className="text-lg font-medium text-gray-900">
+                Edit Employee Joining Form
+              </h3>
+              <button
+                onClick={() => {
+                  setShowEditJoiningModal(false);
+                  setSelectedItem(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-6">
+              {/* Section 1: Basic Information */}
+              <div className="space-y-6">
+                {/* ====================== Section 1: Basic Details ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Basic Details (मूल जानकारी)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        RBP-Joining ID (जॉइनिंग आईडी) *
+                      </label>
+                      <input
+                        type="text"
+                        name="joiningId"
+                        value={editJoiningFormData.joiningId || ""}
+                        readOnly
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-100 text-gray-700 cursor-not-allowed"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Joining ID (cannot be edited)
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Firm Name (फर्म का नाम) *
+                      </label>
+                      <select
+                        name="firmName"
+                        value={editJoiningFormData.firmName || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                        required
+                      >
+                        <option value="">Select Firm Name</option>
+                        {firmNames.map((firm, index) => (
+                          <option key={index} value={firm}>
+                            {firm}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name As Per Aadhar (नाम आधार के अनुसार)
+                      </label>
+                      <input
+                        type="text"
+                        name="nameAsPerAadhar"
+                        value={editJoiningFormData.nameAsPerAadhar || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Blood Group (ब्लड ग्रुप)
+                      </label>
+                      <input
+                        type="text"
+                        name="bloodGroup"
+                        value={editJoiningFormData.bloodGroup || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter blood group (A+, B+, O+ etc.)"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Father Name (पिता का नाम)
+                      </label>
+                      <input
+                        type="text"
+                        name="fatherName"
+                        value={editJoiningFormData.fatherName || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Date of Joining (जॉइनिंग की तारीख)
+                      </label>
+                      <input
+                        type="date"
+                        name="dateOfJoining"
+                        value={editJoiningFormData.dateOfJoining || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ====================== Section 2: Work & Designation ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Work Details (कार्य विवरण)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Work Location (कार्य स्थान)
+                      </label>
+                      <input
+                        type="text"
+                        name="workLocation"
+                        value={editJoiningFormData.workLocation || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Designation (पदनाम)
+                      </label>
+                      <input
+                        type="text"
+                        name="designation"
+                        value={editJoiningFormData.designation || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Salary (वेतन)
+                      </label>
+                      <input
+                        type="number"
+                        name="salary"
+                        value={editJoiningFormData.salary || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter salary"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ====================== Section 3: Documents ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Documents (दस्तावेज़)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Aadhar Frontside Photo (आधार कार्ड फ्रंट फोटो)
+                      </label>
+                      <input
+                        type="file"
+                        name="aadharFrontPhoto"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleEditJoiningFileChange(e, "aadharFrontPhoto")
+                        }
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                      {editJoiningFormData.aadharFrontPhoto && !(editJoiningFormData.aadharFrontPhoto instanceof File) && (
+                        <p className="text-xs text-green-600 mt-1">Existing file kept (upload new to replace)</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Aadhar Backside Photo (आधार कार्ड बैक फोटो)
+                      </label>
+                      <input
+                        type="file"
+                        name="aadharBackPhoto"
+                        accept="image/*"
+                        onChange={(e) => handleEditJoiningFileChange(e, "aadharBackPhoto")}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                      {editJoiningFormData.aadharBackPhoto && !(editJoiningFormData.aadharBackPhoto instanceof File) && (
+                        <p className="text-xs text-green-600 mt-1">Existing file kept (upload new to replace)</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        PAN Card (पैन कार्ड)
+                      </label>
+                      <input
+                        type="file"
+                        name="panCard"
+                        accept="image/*"
+                        onChange={(e) => handleEditJoiningFileChange(e, "panCard")}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                      {editJoiningFormData.panCard && !(editJoiningFormData.panCard instanceof File) && (
+                        <p className="text-xs text-green-600 mt-1">Existing file kept (upload new to replace)</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ====================== Section 4: Family & Address ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Family & Address (परिवार और पता)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Relationship with Family Person (परिवार के सदस्य से संबंध)
+                      </label>
+                      <select
+                        name="relationship"
+                        value={editJoiningFormData.relationship || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      >
+                        <option value="">Select Relationship</option>
+                        {relationshipOptions.map((relationship, index) => (
+                          <option key={index} value={relationship}>
+                            {relationship}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* NEW FIELD: Family Person Name */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Family Person Name (परिवार के सदस्य का नाम)
+      </label>
+      <input
+        type="text"
+        name="familyPersonName"
+        value={joiningFormData.familyPersonName}
+        onChange={handleJoiningInputChange}
+        placeholder="Enter family person name"
+        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+      />
+</div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Current Address (वर्तमान पता)
+                      </label>
+                      <textarea
+                        name="currentAddress"
+                        value={editJoiningFormData.currentAddress || ""}
+                        onChange={handleEditJoiningInputChange}
+                        rows={3}
+                        placeholder="Enter current address"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Address as per Aadhar Card (आधार कार्ड के अनुसार पता)
+                      </label>
+                      <textarea
+                        name="aadharAddress"
+                        value={editJoiningFormData.aadharAddress || ""}
+                        onChange={handleEditJoiningInputChange}
+                        rows={3}
+                        placeholder="Enter address as per Aadhar Card"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ====================== Section 5: Personal Info ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Personal Info (व्यक्तिगत जानकारी)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Date Of Birth As per Aadhar (जन्मतिथि आधार के अनुसार)
+                      </label>
+                      <input
+                        type="date"
+                        name="dobAsPerAadhar"
+                        value={editJoiningFormData.dobAsPerAadhar || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Gender (लिंग)
+                      </label>
+                      <select
+                        name="gender"
+                        value={editJoiningFormData.gender || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      >
+                        <option value="">Select Gender (लिंग चुनें)</option>
+                        <option value="Male">Male (पुरुष)</option>
+                        <option value="Female">Female (महिला) </option>
+                        <option value="Other">Other (अन्य)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Mobile Number (मोबाइल नंबर)
+                      </label>
+                      <input
+                        type="tel"
+                        name="mobileNumber"
+                        value={editJoiningFormData.mobileNumber || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter 10-digit mobile number"
+                        maxLength={10}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Family Number (परिवार का नंबर)
+                      </label>
+                      <input
+                        type="tel"
+                        name="familyNumber"
+                        value={editJoiningFormData.familyNumber || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter 10-digit family number"
+                        maxLength={10}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ====================== Section 6: Bank Details ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Bank Details (बैंक विवरण)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Past PF / New PF Id No. (पिछला पीएफ आईडी नंबर)
+                      </label>
+                      <input
+                        type="text"
+                        name="pastPfId"
+                        value={editJoiningFormData.pastPfId || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter past PF ID number"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Past ESIC / New ESIC Number (पिछला ईएसआईसी नंबर)
+                      </label>
+                      <input
+                        type="text"
+                        name="pastEsicNumber"
+                        value={editJoiningFormData.pastEsicNumber || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter past ESIC number"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Current Bank Account Number (वर्तमान बैंक खाता नंबर)
+                      </label>
+                      <input
+                        type="text"
+                        name="currentBankAcNo"
+                        value={editJoiningFormData.currentBankAcNo || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter current bank account number"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        IFSC Code (आईएफएससी कोड)
+                      </label>
+                      <input
+                        type="text"
+                        name="ifscCode"
+                        value={editJoiningFormData.ifscCode || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter IFSC code"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Branch Name (शाखा का नाम)
+                      </label>
+                      <input
+                        type="text"
+                        name="branchName"
+                        value={editJoiningFormData.branchName || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter branch name"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Bank Passbook Photo (बैंक पासबुक फोटो)
+                      </label>
+                      <input
+                        type="file"
+                        name="bankPassbookPhoto"
+                        accept="image/*"
+                        onChange={(e) => handleEditJoiningFileChange(e, "bankPassbookPhoto")}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                      {editJoiningFormData.bankPassbookPhoto && !(editJoiningFormData.bankPassbookPhoto instanceof File) && (
+                        <p className="text-xs text-green-600 mt-1">Existing file kept (upload new to replace)</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ====================== Section 7: Company & Employment Info ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Company & Employment Info (कंपनी और रोजगार जानकारी)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Personal Email ID (व्यक्तिगत ईमेल आईडी)
+                      </label>
+                      <input
+                        type="email"
+                        name="personalEmail"
+                        value={editJoiningFormData.personalEmail || ""}
+                        onChange={handleEditJoiningInputChange}
+                        placeholder="Enter personal email ID"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Does Company Provide PF? (क्या कंपनी PF प्रदान करती है?)
+                      </label>
+                      <select
+                        name="companyProvidesPf"
+                        value={editJoiningFormData.companyProvidesPf || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      >
+                        <option value="">Select</option>
+                        <option value="Yes">Yes (हाँ)</option>
+                        <option value="No">No (नहीं)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Does Company Provide ESIC? (क्या कंपनी ESIC प्रदान करती है?)
+                      </label>
+                      <select
+                        name="companyProvidesEsic"
+                        value={editJoiningFormData.companyProvidesEsic || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      >
+                        <option value="">Select</option>
+                        <option value="Yes">Yes (हाँ)</option>
+                        <option value="No">No (नहीं)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Does Company Provide Email ID? (क्या कंपनी ईमेल आईडी प्रदान करती है?)
+                      </label>
+                      <select
+                        name="companyProvidesEmail"
+                        value={editJoiningFormData.companyProvidesEmail || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      >
+                        <option value="">Select</option>
+                        <option value="Yes">Yes (हाँ)</option>
+                        <option value="No">No (नहीं)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Attendance Type (उपस्थिति प्रकार)
+                      </label>
+                      <select
+                        name="attendanceType"
+                        value={editJoiningFormData.attendanceType || ""}
+                        onChange={handleEditJoiningInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      >
+                        <option value="">Select Attendance Type</option>
+                        {attendanceTypeOptions.map((type, index) => (
+                          <option key={index} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ====================== Section 8: Candidate Actions ====================== */}
+                <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Candidate Actions (उम्मीदवार क्रियाएँ)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="validateCandidate"
+                        checked={editJoiningFormData.validateCandidate || false}
+                        onChange={handleEditJoiningInputChange}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      />
+                      <label className="text-sm text-gray-700">
+                        Validate the Candidate (उम्मीदवार का सत्यापन)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="issueGmailId"
+                        checked={editJoiningFormData.issueGmailId || false}
+                        onChange={handleEditJoiningInputChange}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      />
+                      <label className="text-sm text-gray-700">
+                        Issue Gmail ID (जीमेल आईडी जारी करना)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="issueJoiningLetter"
+                        checked={editJoiningFormData.issueJoiningLetter || false}
+                        onChange={handleEditJoiningInputChange}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      />
+                      <label className="text-sm text-gray-700">
+                        Issue Joining Letter (जॉइनिंग लेटर जारी करना)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="attendanceRegistration"
+                        checked={editJoiningFormData.attendanceRegistration || false}
+                        onChange={handleEditJoiningInputChange}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      />
+                      <label className="text-sm text-gray-700">
+                        Attendance Registration (उपस्थिति पंजीकरण)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="pfRegistration"
+                        checked={editJoiningFormData.pfRegistration || false}
+                        onChange={handleEditJoiningInputChange}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      />
+                      <label className="text-sm text-gray-700">
+                        PF Registration (पीएफ पंजीकरण)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="esicRegistration"
+                        checked={editJoiningFormData.esicRegistration || false}
+                        onChange={handleEditJoiningInputChange}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      />
+                      <label className="text-sm text-gray-700">
+                        ESIC Registration (ईएसआईसी पंजीकरण)
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-end space-x-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditJoiningModal(false);
+                    setSelectedItem(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${
+                    submitting ? "opacity-90 cursor-not-allowed" : ""
+                  }`}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <svg
+                        className="animate-spin h-4 w-4 text-white mr-2"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Joining Modal */}
@@ -1754,10 +2261,11 @@ const handleEditSubmit = async (item) => {
             <form onSubmit={handleJoiningSubmit} className="p-6 space-y-6">
               {/* Section 1: Basic Information */}
               <div className="space-y-6">
-
                 {/* ====================== Section 1: Basic Details ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Basic Details (मूल जानकारी)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Basic Details (मूल जानकारी)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1770,7 +2278,9 @@ const handleEditSubmit = async (item) => {
                         readOnly
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-100 text-gray-700 cursor-not-allowed"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Auto-generated joining ID</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Auto-generated joining ID
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1808,7 +2318,7 @@ const handleEditSubmit = async (item) => {
                       </label>
                       <input
                         type="text"
-                        name="bloodGroup"  // इसे enable करना होगा
+                        name="bloodGroup" // इसे enable करना होगा
                         value={joiningFormData.bloodGroup}
                         onChange={handleJoiningInputChange}
                         placeholder="Enter blood group (A+, B+, O+ etc.)"
@@ -1844,7 +2354,9 @@ const handleEditSubmit = async (item) => {
 
                 {/* ====================== Section 2: Work & Designation ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Work Details (कार्य विवरण)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Work Details (कार्य विवरण)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1888,7 +2400,9 @@ const handleEditSubmit = async (item) => {
 
                 {/* ====================== Section 3: Documents ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Documents (दस्तावेज़)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Documents (दस्तावेज़)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1898,7 +2412,9 @@ const handleEditSubmit = async (item) => {
                         type="file"
                         name="aadharFrontPhoto"
                         accept="image/*"
-                        onChange={(e) => handleFileChange(e, 'aadharFrontPhoto')}
+                        onChange={(e) =>
+                          handleFileChange(e, "aadharFrontPhoto")
+                        }
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
                       />
                     </div>
@@ -1910,7 +2426,7 @@ const handleEditSubmit = async (item) => {
                         type="file"
                         name="aadharBackPhoto"
                         accept="image/*"
-                        onChange={(e) => handleFileChange(e, 'aadharBackPhoto')}
+                        onChange={(e) => handleFileChange(e, "aadharBackPhoto")}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
                       />
                     </div>
@@ -1922,7 +2438,7 @@ const handleEditSubmit = async (item) => {
                         type="file"
                         name="panCard"
                         accept="image/*"
-                        onChange={(e) => handleFileChange(e, 'panCard')}
+                        onChange={(e) => handleFileChange(e, "panCard")}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
                       />
                     </div>
@@ -1931,11 +2447,14 @@ const handleEditSubmit = async (item) => {
 
                 {/* ====================== Section 4: Family & Address ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Family & Address (परिवार और पता)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Family & Address (परिवार और पता)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Relationship with Family Person (परिवार के सदस्य से संबंध)
+                        Relationship with Family Person (परिवार के सदस्य से
+                        संबंध)
                       </label>
                       <select
                         name="relationship"
@@ -1945,7 +2464,9 @@ const handleEditSubmit = async (item) => {
                       >
                         <option value="">Select Relationship</option>
                         {relationshipOptions.map((relationship, index) => (
-                          <option key={index} value={relationship}>{relationship}</option>
+                          <option key={index} value={relationship}>
+                            {relationship}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1980,14 +2501,16 @@ const handleEditSubmit = async (item) => {
 
                 {/* ====================== Section 5: Personal Info ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Personal Info (व्यक्तिगत जानकारी)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Personal Info (व्यक्तिगत जानकारी)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Date Of Birth As per Aadhar (जन्मतिथि आधार के अनुसार)
                       </label>
                       <input
-                        type="date"  // या type="text" भी रख सकते हैं
+                        type="date" // या type="text" भी रख सकते हैं
                         name="dobAsPerAadhar"
                         value={joiningFormData.dobAsPerAadhar}
                         onChange={handleJoiningInputChange}
@@ -2043,11 +2566,13 @@ const handleEditSubmit = async (item) => {
 
                 {/* ====================== Section 6: Bank Details ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Bank Details (बैंक विवरण)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Bank Details (बैंक विवरण)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Past PF Id No. (पिछला पीएफ आईडी नंबर)
+                        Past PF / New PF Id No. (पिछला पीएफ आईडी नंबर)
                       </label>
                       <input
                         type="text"
@@ -2062,7 +2587,7 @@ const handleEditSubmit = async (item) => {
                     {/* Past ESIC Number - यह नया field है */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Past ESIC Number (पिछला ईएसआईसी नंबर)
+                        Past ESIC / New ESIC Number (पिछला ईएसआईसी नंबर)
                       </label>
                       <input
                         type="text"
@@ -2118,7 +2643,9 @@ const handleEditSubmit = async (item) => {
 
                 {/* ====================== Section 7: Company & Employment Info ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Company & Employment Info (कंपनी और रोजगार जानकारी)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Company & Employment Info (कंपनी और रोजगार जानकारी)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2152,7 +2679,8 @@ const handleEditSubmit = async (item) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Does Company Provide ESIC? (क्या कंपनी ESIC प्रदान करती है?)
+                        Does Company Provide ESIC? (क्या कंपनी ESIC प्रदान करती
+                        है?)
                       </label>
                       <select
                         name="companyProvidesEsic"
@@ -2168,7 +2696,8 @@ const handleEditSubmit = async (item) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Does Company Provide Email ID? (क्या कंपनी ईमेल आईडी प्रदान करती है?)
+                        Does Company Provide Email ID? (क्या कंपनी ईमेल आईडी
+                        प्रदान करती है?)
                       </label>
                       <select
                         name="companyProvidesEmail"
@@ -2182,23 +2711,6 @@ const handleEditSubmit = async (item) => {
                       </select>
                     </div>
 
-                    {/* <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status (स्थिति)
-                      </label>
-                      <select
-                        name="status"
-                        value={joiningFormData.status}
-                        onChange={handleJoiningInputChange}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
-                      >
-                        <option value="">Select Status</option>
-                        <option value="Active">Active (सक्रिय)</option>
-                        <option value="Probation">Probation (परीक्षण अवधि)</option>
-                        <option value="Inactive">Inactive (निष्क्रिय)</option>
-                        <option value="Resigned">Resigned (त्यागपत्र)</option>
-                      </select>
-                    </div> */}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2212,20 +2724,21 @@ const handleEditSubmit = async (item) => {
                       >
                         <option value="">Select Attendance Type</option>
                         {attendanceTypeOptions.map((type, index) => (
-                          <option key={index} value={type}>{type}</option>
+                          <option key={index} value={type}>
+                            {type}
+                          </option>
                         ))}
                       </select>
                     </div>
-
-
                   </div>
                 </div>
 
                 {/* ====================== Section 8: Candidate Actions ====================== */}
                 <div className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                  <h2 className="text-lg font-semibold mb-4 text-purple-700">Candidate Actions (उम्मीदवार क्रियाएँ)</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-purple-700">
+                    Candidate Actions (उम्मीदवार क्रियाएँ)
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -2234,7 +2747,9 @@ const handleEditSubmit = async (item) => {
                         onChange={handleJoiningInputChange}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                       />
-                      <label className="text-sm text-gray-700">Validate the Candidate (उम्मीदवार का सत्यापन)</label>
+                      <label className="text-sm text-gray-700">
+                        Validate the Candidate (उम्मीदवार का सत्यापन)
+                      </label>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -2245,7 +2760,9 @@ const handleEditSubmit = async (item) => {
                         onChange={handleJoiningInputChange}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                       />
-                      <label className="text-sm text-gray-700">Issue Gmail ID (जीमेल आईडी जारी करना)</label>
+                      <label className="text-sm text-gray-700">
+                        Issue Gmail ID (जीमेल आईडी जारी करना)
+                      </label>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -2256,18 +2773,24 @@ const handleEditSubmit = async (item) => {
                         onChange={handleJoiningInputChange}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                       />
-                      <label className="text-sm text-gray-700">Issue Joining Letter (जॉइनिंग लेटर जारी करना)</label>
+                      <label className="text-sm text-gray-700">
+                        Issue Joining Letter (जॉइनिंग लेटर जारी करना)
+                      </label>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         name="attendanceRegistration"
-                        checked={joiningFormData.attendanceRegistration || false}
+                        checked={
+                          joiningFormData.attendanceRegistration || false
+                        }
                         onChange={handleJoiningInputChange}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                       />
-                      <label className="text-sm text-gray-700">Attendance Registration (उपस्थिति पंजीकरण)</label>
+                      <label className="text-sm text-gray-700">
+                        Attendance Registration (उपस्थिति पंजीकरण)
+                      </label>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -2278,7 +2801,9 @@ const handleEditSubmit = async (item) => {
                         onChange={handleJoiningInputChange}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                       />
-                      <label className="text-sm text-gray-700">PF Registration (पीएफ पंजीकरण)</label>
+                      <label className="text-sm text-gray-700">
+                        PF Registration (पीएफ पंजीकरण)
+                      </label>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -2289,14 +2814,13 @@ const handleEditSubmit = async (item) => {
                         onChange={handleJoiningInputChange}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                       />
-                      <label className="text-sm text-gray-700">ESIC Registration (ईएसआईसी पंजीकरण)</label>
+                      <label className="text-sm text-gray-700">
+                        ESIC Registration (ईएसआईसी पंजीकरण)
+                      </label>
                     </div>
-
                   </div>
                 </div>
-
               </div>
-
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-2 pt-4">
@@ -2309,8 +2833,9 @@ const handleEditSubmit = async (item) => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${submitting ? "opacity-90 cursor-not-allowed" : ""
-                    }`}
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${
+                    submitting ? "opacity-90 cursor-not-allowed" : ""
+                  }`}
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -2446,8 +2971,9 @@ const handleEditSubmit = async (item) => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${submitting ? "opacity-90 cursor-not-allowed" : ""
-                    }`}
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${
+                    submitting ? "opacity-90 cursor-not-allowed" : ""
+                  }`}
                   disabled={submitting}
                 >
                   {submitting ? (

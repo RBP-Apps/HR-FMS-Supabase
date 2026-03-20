@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { HistoryIcon, Plus, X } from 'lucide-react';
 import useDataStore from '../store/dataStore';
 import toast from 'react-hot-toast';
+import supabase from "../utils/supabase";
+
 
 const Indent = () => {
   const { addIndent } = useDataStore();
@@ -28,35 +30,25 @@ const Indent = () => {
 
 
 
-  useEffect(() => {
-    const loadData = async () => {
-      setTableLoading(true);
-      const result = await fetchIndentDataFromRow7();
-      if (result.success) {
-        console.log('Data from row 7:', result.data);
-      } else {
-        console.error('Error:', result.error);
-      }
-      setTableLoading(false);
-    };
-    loadData();
-  }, []);
+useEffect(() => {
+  const loadData = async () => {
+    setTableLoading(true);
 
-  const generateIndentNumber = async () => {
-    try {
-      const result = await fetchLastIndentNumber();
+    await fetchMasterData();
 
-      if (result.success) {
-        const nextNumber = result.lastIndentNumber + 1;
-        return `REC-${String(nextNumber).padStart(2, '0')}`;
-      }
-      // Fallback if fetch fails
-      return 'REC-01';
-    } catch (error) {
-      console.error('Error generating indent number:', error);
-      return 'REC-01';
+    const result = await fetchIndentData();
+    if (result.success) {
+      console.log("Indent data loaded");
+    } else {
+      console.error("Error:", result.error);
     }
+
+    setTableLoading(false);
   };
+
+  loadData();
+}, []);
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -66,7 +58,7 @@ const Indent = () => {
       await fetchMasterData();
 
       // Then fetch indent data
-      const result = await fetchIndentDataFromRow7();
+      const result = await fetchIndentData();
       if (result.success) {
         console.log('Data from row 7:', result.data);
       } else {
@@ -78,59 +70,39 @@ const Indent = () => {
   }, []);
 
 
-  const fetchMasterData = async () => {
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Master&action=fetch'
-      );
+const fetchMasterData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("master_hr")
+      .select("department, social_site");
 
-      const result = await response.json();
+    if (error) throw error;
 
-      if (result.success && result.data && result.data.length > 0) {
-        // Column C (index 2) - Department
-        // Column D (index 3) - Social Site
+    const departments = [
+      ...new Set(data.map((item) => item.department).filter(Boolean)),
+    ];
 
-        const departments = [];
-        const socialSites = [];
+    const socialSites = [
+      ...new Set(data.map((item) => item.social_site).filter(Boolean)),
+    ];
 
-        // Skip header row, start from index 1
-        for (let i = 1; i < result.data.length; i++) {
-          const row = result.data[i];
+    setDepartmentOptions(departments);
+    setSocialSiteOptions(socialSites);
 
-          // Column C - Department
-          if (row[2] && row[2].trim() !== '' && !departments.includes(row[2].trim())) {
-            departments.push(row[2].trim());
-          }
+    return {
+      success: true,
+      departments,
+      socialSites,
+    };
+  } catch (error) {
+    console.error("Error fetching master data:", error);
 
-          // Column D - Social Site
-          if (row[3] && row[3].trim() !== '' && !socialSites.includes(row[3].trim())) {
-            socialSites.push(row[3].trim());
-          }
-        }
-
-        setDepartmentOptions(departments);
-        setSocialSiteOptions(socialSites);
-
-        return {
-          success: true,
-          departments: departments,
-          socialSites: socialSites
-        };
-      } else {
-        return {
-          success: false,
-          error: 'No data found in Master sheet'
-        };
-      }
-    } catch (error) {
-      console.error('Error fetching master data:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  };
-
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
 
 
 
@@ -146,160 +118,70 @@ const Indent = () => {
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
-  const fetchIndentDataFromRow7 = async () => {
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=INDENT&action=fetch'
-      );
+const fetchIndentData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("indent")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      const result = await response.json();
+    if (error) throw error;
 
-      if (result.success && result.data && result.data.length >= 7) {
-        // Get data starting from row 7 (array index 6) to end
-        const dataFromRow7 = result.data.slice(6);
+    const processedData = data.map((row) => ({
+      timestamp: row.created_at,
+      indentNumber: row.indent_number,
+      post: row.post,
+      gender: row.gender,
+      department: row.department,
+      prefer: row.prefer,
+      noOfPost: row.number_of_posts,
+      completionDate: row.completion_date
+        ? new Date(row.completion_date)
+        : null,
+      socialSite: row.social_site,
+      experience: row.experience,
+      socialSiteTypes: row.social_site_types,
+    }));
 
-        // Find headers (assuming they're in row 6 - array index 5)
-        const headers = result.data[5].map(h => h.trim());
+    setIndentData(processedData);
 
-        // Find column indices for important fields
-        const timestampIndex = headers.indexOf('Timestamp');
-        const indentNumberIndex = headers.indexOf('Indent Number');
-        const postIndex = headers.indexOf('Post');
-        const genderIndex = headers.indexOf('Gender');
-        const departmentIndex = headers.indexOf('Department');
-        const preferIndex = headers.indexOf('Prefer');
-        const noOFPostIndex = headers.indexOf('Number Of Posts');
-        const completionDateIndex = headers.indexOf('Completion Date');
-        const socialSiteIndex = headers.indexOf('Social Site');
-        const experienceIndex = headers.indexOf('Experience')
-        const socialSiteTypesIndex = headers.indexOf('Social Site Types')
-        // Add other column indices as needed
+    return {
+      success: true,
+      data: processedData,
+    };
+  } catch (error) {
+    console.error("Error fetching indent:", error);
 
-        // Process the data
-        const processedData = dataFromRow7.map(row => ({
-          timestamp: row[timestampIndex],
-          indentNumber: row[indentNumberIndex],
-          post: row[postIndex],
-          gender: row[genderIndex],
-          department: row[departmentIndex],
-          prefer: row[preferIndex],
-          noOfPost: row[noOFPostIndex],
-          completionDate: row[completionDateIndex],
-          socialSite: row[socialSiteIndex],
-          experience: row[experienceIndex],
-          socialSiteTypes: row[socialSiteTypesIndex],
-          // Add other fields as needed
-        }));
-        setIndentData(processedData)
-        return {
-          success: true,
-          data: processedData,
-          headers: headers
-        };
-      } else {
-        return {
-          success: false,
-          error: 'Not enough rows in sheet data'
-        };
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  };
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
 
-  const fetchLastIndentNumber = async () => {
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=INDENT&action=fetch'
-      );
 
-      const result = await response.json();
-      console.log('Full sheet data:', result); // Debugging
 
-      if (result.success && result.data && result.data.length > 1) {
-        // Find the first row with actual headers (skip empty rows)
-        let headerRowIndex = 0;
-        while (headerRowIndex < result.data.length &&
-          result.data[headerRowIndex].every(cell => !cell || cell.trim() === '')) {
-          headerRowIndex++;
-        }
+const generateIndentNumber = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("indent")
+      .select("indent_number")
+      .order("id", { ascending: false })
+      .limit(1);
 
-        if (headerRowIndex >= result.data.length) {
-          throw new Error('No header row found in sheet');
-        }
+    if (error) throw error;
 
-        const headers = result.data[headerRowIndex].map(h => h ? h.trim().toLowerCase() : '');
-        console.log('Headers found:', headers);
+    if (!data || data.length === 0) return "REC-01";
 
-        // Try to find the indent number column by common names
-        const possibleNames = ['indent number', 'indentnumber', 'indent_no', 'indentno', 'indent'];
-        let indentNumberIndex = -1;
+    const last = data[0].indent_number;
+    const num = parseInt(last.split("-")[1]) + 1;
 
-        for (const name of possibleNames) {
-          indentNumberIndex = headers.indexOf(name);
-          if (indentNumberIndex !== -1) break;
-        }
-
-        if (indentNumberIndex === -1) {
-          // If still not found, try to find by position (from your screenshot it's column B/index 1)
-          indentNumberIndex = 1;
-          console.warn('Using fallback column index 1 for indent number');
-        }
-
-        // Find the last non-empty row with data
-        let lastDataRowIndex = result.data.length - 1;
-        while (lastDataRowIndex > headerRowIndex &&
-          (!result.data[lastDataRowIndex][indentNumberIndex] ||
-            result.data[lastDataRowIndex][indentNumberIndex].trim() === '')) {
-          lastDataRowIndex--;
-        }
-
-        if (lastDataRowIndex <= headerRowIndex) {
-          return {
-            success: true,
-            lastIndentNumber: 0,
-            message: 'No data rows found'
-          };
-        }
-
-        const lastIndentNumber = result.data[lastDataRowIndex][indentNumberIndex];
-        console.log('Last indent number found:', lastIndentNumber);
-
-        // Extract numeric part from "REC-01" format
-        let numericValue = 0;
-        if (typeof lastIndentNumber === 'string') {
-          const match = lastIndentNumber.match(/\d+/);
-          numericValue = match ? parseInt(match[0]) : 0;
-        } else {
-          numericValue = parseInt(lastIndentNumber) || 0;
-        }
-
-        return {
-          success: true,
-          lastIndentNumber: numericValue,
-          fullLastIndent: lastIndentNumber
-        };
-      } else {
-        return {
-          success: true,
-          lastIndentNumber: 0,
-          message: 'Sheet is empty or has no data rows'
-        };
-      }
-    } catch (error) {
-      console.error('Error in fetchLastIndentNumber:', error);
-      return {
-        success: false,
-        error: error.message,
-        lastIndentNumber: 0
-      };
-    }
-  };
-
+    return `REC-${String(num).padStart(2, "0")}`;
+  } catch (error) {
+    console.error(error);
+    return "REC-01";
+  }
+};
 
 
 
@@ -330,105 +212,85 @@ const Indent = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (
-      !formData.post ||
-      !formData.gender ||
-      !formData.numberOfPost ||
-      !formData.competitionDate ||
-      !formData.socialSite
-    ) {
-      toast.error('Please fill all required fields');
-      return;
-    }
+  if (
+    !formData.post ||
+    !formData.gender ||
+    !formData.numberOfPost ||
+    !formData.competitionDate ||
+    !formData.socialSite
+  ) {
+    toast.error("Please fill all required fields");
+    return;
+  }
 
-    // Additional validation for experience if prefer is "Experience"
-    if (formData.prefer === 'Experience' && !formData.experience) {
-      toast.error('Please enter experience details');
-      return;
-    }
+  if (formData.prefer === "Experience" && !formData.experience) {
+    toast.error("Please enter experience details");
+    return;
+  }
 
-    // Additional validation for social site types if socialSite is "Yes"
-    if (formData.socialSite === 'Yes' && formData.socialSiteTypes.length === 0) {
-      toast.error('Please select at least one social site type');
-      return;
-    }
+  if (formData.socialSite === "Yes" && formData.socialSiteTypes.length === 0) {
+    toast.error("Please select at least one social site type");
+    return;
+  }
 
-    try {
-      setSubmitting(true);
-      // Generate indent number and timestamp
-      const indentNumber = await generateIndentNumber();
-      const timestamp = getCurrentTimestamp();
+  try {
+    setSubmitting(true);
 
-      // Format the competition date to MM/DD/YYYY for Google Sheets
-      const formattedDate = formatDateForSheet(formData.competitionDate);
-      console.log(indentNumber);
+    const indentNumber = await generateIndentNumber();
 
-      // Prepare row data with additional columns for experience and social site types
-      const rowData = [
-        timestamp,
-        indentNumber,
-        formData.post,
-        formData.gender,
-        formData.prefer,
-        formData.numberOfPost,
-        formattedDate,
-        formData.socialSite,
-        "NeedMore",
-        "", // Column J (empty)
-        "", // Column K (empty)
-        "", // Column L (empty)
-        "", // Column M (empty)
-        "", // Column N (empty)
-        "", // Column O (empty)
-        formData.prefer === 'Experience' ? formData.experience : "", // Column P - Experience
-        formData.socialSite === 'Yes' ? formData.socialSiteTypes.join(', ') : "", // Column Q - Social Site Types
-        formData.department,
-      ];
+    const { error } = await supabase.from("indent").insert([
+      {
+        indent_number: indentNumber,
+        post: formData.post,
+        gender: formData.gender,
+        prefer: formData.prefer,
+        number_of_posts: formData.numberOfPost,
+        completion_date: formData.competitionDate,
+        social_site: formData.socialSite,
+        status: "NeedMore",
+        experience:
+          formData.prefer === "Experience" ? formData.experience : "",
+        social_site_types:
+          formData.socialSite === "Yes"
+            ? formData.socialSiteTypes.join(", ")
+            : "",
+        department: formData.department,
+      },
+    ]);
 
-      const response = await fetch('https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec', {
-        method: 'POST',
-        body: new URLSearchParams({
-          sheetName: 'INDENT',
-          action: 'insert',
-          rowData: JSON.stringify(rowData),
-        }),
-      });
+    if (error) throw error;
 
-      const result = await response.json();
+    toast.success("Indent submitted successfully!");
 
-      if (result.success) {
-        toast.success('Indent submitted successfully!');
-        setFormData({
-          post: '',
-          gender: '',
-          department: '',
-          prefer: '',
-          numberOfPost: '',
-          competitionDate: '',
-          socialSite: '',
-          indentNumber: '',
-          timestamp: '',
-          experience: '',
-          socialSiteTypes: [],
-        });
-        setShowModal(false);
-        // Refresh the table data
-        setTableLoading(true);
-        await fetchIndentDataFromRow7();
-        setTableLoading(false);
-      } else {
-        toast.error('Failed to insert: ' + (result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Insert error:', error);
-      toast.error('Something went wrong!');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    setFormData({
+      post: "",
+      gender: "",
+      department: "",
+      prefer: "",
+      numberOfPost: "",
+      competitionDate: "",
+      socialSite: "",
+      indentNumber: "",
+      timestamp: "",
+      experience: "",
+      socialSiteTypes: [],
+    });
+
+    setShowModal(false);
+
+    setTableLoading(true);
+    await fetchIndentData();
+    setTableLoading(false);
+  } catch (error) {
+    console.error("Insert error:", error);
+    toast.error("Something went wrong!");
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   // Helper function to format date for Google Sheets
   const formatDateForSheet = (dateString) => {

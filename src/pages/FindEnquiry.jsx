@@ -1,13 +1,12 @@
-
-
-import React, { useState, useEffect } from 'react';
-import { Search, Clock, CheckCircle, X, Upload } from 'lucide-react';
-import useDataStore from '../store/dataStore';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { Search, Clock, CheckCircle, X, Upload } from "lucide-react";
+import useDataStore from "../store/dataStore";
+import toast from "react-hot-toast";
+import supabase from "../utils/supabase";
 
 const FindEnquiry = () => {
-  const [activeTab, setActiveTab] = useState('pending');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState("pending");
+  const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [indentData, setIndentData] = useState([]);
@@ -16,242 +15,119 @@ const FindEnquiry = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [generatedCandidateNo, setGeneratedCandidateNo] = useState('');
+  const [generatedCandidateNo, setGeneratedCandidateNo] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
 
-
   const [editMode, setEditMode] = useState(false);
-const [editingItem, setEditingItem] = useState(null);
-const [editFormData, setEditFormData] = useState({});
+  const [editingItem, setEditingItem] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
 
 
-const getColumnIndexFromLetter = (column) => {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let index = 0;
-  for (let i = 0; i < column.length; i++) {
-    index = index * 26 + (letters.indexOf(column[i]) + 1);
-  }
-  return index.toString();
-};
+  const [showEditModal, setShowEditModal] = useState(false);
 
+
+  const getColumnIndexFromLetter = (column) => {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let index = 0;
+    for (let i = 0; i < column.length; i++) {
+      index = index * 26 + (letters.indexOf(column[i]) + 1);
+    }
+    return index.toString();
+  };
 
 const handleEditClick = (item) => {
-  setEditMode(true);
-  setEditingItem(item);
+  setSelectedItem(item);
   setEditFormData({
-    applyingForPost: item.applyingForPost || '',
-    candidateName: item.candidateName || '',
-    candidateDOB: item.candidateDOB || '',
-    candidatePhone: item.candidatePhone || '',
-    candidateEmail: item.candidateEmail || '',
-    previousCompany: item.previousCompany || '',
-    jobExperience: item.jobExperience || '',
-    department: item.department || '',
-    previousPosition: item.previousPosition || '',
-    maritalStatus: item.maritalStatus || '',
-    presentAddress: item.presentAddress || '',
-    aadharNo: item.aadharNo || '',
-    status: item.status || 'NeedMore'
+    applyingForPost: item.applyingForPost || "",
+    candidateName: item.candidateName || "",
+    candidateDOB: item.candidateDOB || "",
+    candidatePhone: item.candidatePhone || "",
+    candidateEmail: item.candidateEmail || "",
+    previousCompany: item.previousCompany || "",
+    jobExperience: item.jobExperience || "",
+    department: item.department || "",
+    previousPosition: item.previousPosition || "",
+    maritalStatus: item.maritalStatus || "",
+    presentAddress: item.presentAddress || "",
+    aadharNo: item.aadharNo || "",
+    status: item.status || "NeedMore",
   });
+  setShowEditModal(true);
 };
 
-// Add this function to handle edit input changes
-const handleEditInputChange = (e) => {
-  const { name, value } = e.target;
-  setEditFormData(prev => ({
-    ...prev,
-    [name]: value
-  }));
-};
+  // Add this function to handle edit input changes
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
-// Add this function to save edited data
-const handleSaveEdit = async () => {
+  // Add this function to save edited data
+ const handleSaveEdit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true);
+
   try {
-    setSubmitting(true);
+    const { error } = await supabase
+      .from("enquiry")
+      .update({
+        applying_post: editFormData.applyingForPost,
+        candidate_name: editFormData.candidateName,
+        dob: editFormData.candidateDOB,
+        candidate_phone: editFormData.candidatePhone,
+        candidate_email: editFormData.candidateEmail,
+        previous_company_name: editFormData.previousCompany,
+        job_experience: editFormData.jobExperience,
+        department: editFormData.department,
+        previous_position: editFormData.previousPosition,
+        marital_status: editFormData.maritalStatus,
+        present_address: editFormData.presentAddress,
+        aadhar_number: editFormData.aadharNo,
+        tracker_status: editFormData.status,
+      })
+      .eq("timestamp", selectedItem.id);
 
-    // Find the original item to get its data
-    const originalItem = editingItem;
-    
-    // Create timestamp for update (optional - you might want to add an "Updated At" column)
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    if (error) throw error;
 
-    // Prepare the updated row data (maintaining the same structure as your insert)
-    const rowData = [
-      originalItem.id,                                   // Column A: Timestamp (original)
-      originalItem.indentNo,                             // Column B: Indent Number
-      originalItem.candidateEnquiryNo,                   // Column C: Candidate Enquiry Number
-      editFormData.applyingForPost || originalItem.applyingForPost,  // Column D: Applying For the Post
-      editFormData.candidateName || originalItem.candidateName,      // Column E: Candidate Name
-      editFormData.candidateDOB || originalItem.candidateDOB,        // Column F: DCB (DOB)
-      editFormData.candidatePhone || originalItem.candidatePhone,    // Column G: Candidate Phone Number
-      editFormData.candidateEmail || originalItem.candidateEmail,    // Column H: Candidate Email
-      editFormData.previousCompany || originalItem.previousCompany,  // Column I: Previous Company Name
-      editFormData.jobExperience || originalItem.jobExperience,      // Column J: Job Experience
-      editFormData.department || originalItem.department,            // Column K: Department
-      editFormData.previousPosition || originalItem.previousPosition, // Column L: Previous Position
-      originalItem.reasonForLeaving || '',               // Column M: Reason For Leaving
-      editFormData.maritalStatus || originalItem.maritalStatus,      // Column N: Marital Status
-      originalItem.lastEmployerMobile || '',              // Column O: Last Employer Mobile
-      originalItem.candidatePhoto || '',                  // Column P: Candidate Photo (URL)
-      originalItem.referenceBy || '',                      // Column Q: Reference By
-      editFormData.presentAddress || originalItem.presentAddress,    // Column R: Present Address
-      editFormData.aadharNo || originalItem.aadharNo,                // Column S: Aadhar No
-      originalItem.candidateResume || '',                 // Column T: Candidate Resume (URL)
-      '',                                                  // Column U
-      '',                                                  // Column V
-      '',                                                  // Column W
-      '',                                                  // Column X
-      '',                                                  // Column Y
-      '',                                                  // Column Z
-      '',                                                  // Column AA: Planned (Empty)
-      editFormData.status || originalItem.status,          // Column AB: Status
-    ];
-
-    console.log('Updating ENQUIRY sheet:', rowData);
-
-    // First, we need to find the row number of this entry in the sheet
-    // Since we can't update by ID directly, we'll fetch all data and find the row
-    const fetchResponse = await fetch(
-      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch'
+    const updatedData = enquiryData.map((item) =>
+      item.id === selectedItem.id ? { ...item, ...editFormData } : item,
     );
 
-    if (!fetchResponse.ok) {
-      throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-    }
-
-    const fetchResult = await fetchResponse.json();
-
-    if (!fetchResult.success) {
-      throw new Error('Failed to fetch ENQUIRY data: ' + (fetchResult.error || 'Unknown error'));
-    }
-
-    // Find the row index based on Timestamp and Candidate Enquiry Number
-    let rowIndex = -1;
-    const headers = fetchResult.data[5]; // Row 6 contains headers
-    const dataRows = fetchResult.data.slice(6); // Data starts from row 7
-
-    for (let i = 0; i < dataRows.length; i++) {
-      const row = dataRows[i];
-      // Match based on Timestamp (Column A) and Candidate Enquiry Number (Column C)
-      if (row[0] === originalItem.id && row[2] === originalItem.candidateEnquiryNo) {
-        rowIndex = i + 7; // +7 because data starts at row 7 (1-based index)
-        break;
-      }
-    }
-
-    if (rowIndex === -1) {
-      throw new Error(`Could not find the record to update`);
-    }
-
-    console.log('Found row index:', rowIndex);
-
-    // Now update each column that changed
-    const columnMappings = [
-      { field: 'applyingForPost', column: 'D' },  // Column D
-      { field: 'candidateName', column: 'E' },    // Column E
-      { field: 'candidateDOB', column: 'F' },      // Column F
-      { field: 'candidatePhone', column: 'G' },    // Column G
-      { field: 'candidateEmail', column: 'H' },    // Column H
-      { field: 'previousCompany', column: 'I' },   // Column I
-      { field: 'jobExperience', column: 'J' },     // Column J
-      { field: 'department', column: 'K' },        // Column K
-      { field: 'previousPosition', column: 'L' },  // Column L
-      { field: 'maritalStatus', column: 'N' },     // Column N
-      { field: 'presentAddress', column: 'R' },    // Column R
-      { field: 'aadharNo', column: 'S' },          // Column S
-      { field: 'status', column: 'AB' }            // Column AB
-    ];
-
-    // Update each field that was changed
-    for (const mapping of columnMappings) {
-      const originalValue = originalItem[mapping.field];
-      const newValue = editFormData[mapping.field];
-
-      // Only update if the value has changed
-      if (newValue !== undefined && newValue !== originalValue) {
-        console.log(`Updating ${mapping.field} from "${originalValue}" to "${newValue}"`);
-
-        const updateResponse = await fetch(
-          'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              sheetName: 'ENQUIRY',
-              action: 'updateCell',
-              rowIndex: rowIndex.toString(),
-              columnIndex: getColumnIndexFromLetter(mapping.column),
-              value: newValue
-            }),
-          }
-        );
-
-        const updateResult = await updateResponse.json();
-        console.log(`${mapping.field} update result:`, updateResult);
-
-        if (!updateResult.success) {
-          console.error(`Failed to update ${mapping.field}:`, updateResult.error);
-          toast.error(`Failed to update ${mapping.field}`);
-        }
-      }
-    }
-
-    // Update local state
-    const updatedData = enquiryData.map(item => 
-      item.id === editingItem.id ? { ...item, ...editFormData } : item
-    );
     setEnquiryData(updatedData);
-    
-    // Reset edit mode
-    setEditMode(false);
-    setEditingItem(null);
-    
-    toast.success('Enquiry updated successfully!');
-    
-    // Refresh data from server to ensure sync
-    await fetchAllData();
+    setShowEditModal(false);
+    setSelectedItem(null);
 
+    toast.success("Enquiry updated successfully!");
+
+    await fetchAllData();
   } catch (error) {
-    console.error('Error updating enquiry:', error);
-    toast.error(`Failed to update enquiry: ${error.message}`);
+    console.error("Error updating enquiry:", error);
+    toast.error(error.message);
   } finally {
     setSubmitting(false);
   }
 };
 
-
-
-
-
   const [formData, setFormData] = useState({
-    candidateName: '',
-    candidateDOB: '',
-    candidatePhone: '',
-    candidateEmail: '',
-    previousCompany: '',
-    jobExperience: '',
-    department: '', // Add this line
-    previousPosition: '',
-    maritalStatus: '',
+    candidateName: "",
+    candidateDOB: "",
+    candidatePhone: "",
+    candidateEmail: "",
+    previousCompany: "",
+    jobExperience: "",
+    department: "", // Add this line
+    previousPosition: "",
+    maritalStatus: "",
     candidatePhoto: null,
     candidateResume: null,
-    presentAddress: '',
-    aadharNo: '',
-    
+    presentAddress: "",
+    aadharNo: "",
   });
 
   // Google Drive folder ID for file uploads
-  const GOOGLE_DRIVE_FOLDER_ID = '1dsC4gXeCZdVGdHeRXOIHRHw9QW08D-tf';
 
   // Fetch all necessary data
   const fetchAllData = async () => {
@@ -260,148 +136,87 @@ const handleSaveEdit = async () => {
     setError(null);
 
     try {
-      // Fetch INDENT data
-      const indentResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=INDENT&action=fetch'
-      );
+      // ===== FETCH INDENT DATA =====
+      const { data: indentRows, error: indentError } = await supabase
+        .from("indent")
+        .select("*");
 
-      if (!indentResponse.ok) {
-        throw new Error(`HTTP error! status: ${indentResponse.status}`);
-      }
+      if (indentError) throw indentError;
 
-      const indentResult = await indentResponse.json();
+      const processedIndent = indentRows
+        .filter((row) => row.status === "NeedMore")
+        .map((row) => ({
+          id: row.id,
+          indentNo: row.indent_number,
+          post: row.post,
+          department: row.department,
+          gender: row.gender,
+          prefer: row.prefer,
+          numberOfPost: row.number_of_posts,
+          competitionDate: row.completion_date,
+          socialSite: row.social_site,
+          status: row.status,
+          plannedDate: row.planned_2,
+          actual: row.actual_2,
+          experience: row.experience,
+        }));
 
-      if (indentResult.success && indentResult.data && indentResult.data.length >= 7) {
-        const headers = indentResult.data[5].map(h => h.trim());
-        const dataFromRow7 = indentResult.data.slice(6);
+      // ===== FETCH ENQUIRY DATA =====
+      const { data: enquiryRows, error: enquiryError } = await supabase
+        .from("enquiry")
+        .select("*");
 
-        const getIndex = (headerName) => headers.findIndex(h => h === headerName);
+      if (enquiryError) throw enquiryError;
 
-        const processedData = dataFromRow7
-          .filter(row => {
-            const status = row[getIndex('Status')];
-            const planned2 = row[getIndex('Planned 2')];
-            const actual2 = row[getIndex('Actual 2')];
+      const processedEnquiry = enquiryRows.map((row) => ({
+        id: row.timestamp,
+        indentNo: row.indent_number,
+        candidateEnquiryNo: row.candidate_enquiry_number,
+        applyingForPost: row.applying_post,
+        department: row.department,
+        candidateName: row.candidate_name,
+        candidateDOB: row.dob,
+        candidatePhone: row.candidate_phone,
+        candidateEmail: row.candidate_email,
+        previousCompany: row.previous_company_name,
+        jobExperience: row.job_experience,
+        previousPosition: row.previous_position,
+        reasonForLeaving: row.reason_of_leaving,
+        maritalStatus: row.marital_status,
+        lastEmployerMobile: row.last_employer_mobile,
+        candidatePhoto: row.candidate_photo,
+        candidateResume: row.resume_copy,
+        referenceBy: row.reference_by,
+        presentAddress: row.present_address,
+        aadharNo: row.aadhar_number,
+        status: row.tracker_status,
+      }));
 
-            return status === 'NeedMore' &&
-              planned2 &&
-              (!actual2 || actual2 === '');
-          })
-          .map(row => ({
-            id: row[getIndex('Timestamp')],
-            indentNo: row[getIndex('Indent Number')],
-            post: row[getIndex('Post')],
-            department: row[getIndex('Department')],
-            gender: row[getIndex('Gender')],
-            prefer: row[getIndex('Prefer')],
-            numberOfPost: row[getIndex('Number Of Posts')],
-            competitionDate: row[getIndex('Completion Date')],
-            socialSite: row[getIndex('Social Site')],
-            status: row[getIndex('Status')],
-            plannedDate: row[getIndex('Planned 2')],
-            actual: row[getIndex('Actual 2')],
-            experience: row[getIndex('Experience')],
-          }));
+      // ===== RECRUITMENT COUNT LOGIC (same as before) =====
+      const indentRecruitmentCount = {};
 
-        // Fetch ENQUIRY data to check for completed recruitments
-        const enquiryResponse = await fetch(
-          'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch'
-        );
-
-        if (!enquiryResponse.ok) {
-          throw new Error(`HTTP error! status: ${enquiryResponse.status}`);
+      processedEnquiry.forEach((row) => {
+        const indentNo = row.indentNo;
+        if (indentNo) {
+          if (!indentRecruitmentCount[indentNo]) {
+            indentRecruitmentCount[indentNo] = 0;
+          }
+          indentRecruitmentCount[indentNo]++;
         }
+      });
 
-        const enquiryResult = await enquiryResponse.json();
+      const pendingTasks = processedIndent.filter((task) => {
+        const requiredPosts = parseInt(task.numberOfPost) || 0;
+        const completed = indentRecruitmentCount[task.indentNo] || 0;
+        return completed < requiredPosts;
+      });
 
-        if (enquiryResult.success && enquiryResult.data && enquiryResult.data.length > 0) {
-          // First row contains headers (row 6 in your sheet)
-          const headers = enquiryResult.data[5].map(h => h ? h.trim() : '');
-          const enquiryRows = enquiryResult.data.slice(6);
-
-          const getEnquiryIndex = (headerName) => headers.findIndex(h => h === headerName);
-
-          // Count completed recruitments per indent number
-          const indentRecruitmentCount = {};
-
-          enquiryRows.forEach(row => {
-            if (row[getEnquiryIndex('Timestamp')]) { // Filter out empty rows
-              const indentNo = row[getEnquiryIndex('Indent Number')];
-              const statusColumn = 27; // Column AB (index 27 as columns start from 0)
-              const statusValue = row[statusColumn]; // Column AB value
-
-              if (indentNo && statusValue) {
-                if (!indentRecruitmentCount[indentNo]) {
-                  indentRecruitmentCount[indentNo] = 0;
-                }
-                indentRecruitmentCount[indentNo]++;
-              }
-            }
-          });
-
-          // Filter out indent items where recruitment is complete
-          const pendingTasks = processedData.filter(task => {
-            if (!task.plannedDate || task.actual) return false;
-
-            const indentNo = task.indentNo;
-            const requiredPosts = parseInt(task.numberOfPost) || 0;
-            const completedRecruitments = indentRecruitmentCount[indentNo] || 0;
-
-            // Show in pending only if not all required posts are filled
-            return completedRecruitments < requiredPosts;
-          });
-
-          setIndentData(pendingTasks);
-        } else {
-          setIndentData(processedData.filter(task => task.plannedDate && !task.actual));
-        }
-
-        // Process ENQUIRY data for history tab
-        if (enquiryResult.success && enquiryResult.data && enquiryResult.data.length > 0) {
-          // First row contains headers (row 6 in your sheet)
-          const headers = enquiryResult.data[5].map(h => h ? h.trim() : '');
-          const enquiryRows = enquiryResult.data.slice(6);
-
-          const getEnquiryIndex = (headerName) => headers.findIndex(h => h === headerName);
-
-          const processedEnquiryData = enquiryRows
-            .filter(row => row[getEnquiryIndex('Timestamp')]) // Filter out empty rows
-            .map(row => ({
-              id: row[getEnquiryIndex('Timestamp')],
-              indentNo: row[getEnquiryIndex('Indent Number')],
-              candidateEnquiryNo: row[getEnquiryIndex('Candidate Enquiry Number')],
-              applyingForPost: row[getEnquiryIndex('Applying For the Post')],
-              department: row[getEnquiryIndex('Department')],
-              candidateName: row[getEnquiryIndex('Candidate Name')],
-              candidateDOB: row[getEnquiryIndex('DCB')], // DCB appears to be DOB in your sheet
-              candidatePhone: row[getEnquiryIndex('Candidate Phone Number')],
-              candidateEmail: row[getEnquiryIndex('Candidate Email')],
-              previousCompany: row[getEnquiryIndex('Previous Company Name')],
-              jobExperience: row[getEnquiryIndex('Job Experience')] || '',
-              lastSalary: row[getEnquiryIndex('Last Salary')] || '',
-              previousPosition: row[getEnquiryIndex('Previous Position')] || '',
-              reasonForLeaving: row[getEnquiryIndex('Reason For Leaving')] || '',
-              maritalStatus: row[getEnquiryIndex('Marital Status')] || '',
-              lastEmployerMobile: row[getEnquiryIndex('Last Employer Mobile')] || '',
-              candidatePhoto: row[getEnquiryIndex('Candidate Photo')] || '',
-              candidateResume: row[19] || '',
-              referenceBy: row[getEnquiryIndex('Reference By')] || '',
-              presentAddress: row[getEnquiryIndex('Present Address')] || '',
-              aadharNo: row[getEnquiryIndex('Aadhar No')] || '',
-              status: row[27] || ''
-            }));
-
-          setEnquiryData(processedEnquiryData);
-        }
-
-      } else {
-        throw new Error(indentResult.error || 'Not enough rows in INDENT sheet data');
-      }
-
+      setIndentData(pendingTasks);
+      setEnquiryData(processedEnquiry);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error("Error fetching data:", error);
       setError(error.message);
-      toast.error('Failed to fetch data');
+      toast.error("Failed to fetch data");
     } finally {
       setLoading(false);
       setTableLoading(false);
@@ -411,14 +226,14 @@ const handleSaveEdit = async () => {
   const generateNextAAPIndentNumber = () => {
     // Extract all indent numbers from both indentData and enquiryData
     const allIndentNumbers = [
-      ...indentData.map(item => item.indentNo),
-      ...enquiryData.map(item => item.indentNo)
+      ...indentData.map((item) => item.indentNo),
+      ...enquiryData.map((item) => item.indentNo),
     ].filter(Boolean); // Remove empty/null values
 
     // Find the highest AAP number
     let maxAAPNumber = 0;
 
-    allIndentNumbers.forEach(indentNo => {
+    allIndentNumbers.forEach((indentNo) => {
       const match = indentNo.match(/^AAP-(\d+)$/i);
       if (match && match[1]) {
         const num = parseInt(match[1], 10);
@@ -430,13 +245,13 @@ const handleSaveEdit = async () => {
 
     // Return the next AAP number
     const nextNumber = maxAAPNumber + 1;
-    return `AAP-${String(nextNumber).padStart(2, '0')}`;
+    return `AAP-${String(nextNumber).padStart(2, "0")}`;
   };
 
   // Generate candidate number based on existing enquiries
   const generateCandidateNumber = () => {
     if (enquiryData.length === 0) {
-      return 'ENQ-01';
+      return "ENQ-01";
     }
 
     // Find the highest existing candidate number
@@ -452,7 +267,7 @@ const handleSaveEdit = async () => {
     }, 0);
 
     const nextNumber = lastNumber + 1;
-    return `ENQ-${String(nextNumber).padStart(2, '0')}`;
+    return `ENQ-${String(nextNumber).padStart(2, "0")}`;
   };
 
   // Convert file to base64
@@ -461,41 +276,30 @@ const handleSaveEdit = async () => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
   };
 
   // Upload file to Google Drive
-  const uploadFileToGoogleDrive = async (file, type) => {
+  const uploadFileToSupabase = async (file, type) => {
     try {
-      const base64Data = await fileToBase64(file);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${generatedCandidateNo}_${type}_${Date.now()}.${fileExt}`;
+      const filePath = `candidates/${fileName}`;
 
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            action: 'uploadFile',
-            base64Data: base64Data,
-            fileName: `${generatedCandidateNo}_${type}_${file.name}`,
-            mimeType: file.type,
-            folderId: GOOGLE_DRIVE_FOLDER_ID
-          }),
-        }
-      );
+      const { error } = await supabase.storage
+        .from("candidate-files")
+        .upload(filePath, file);
 
-      const result = await response.json();
+      if (error) throw error;
 
-      if (result.success) {
-        return result.fileUrl;
-      } else {
-        throw new Error(result.error || 'File upload failed');
-      }
+      const { data } = supabase.storage
+        .from("candidate-files")
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error("Upload error:", error);
       throw error;
     }
   };
@@ -504,10 +308,12 @@ const handleSaveEdit = async () => {
     fetchAllData();
   }, []);
 
-  const historyData = enquiryData;
+  const historyData = enquiryData.filter(
+    (item) => item.status && item.status.toLowerCase() === "complete",
+  );
 
   const handleEnquiryClick = (item = null) => {
-    let indentNo = '';
+    let indentNo = "";
     let isNewAAP = false;
 
     if (item) {
@@ -521,47 +327,46 @@ const handleSaveEdit = async () => {
       // Create a default empty item for new enquiry
       setSelectedItem({
         indentNo: indentNo,
-        post: '',
-        gender: '',
-        prefer: '',
-        numberOfPost: '',
-        competitionDate: '',
-        socialSite: '',
-        status: 'NeedMore',
-        plannedDate: '',
-        actual: '',
-        experience: ''
+        post: "",
+        gender: "",
+        prefer: "",
+        numberOfPost: "",
+        competitionDate: "",
+        socialSite: "",
+        status: "NeedMore",
+        plannedDate: "",
+        actual: "",
+        experience: "",
       });
     }
-
 
     const candidateNo = generateCandidateNumber();
     setGeneratedCandidateNo(candidateNo);
     setFormData({
-      candidateName: '',
-      candidateDOB: '',
-      candidatePhone: '',
-      candidateEmail: '',
-      previousCompany: '',
-      jobExperience: '',
-      department: item ? item.department : '',
-      lastSalary: '',
-      previousPosition: '',
-      reasonForLeaving: '',
-      maritalStatus: '',
-      lastEmployerMobile: '',
+      candidateName: "",
+      candidateDOB: "",
+      candidatePhone: "",
+      candidateEmail: "",
+      previousCompany: "",
+      jobExperience: "",
+      department: item ? item.department : "",
+      lastSalary: "",
+      previousPosition: "",
+      reasonForLeaving: "",
+      maritalStatus: "",
+      lastEmployerMobile: "",
       candidatePhoto: null,
       candidateResume: null,
-      referenceBy: '',
-      presentAddress: '',
-      aadharNo: '',
-      status: 'NeedMore'
+      referenceBy: "",
+      presentAddress: "",
+      aadharNo: "",
+      status: "NeedMore",
     });
     setShowModal(true);
   };
 
   const formatDOB = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
 
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
@@ -569,7 +374,7 @@ const handleSaveEdit = async () => {
     }
 
     const day = date.getDate();
-    const month = date.toLocaleString('default', { month: 'long' });
+    const month = date.toLocaleString("default", { month: "long" });
     const year = date.getFullYear().toString().slice(-2);
 
     return `${day}-${month}-${year}`;
@@ -580,205 +385,58 @@ const handleSaveEdit = async () => {
     setSubmitting(true);
 
     try {
-      let photoUrl = '';
-      let resumeUrl = '';
+      let photoUrl = "";
+      let resumeUrl = "";
 
-      // Upload photo if exists
       if (formData.candidatePhoto) {
         setUploadingPhoto(true);
-        photoUrl = await uploadFileToGoogleDrive(formData.candidatePhoto, 'photo');
+        photoUrl = await uploadFileToSupabase(formData.candidatePhoto, "photo");
         setUploadingPhoto(false);
-        toast.success('Photo uploaded successfully!');
       }
 
-      // Upload resume if exists
       if (formData.candidateResume) {
         setUploadingResume(true);
-        resumeUrl = await uploadFileToGoogleDrive(formData.candidateResume, 'resume');
-        setUploadingResume(false);
-        toast.success('Resume uploaded successfully!');
-      }
-
-      // Create timestamp in dd/mm/yyyy hh:mm:ss format
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-
-      const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-
-      const rowData = [
-        formattedTimestamp,                           // Column A: Timestamp
-        selectedItem.indentNo,                        // Column B: Indent Number
-        generatedCandidateNo,                         // Column C: Candidate Enquiry Number
-        selectedItem.post,                            // Column D: Applying For the Post
-        formData.candidateName,                       // Column E: Candidate Name
-        formatDOB(formData.candidateDOB),            // Column F: DCB (DOB)
-        formData.candidatePhone,                      // Column G: Candidate Phone Number
-        formData.candidateEmail,                      // Column H: Candidate Email
-        formData.previousCompany || '',               // Column I: Previous Company Name
-        formData.jobExperience || '',                 // Column J: Job Experience
-        formData.department || '',                    // Column K: Department (FIXED)
-        formData.previousPosition || '',              // Column L: Previous Position
-        '',              // Column M: Reason For Leaving
-        formData.maritalStatus || '',                 // Column N: Marital Status
-        '',            // Column O: Last Employer Mobile
-        photoUrl,                                     // Column P: Candidate Photo (URL)
-        '',                   // Column Q: Reference By
-        formData.presentAddress || '',                // Column R: Present Address
-        formData.aadharNo || '',                      // Column S: Aadhar No
-        resumeUrl,                                    // Column T: Candidate Resume (URL)
-        '',                                           // Column U
-        '',                                           // Column V
-        '',                                           // Column W
-        '',                                           // Column X
-        '',                                           // Column Y
-        '',                                           // Column Z
-        '',                                           // Column AA: Planned (Empty)
-        '',                                           // Column AB: Actual (Empty)
-      ];
-
-      console.log('Submitting to ENQUIRY sheet:', rowData);
-
-      // Submit to ENQUIRY sheet
-      const enquiryResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            sheetName: 'ENQUIRY',
-            action: 'insert',
-            rowData: JSON.stringify(rowData)
-          }),
-        }
-      );
-
-      const enquiryResult = await enquiryResponse.json();
-      console.log('ENQUIRY response:', enquiryResult);
-
-      if (!enquiryResult.success) {
-        throw new Error(enquiryResult.error || 'ENQUIRY submission failed');
-      }
-
-      // Only update INDENT sheet if status is Complete
-      if (formData.status === 'Complete') {
-        console.log('Updating INDENT sheet for status Complete');
-
-        // Fetch INDENT data
-        const indentFetchResponse = await fetch(
-          'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=INDENT&action=fetch'
+        resumeUrl = await uploadFileToSupabase(
+          formData.candidateResume,
+          "resume",
         );
-
-        const indentData = await indentFetchResponse.json();
-        console.log('INDENT data fetched:', indentData);
-
-        if (!indentData.success) {
-          throw new Error('Failed to fetch INDENT data: ' + (indentData.error || 'Unknown error'));
-        }
-
-        // Find the row index
-        let rowIndex = -1;
-        for (let i = 1; i < indentData.data.length; i++) {
-          if (indentData.data[i][1] === selectedItem.indentNo) {
-            rowIndex = i + 1; // Spreadsheet rows start at 1
-            break;
-          }
-        }
-
-        if (rowIndex === -1) {
-          throw new Error(`Could not find indentNo: ${selectedItem.indentNo} in INDENT sheet`);
-        }
-
-        console.log('Found row index:', rowIndex);
-
-        // Get headers
-        const headers = indentData.data[5];
-        console.log('Headers:', headers);
-
-        // Find column indices
-        const getColumnIndex = (columnName) => {
-          return headers.findIndex(h => h && h.toString().trim() === columnName);
-        };
-
-        const statusIndex = getColumnIndex('Status');
-        const actual2Index = getColumnIndex('Actual 2');
-
-        console.log('Status column index:', statusIndex);
-        console.log('Actual 2 column index:', actual2Index);
-
-        // Update Status column
-        if (statusIndex !== -1) {
-          console.log('Updating Status column...');
-          const statusResponse = await fetch(
-            'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: new URLSearchParams({
-                sheetName: 'INDENT',
-                action: 'updateCell',
-                rowIndex: rowIndex.toString(),
-                columnIndex: (statusIndex + 1).toString(), // Convert to string
-                value: 'Complete'
-              }),
-            }
-          );
-
-          const statusResult = await statusResponse.json();
-          console.log('Status update result:', statusResult);
-
-          if (!statusResult.success) {
-            console.error('Status update failed:', statusResult.error);
-          }
-        }
-
-        // Update Actual 2 column
-        if (actual2Index !== -1) {
-          console.log('Updating Actual 2 column...');
-          const actual2Response = await fetch(
-            'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: new URLSearchParams({
-                sheetName: 'INDENT',
-                action: 'updateCell',
-                rowIndex: rowIndex.toString(),
-                columnIndex: (actual2Index + 1).toString(), // Convert to string
-                value: new Date().toISOString()
-              }),
-            }
-          );
-
-          const actual2Result = await actual2Response.json();
-          console.log('Actual 2 update result:', actual2Result);
-
-          if (!actual2Result.success) {
-            console.error('Actual 2 update failed:', actual2Result.error);
-          }
-        }
-
-        toast.success('Enquiry submitted and INDENT marked as Complete!');
-      } else {
-        toast.success('Enquiry submitted successfully!');
+        setUploadingResume(false);
       }
+
+      const now = new Date();
+
+      const { error } = await supabase.from("enquiry").insert([
+        {
+          timestamp: now,
+          indent_number: selectedItem.indentNo,
+          candidate_enquiry_number: generatedCandidateNo,
+          applying_post: selectedItem.post,
+          candidate_name: formData.candidateName,
+          dob: formData.candidateDOB || null,
+          candidate_phone: formData.candidatePhone,
+          candidate_email: formData.candidateEmail,
+          previous_company_name: formData.previousCompany,
+          job_experience: formData.jobExperience,
+          department: formData.department,
+          previous_position: formData.previousPosition,
+          marital_status: formData.maritalStatus,
+          candidate_photo: photoUrl,
+          present_address: formData.presentAddress,
+          aadhar_number: formData.aadharNo,
+          resume_copy: resumeUrl,
+          tracker_status: formData.status || "NeedMore",
+        },
+      ]);
+
+      if (error) throw error;
+
+      toast.success("Enquiry submitted successfully");
 
       setShowModal(false);
       fetchAllData();
-
     } catch (error) {
-      console.error('Submission error:', error);
-      toast.error(`Error: ${error.message}`);
+      console.error("Submission error:", error);
+      toast.error(error.message);
     } finally {
       setSubmitting(false);
       setUploadingPhoto(false);
@@ -788,9 +446,9 @@ const handleSaveEdit = async () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -799,30 +457,33 @@ const handleSaveEdit = async () => {
     if (file) {
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size must be less than 10MB');
+        toast.error("File size must be less than 10MB");
         return;
       }
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [field]: file
+        [field]: file,
       }));
     }
   };
 
-  const filteredPendingData = indentData.filter(item => {
-    const matchesSearch = item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredPendingData = indentData.filter((item) => {
+    const matchesSearch =
+      item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
-  const filteredHistoryData = historyData.filter(item => {
-    const matchesSearch = item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.candidateEnquiryNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredHistoryData = historyData.filter((item) => {
+    const matchesSearch =
+      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.candidateEnquiryNo
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
-
 
   return (
     <div className="space-y-6">
@@ -860,20 +521,22 @@ const handleSaveEdit = async () => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                activeTab === "pending"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+              }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                activeTab === "history"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+              }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -967,8 +630,8 @@ const handleSaveEdit = async () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {item.competitionDate
                             ? new Date(
-                              item.competitionDate
-                            ).toLocaleDateString()
+                                item.competitionDate,
+                              ).toLocaleDateString()
                             : "-"}
                         </td>
                       </tr>
@@ -979,140 +642,7 @@ const handleSaveEdit = async () => {
             </div>
           )}
 
-          {/* {activeTab === "history" && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Indent No.
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Enquiry No.
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Post
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Candidate Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Experience
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Photo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Resume
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {tableLoading ? (
-                    <tr>
-                      <td colSpan="11" className="px-6 py-12 text-center">
-                        <div className="flex justify-center flex-col items-center">
-                          <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
-                          <span className="text-gray-600 text-sm">
-                            Loading enquiry history...
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredHistoryData.length === 0 ? (
-                    <tr>
-                      <td colSpan="11" className="px-6 py-12 text-center">
-                        <p className="text-gray-500">
-                          No enquiry history found.
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredHistoryData.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.indentNo}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEnquiryNo}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.applyingForPost}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.department}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhone}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEmail}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.jobExperience}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhoto ? (
-                            <a
-                              href={item.candidatePhoto}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateResume ? (
-                            <a
-                              href={item.candidateResume}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.status === 'Complete'
-                              ? 'bg-green-100 text-green-800'
-                              : item.status === 'NeedMore'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                            {item.status === 'NeedMore' ? 'Need More' : (item.status || '-')}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )} */}
-
-          {activeTab === "history" && (
+    {activeTab === "history" && (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
@@ -1178,63 +708,15 @@ const handleSaveEdit = async () => {
         ) : (
           filteredHistoryData.map((item) => (
             <tr key={item.id} className="hover:bg-gray-50">
-             <td className="px-6 py-4 whitespace-nowrap text-sm">
-  {editMode && editingItem?.id === item.id ? (
-    <div className="flex space-x-2">
-      <button
-        onClick={handleSaveEdit}
-        disabled={submitting}
-        className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
-      >
-        {submitting ? (
-          <>
-            <svg
-              className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Save
-          </>
-        ) : (
-          "Save"
-        )}
-      </button>
-      <button
-        onClick={() => {
-          setEditMode(false);
-          setEditingItem(null);
-        }}
-        disabled={submitting}
-        className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
-      >
-        Cancel
-      </button>
-    </div>
-  ) : (
-    <button
-      onClick={() => handleEditClick(item)}
-      disabled={submitting}
-      className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
-    >
-      Edit
-    </button>
-  )}
-</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                <button
+                  onClick={() => handleEditClick(item)}
+                  disabled={submitting}
+                  className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                >
+                  Edit
+                </button>
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.indentNo}
               </td>
@@ -1242,93 +724,43 @@ const handleSaveEdit = async () => {
                 {item.candidateEnquiryNo}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.id === item.id ? (
-                  <input
-                    type="text"
-                    name="applyingForPost"
-                    value={editFormData.applyingForPost || item.applyingForPost}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.applyingForPost
-                )}
+                {item.applyingForPost}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.id === item.id ? (
-                  <input
-                    type="text"
-                    name="department"
-                    value={editFormData.department}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.department
-                )}
+                {item.department}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.id === item.id ? (
-                  <input
-                    type="text"
-                    name="candidateName"
-                    value={editFormData.candidateName}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.candidateName
-                )}
+                {item.candidateName}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.id === item.id ? (
-                  <input
-                    type="text"
-                    name="candidatePhone"
-                    value={editFormData.candidatePhone}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.candidatePhone
-                )}
+                {item.candidatePhone}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.id === item.id ? (
-                  <input
-                    type="email"
-                    name="candidateEmail"
-                    value={editFormData.candidateEmail}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.candidateEmail
-                )}
+                {item.candidateEmail}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.id === item.id ? (
-                  <input
-                    type="text"
-                    name="jobExperience"
-                    value={editFormData.jobExperience}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                ) : (
-                  item.jobExperience
-                )}
+                {item.jobExperience}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.candidatePhoto ? (
-                  <a
-                    href={item.candidatePhoto}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:text-indigo-800"
-                  >
-                    View
-                  </a>
+                  item.candidatePhoto.endsWith(".jpg") ||
+                  item.candidatePhoto.endsWith(".jpeg") ||
+                  item.candidatePhoto.endsWith(".png") ? (
+                    <img
+                      src={item.candidatePhoto}
+                      alt="candidate"
+                      className="h-10 w-10 rounded object-cover"
+                    />
+                  ) : (
+                    <a
+                      href={item.candidatePhoto}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:text-indigo-800"
+                    >
+                      View File
+                    </a>
+                  )
                 ) : (
                   "-"
                 )}
@@ -1348,27 +780,19 @@ const handleSaveEdit = async () => {
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editMode && editingItem?.id === item.id ? (
-                  <select
-                    name="status"
-                    value={editFormData.status}
-                    onChange={handleEditInputChange}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  >
-                    <option value="NeedMore">Need More</option>
-                    <option value="Complete">Complete</option>
-                  </select>
-                ) : (
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    item.status === 'Complete'
-                      ? 'bg-green-100 text-green-800'
-                      : item.status === 'NeedMore'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {item.status === 'NeedMore' ? 'Need More' : (item.status || '-')}
-                  </span>
-                )}
+                <span
+                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    item.status === "Complete"
+                      ? "bg-green-100 text-green-800"
+                      : item.status === "NeedMore"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {item.status === "NeedMore"
+                    ? "Need More"
+                    : item.status || "-"}
+                </span>
               </td>
             </tr>
           ))
@@ -1378,6 +802,270 @@ const handleSaveEdit = async () => {
   </div>
 )}
         </div>
+        {/* Edit Modal */}
+{showEditModal && selectedItem && (
+  <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="p-6 space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Edit Enquiry</h2>
+          <button
+            onClick={() => {
+              setShowEditModal(false);
+              setSelectedItem(null);
+            }}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Indent No. (इंडेंट नंबर)
+              </label>
+              <input
+                type="text"
+                value={selectedItem.indentNo}
+                disabled
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-gray-100 text-gray-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Candidate Enquiry No. (उम्मीदवार इन्क्वायरी संख्या)
+              </label>
+              <input
+                type="text"
+                value={selectedItem.candidateEnquiryNo}
+                disabled
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-gray-100 text-gray-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Applying For Post (पद के लिए आवेदन)
+              </label>
+              <input
+                type="text"
+                name="applyingForPost"
+                value={editFormData.applyingForPost}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Department (विभाग)
+              </label>
+              <input
+                type="text"
+                name="department"
+                value={editFormData.department}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Candidate Name (उम्मीदवार का नाम) *
+              </label>
+              <input
+                type="text"
+                name="candidateName"
+                value={editFormData.candidateName}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Candidate DOB (उम्मीदवार की जन्मतिथि)
+              </label>
+              <input
+                type="date"
+                name="candidateDOB"
+                value={editFormData.candidateDOB}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Candidate Phone (उम्मीदवार का फ़ोन) *
+              </label>
+              <input
+                type="tel"
+                name="candidatePhone"
+                value={editFormData.candidatePhone}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Candidate Email (उम्मीदवार ईमेल)
+              </label>
+              <input
+                type="email"
+                name="candidateEmail"
+                value={editFormData.candidateEmail}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Previous Company (पिछली कंपनी)
+              </label>
+              <input
+                type="text"
+                name="previousCompany"
+                value={editFormData.previousCompany}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Job Experience (काम का अनुभव)
+              </label>
+              <input
+                type="text"
+                name="jobExperience"
+                value={editFormData.jobExperience}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Previous Position (पिछला पद)
+              </label>
+              <input
+                type="text"
+                name="previousPosition"
+                value={editFormData.previousPosition}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Marital Status (वैवाहिक स्थिति)
+              </label>
+              <select
+                name="maritalStatus"
+                value={editFormData.maritalStatus}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              >
+                <option value="">Select Status</option>
+                <option value="Single">Single</option>
+                <option value="Married">Married</option>
+                <option value="Divorced">Divorced</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">
+              Current Address (वर्त्तमान पता)
+            </label>
+            <textarea
+              name="presentAddress"
+              value={editFormData.presentAddress}
+              onChange={handleEditInputChange}
+              rows={3}
+              className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Aadhar Number (आधार नंबर)
+              </label>
+              <input
+                type="text"
+                name="aadharNo"
+                value={editFormData.aadharNo}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Status (स्थिति) *
+              </label>
+              <select
+                name="status"
+                value={editFormData.status}
+                onChange={handleEditInputChange}
+                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                required
+              >
+                <option value="NeedMore">Need More</option>
+                <option value="Complete">Complete</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEditModal(false);
+                setSelectedItem(null);
+              }}
+              className="px-4 py-2 border border-gray-300 border-opacity-30 rounded-md text-gray-500 hover:bg-gray-100"
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 flex items-center justify-center min-w-[100px]"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Updating...
+                </>
+              ) : (
+                "Update"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+)}
       </div>
 
       {showModal && selectedItem && (
@@ -1451,7 +1139,6 @@ const handleSaveEdit = async () => {
                     value={formData.candidateName}
                     onChange={handleInputChange}
                     className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                    required
                   />
                 </div>
                 <div>
@@ -1476,7 +1163,6 @@ const handleSaveEdit = async () => {
                     value={formData.candidatePhone}
                     onChange={handleInputChange}
                     className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                    required
                   />
                 </div>
                 <div>
@@ -1543,8 +1229,6 @@ const handleSaveEdit = async () => {
                     <option value="Divorced">Divorced</option>
                   </select>
                 </div>
-
-              
               </div>
 
               <div>
@@ -1646,7 +1330,7 @@ const handleSaveEdit = async () => {
                     value={formData.status}
                     onChange={handleInputChange}
                     className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
-                    required
+                    
                   >
                     <option value="NeedMore">Need More </option>
                     <option value="Complete">Complete</option>

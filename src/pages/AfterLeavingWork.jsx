@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import supabase from "../utils/supabase";
+
 
 const AfterLeavingWork = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,172 +23,125 @@ const AfterLeavingWork = () => {
     removeBenefitEnrollment: false
   });
 
-  const fetchLeavingData = async () => {
-    setLoading(true);
-    setTableLoading(true);
-    setError(null);
+  const [activeTab, setActiveTab] = useState("pending");
 
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=LEAVING&action=fetch'
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch data from LEAVING sheet');
-      }
-      
-      const rawData = result.data || result;
-      
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
+const fetchLeavingData = async () => {
+  setLoading(true);
+  setTableLoading(true);
+  setError(null);
 
-      // Process data starting from row 7 (index 6) - skip headers
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-      
-      const processedData = dataRows.map(row => ({
-        timestamp: row[0] || '',
-        employeeId: row[1] || '',
-        name: row[2] || '',
-        dateOfLeaving: row[3] || '',
-        mobileNo: row[4] || '',
-        reasonOfLeaving: row[5] || '',
-        firmName: row[6] || '',
-        fatherName: row[7] || '', 
-        dateOfJoining: row[8] || '', 
-        workingLocation: row[9] || '', 
-        designation: row[10] || '', 
-        department: row[11] || '', 
-        plannedDate: row[12] || '', 
-        actual: row[13] || ''
-      }));
+  try {
+    const { data, error } = await supabase
+      .from("employee_leaving")
+      .select("*");
 
-      const pendingTasks = processedData.filter(
-        task => task.plannedDate && !task.actual
-      );
-      setPendingData(pendingTasks);
-      
-      const historyTasks = processedData.filter(
-        task => task.plannedDate && task.actual
-      );
-      setHistoryData(historyTasks);
-     
-    } catch (error) {
-      console.error('Error fetching leaving data:', error);
-      setError(error.message);
-      toast.error(`Failed to load leaving data: ${error.message}`);
-    } finally {
-      setLoading(false);
-      setTableLoading(false);
-    }
-  };
+    if (error) throw error;
+
+    const processedData = data.map((row) => ({
+      timestamp: row.timestamp || "",
+      employeeId: row.employee_id || "",
+      name: row.name || "",
+      dateOfLeaving: row.date_of_leaving || "",
+      mobileNo: row.mobile_number || "",
+      reasonOfLeaving: row.reason_of_leaving || "",
+      firmName: row.firm_name || "",
+      fatherName: row.father_name || "",
+      dateOfJoining: row.date_of_joining || "",
+      workingLocation: row.work_location || "",
+      designation: row.designation || "",
+      department: row.department || "",
+      plannedDate: row.planned_date || "",
+      actual: row.actual || "",
+
+      // 👇 important fields add karo
+      resignationLetterReceived: row.resignation_letter_received,
+      resignationAcceptance: row.resignation_acceptance,
+      handoverAssets: row.handover_of_assets,
+      cancellationEmail: row.cancellation_of_email_id,
+      removeBenefit: row.remove_benefit_enrollment,
+      finalReleaseDate: row.final_release_date
+    }));
+
+    // ✅ Pending: checklist complete nahi hua
+    const pendingTasks = processedData.filter(
+      (task) =>
+        !(
+          task.resignationLetterReceived &&
+          task.resignationAcceptance &&
+          task.handoverAssets &&
+          task.cancellationEmail &&
+          task.removeBenefit &&
+          task.finalReleaseDate
+        )
+    );
+
+    // ✅ History: checklist complete ho gaya
+    const historyTasks = processedData.filter(
+      (task) =>
+        task.resignationLetterReceived &&
+        task.resignationAcceptance &&
+        task.handoverAssets &&
+        task.cancellationEmail &&
+        task.removeBenefit &&
+        task.finalReleaseDate
+    );
+
+    setPendingData(pendingTasks);
+    setHistoryData(historyTasks);
+
+  } catch (error) {
+    console.error("Error fetching leaving data:", error);
+    setError(error.message);
+    toast.error(`Failed to load leaving data: ${error.message}`);
+  } finally {
+    setLoading(false);
+    setTableLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchLeavingData();
   }, []);
 
-  const handleAfterLeavingClick = async (item) => {
+ const handleAfterLeavingClick = async (item) => {
+  setFormData({
+    resignationLetterReceived: false,
+    resignationAcceptance: false,
+    handoverAssetsIdVisitingCard: false,
+    cancellationEmailBiometric: false,
+    finalReleaseDate: '',
+    removeBenefitEnrollment: false
+  });
+
+  setSelectedItem(item);
+  setShowModal(true);
+  setLoading(true);
+
+  try {
+    const { data, error } = await supabase
+      .from("employee_leaving")
+      .select("*")
+      .eq("employee_id", item.employeeId)
+      .single();
+
+    if (error) throw error;
+
     setFormData({
-      resignationLetterReceived: false,
-      resignationAcceptance: false,
-      handoverAssetsIdVisitingCard: false,
-      cancellationEmailBiometric: false,
-      finalReleaseDate: '',
-      removeBenefitEnrollment: false
+      resignationLetterReceived: data.resignation_letter_received || false,
+      resignationAcceptance: data.resignation_acceptance || false,
+      handoverAssetsIdVisitingCard: data.handover_of_assets || false,
+      cancellationEmailBiometric: data.cancellation_of_email_id || false,
+      finalReleaseDate: data.final_release_date || '',
+      removeBenefitEnrollment: data.remove_benefit_enrollment || false
     });
-    
-    setSelectedItem(item);
-    setShowModal(true);
-    setLoading(true);
 
-    try {
-      const fullDataResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=LEAVING&action=fetch'
-      );
-      
-      if (!fullDataResponse.ok) {
-        throw new Error(`HTTP error! status: ${fullDataResponse.status}`);
-      }
-      
-      const fullDataResult = await fullDataResponse.json();
-      const allData = fullDataResult.data || fullDataResult;
-
-      let headerRowIndex = allData.findIndex(row =>
-        row.some(cell => cell?.toString().trim().toLowerCase().includes('employee id'))
-      );
-      if (headerRowIndex === -1) headerRowIndex = 4;
-
-      const headers = allData[headerRowIndex].map(h => h?.toString().trim());
-
-      // Find Employee ID column index
-      const employeeIdIndex = headers.findIndex(h => h?.toLowerCase() === "employee id");
-      if (employeeIdIndex === -1) {
-        throw new Error("Could not find 'Employee ID' column");
-      }
-
-      // Find the employee row index
-      const rowIndex = allData.findIndex((row, idx) =>
-        idx > headerRowIndex &&
-        row[employeeIdIndex]?.toString().trim() === item.employeeId?.toString().trim()
-      );
-      
-      if (rowIndex === -1) {
-        throw new Error(`Employee ${item.employeeId} not found in LEAVING sheet`);
-      }
-
-      // Get current values from the sheet
-      // Final Release Date is now at column T (index 19)
-      const finalReleaseDateValue = allData[rowIndex][19] || "";
-      
-      // Format the date for the input field (YYYY-MM-DD format)
-      let formattedDate = "";
-      if (finalReleaseDateValue) {
-        // Try to parse the date if it's in a different format
-        const dateParts = finalReleaseDateValue.toString().split('/');
-        if (dateParts.length === 3) {
-          // Assuming DD/MM/YYYY format
-          const day = dateParts[0].padStart(2, '0');
-          const month = dateParts[1].padStart(2, '0');
-          const year = dateParts[2];
-          formattedDate = `${year}-${month}-${day}`;
-        } else {
-          // Try to parse as a Date object if it's in a different format
-          const dateObj = new Date(finalReleaseDateValue);
-          if (!isNaN(dateObj.getTime())) {
-            formattedDate = dateObj.toISOString().split('T')[0];
-          }
-        }
-      }
-
-      const currentValues = {
-        resignationLetterReceived: 
-          allData[rowIndex][15]?.toString().trim().toLowerCase() === "yes",
-        resignationAcceptance: 
-          allData[rowIndex][16]?.toString().trim().toLowerCase() === "yes",
-        handoverAssetsIdVisitingCard: 
-          allData[rowIndex][17]?.toString().trim().toLowerCase() === "yes",
-        cancellationEmailBiometric: 
-          allData[rowIndex][18]?.toString().trim().toLowerCase() === "yes",
-        finalReleaseDate: formattedDate,
-        removeBenefitEnrollment: 
-          allData[rowIndex][20]?.toString().trim().toLowerCase() === "yes"
-      };
-
-      setFormData(currentValues);
-    } catch (error) {
-      console.error('Error fetching current values:', error);
-      // Keep the default reset values if there's an error
-      toast.error("Failed to load current values");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    console.error("Error fetching current values:", error);
+    toast.error("Failed to load current values");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleCheckboxChange = (name) => {
     setFormData(prev => ({
@@ -208,53 +163,17 @@ const handleSubmit = async (e) => {
   setLoading(true);
   setSubmitting(true);
 
-  if (!selectedItem.employeeId || !selectedItem.name) {
-    toast.error('Please fill all required fields');
+  if (!selectedItem.employeeId) {
+    toast.error("Invalid employee");
     setSubmitting(false);
     return;
   }
 
   try {
-    // 1. First fetch the current data
-    const fullDataResponse = await fetch(
-      'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=LEAVING&action=fetch'
-    );
-    if (!fullDataResponse.ok) {
-      throw new Error(`HTTP error! status: ${fullDataResponse.status}`);
-    }
-
-    const fullDataResult = await fullDataResponse.json();
-    const allData = fullDataResult.data || fullDataResult;
-
-    // Find header row in LEAVING sheet
-    let headerRowIndex = allData.findIndex(row =>
-      row.some(cell => cell?.toString().trim().toLowerCase().includes('employee id'))
-    );
-    if (headerRowIndex === -1) headerRowIndex = 4;
-
-    const headers = allData[headerRowIndex].map(h => h?.toString().trim());
-
-    // Find Employee ID column index
-    const employeeIdIndex = headers.findIndex(h => h?.toLowerCase() === "employee id");
-    if (employeeIdIndex === -1) {
-      throw new Error("Could not find 'Employee ID' column");
-    }
-
-    // Find the employee row index
-    const rowIndex = allData.findIndex((row, idx) =>
-      idx > headerRowIndex &&
-      row[employeeIdIndex]?.toString().trim() === selectedItem.employeeId?.toString().trim()
-    );
-    if (rowIndex === -1) throw new Error(`Employee ${selectedItem.employeeId} not found in LEAVING sheet`);
-
-    // Create current date for actual date (Column N)
     const now = new Date();
-    const currentDateFormatted = now.getFullYear() + '-' + 
-                                String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                                String(now.getDate()).padStart(2, '0');
-    
-    // Check if all conditions are met
-    const allConditionsMet = 
+    const currentDateFormatted = now.toISOString().split("T")[0];
+
+    const allConditionsMet =
       formData.resignationLetterReceived &&
       formData.resignationAcceptance &&
       formData.handoverAssetsIdVisitingCard &&
@@ -262,104 +181,38 @@ const handleSubmit = async (e) => {
       formData.removeBenefitEnrollment &&
       formData.finalReleaseDate;
 
-    const updatePromises = [];
+    const updatePayload = {
+      resignation_letter_received: formData.resignationLetterReceived,
+      resignation_acceptance: formData.resignationAcceptance,
+      handover_of_assets: formData.handoverAssetsIdVisitingCard,
+      cancellation_of_email_id: formData.cancellationEmailBiometric,
+      final_release_date: formData.finalReleaseDate || null,
+      remove_benefit_enrollment: formData.removeBenefitEnrollment
+    };
 
-    // Only update actual date (Column N) if all conditions are met
+    // Only update actual if all conditions met
     if (allConditionsMet) {
-      updatePromises.push(
-        fetch(
-          "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-              sheetName: "LEAVING",
-              action: "updateCell",
-              rowIndex: (rowIndex + 1).toString(),
-              columnIndex: "14", // Column N (Actual date)
-              value: currentDateFormatted, // Send as YYYY-MM-DD format
-            }).toString(),
-          }
-        )
-      );
+      updatePayload.actual = currentDateFormatted;
     }
 
-    // Update Final Release Date (Column T) - always update if provided
-    if (formData.finalReleaseDate) {
-      updatePromises.push(
-        fetch(
-          "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-              sheetName: "LEAVING",
-              action: "updateCell",
-              rowIndex: (rowIndex + 1).toString(),
-              columnIndex: "20", // Column T (Final Release Date)
-              value: formData.finalReleaseDate, // Send as YYYY-MM-DD format
-            }).toString(),
-          }
-        )
-      );
-    }
+    const { error } = await supabase
+      .from("employee_leaving")
+      .update(updatePayload)
+      .eq("employee_id", selectedItem.employeeId);
 
-    // Update checklist columns (these remain as Yes/No strings)
-    const fields = [
-      { value: formData.resignationLetterReceived ? "Yes" : "No", offset: 15 },
-      { value: formData.resignationAcceptance ? "Yes" : "No", offset: 16 },
-      { value: formData.handoverAssetsIdVisitingCard ? "Yes" : "No", offset: 17 },
-      { value: formData.cancellationEmailBiometric ? "Yes" : "No", offset: 18 },
-      { value: formData.removeBenefitEnrollment ? "Yes" : "No", offset: 20 }
-    ];
-
-    // Add all other field updates
-    fields.forEach((field) => {
-      updatePromises.push(
-        fetch(
-          "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-              sheetName: "LEAVING",
-              action: "updateCell",
-              rowIndex: (rowIndex + 1).toString(),
-              columnIndex: (field.offset + 1).toString(),
-              value: field.value,
-            }).toString(),
-          }
-        )
-      );
-    });
-
-    const responses = await Promise.all(updatePromises);
-    const results = await Promise.all(responses.map((r) => r.json()));
-
-    const hasError = results.some((result) => !result.success);
-    if (hasError) {
-      console.error("Some cell updates failed:", results);
-      throw new Error("Some cell updates failed");
-    }
+    if (error) throw error;
 
     if (allConditionsMet) {
-      toast.success("All conditions met! Actual date updated successfully.");
+      toast.success("All conditions met! Actual date updated.");
     } else {
-      toast.success(
-        "Conditions updated successfully. Actual date will be updated when all conditions are met."
-      );
+      toast.success("Updated successfully.");
     }
 
     setShowModal(false);
     fetchLeavingData();
+
   } catch (error) {
-    console.error('Update error:', error);
+    console.error("Update error:", error);
     toast.error(`Update failed: ${error.message}`);
   } finally {
     setLoading(false);
@@ -382,11 +235,19 @@ const handleSubmit = async (e) => {
     return `${day}/${month}/${year}`;
   };
 
+  
+
   const filteredPendingData = pendingData.filter(item => {
     const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
+
+
+  const displayData =
+  activeTab === "pending"
+    ? filteredPendingData
+    : historyData;
 
   return (
     <div className="space-y-6">
@@ -408,7 +269,33 @@ const handleSubmit = async (e) => {
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
           </div>
         </div>
+
+        <div className="flex space-x-4 border-b pb-2">
+  <button
+    onClick={() => setActiveTab("pending")}
+    className={`px-4 py-2 rounded-t-md ${
+      activeTab === "pending"
+        ? "bg-indigo-600 text-white"
+        : "bg-gray-200 text-gray-700"
+    }`}
+  >
+    Pending
+  </button>
+
+  <button
+    onClick={() => setActiveTab("history")}
+    className={`px-4 py-2 rounded-t-md ${
+      activeTab === "history"
+        ? "bg-indigo-600 text-white"
+        : "bg-gray-200 text-gray-700"
+    }`}
+  >
+    History
+  </button>
+</div>
       </div>
+
+      
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -417,7 +304,11 @@ const handleSubmit = async (e) => {
             <table className="min-w-full divide-y divide-white">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                 {activeTab === "pending" && (
+  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+    Action
+  </th>
+)}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Of Joining</th>
@@ -449,17 +340,19 @@ const handleSubmit = async (e) => {
                       </button>
                     </td>
                   </tr>
-                ) : filteredPendingData.length > 0 ? (
-                  filteredPendingData.map((item, index) => (
+                ) : displayData.length > 0 ? (
+                 displayData.map((item, index) => (
                     <tr key={index} className="hover:bg-white">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleAfterLeavingClick(item)}
-                          className="px-3 py-1 text-white bg-indigo-700 rounded-md text-sm"
-                        >
-                          Process
-                        </button>
-                      </td>
+                     {activeTab === "pending" && (
+  <td className="px-6 py-4 whitespace-nowrap">
+    <button
+      onClick={() => handleAfterLeavingClick(item)}
+      className="px-3 py-1 text-white bg-indigo-700 rounded-md text-sm"
+    >
+      Process
+    </button>
+  </td>
+)}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeId}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

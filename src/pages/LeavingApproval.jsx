@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import supabase from "../utils/supabase";
+
+
 
 const LeavingApproval = () => {
   const [data, setData] = useState([]);
@@ -6,127 +9,111 @@ const LeavingApproval = () => {
   const [error, setError] = useState(null);
   const [processingRows, setProcessingRows] = useState(new Set());
 
-  const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec";
-  const SHEET_NAME = "LEAVING";
+  
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+const fetchData = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      const response = await fetch(
-        `${SCRIPT_URL}?sheet=${SHEET_NAME}&action=fetch`
-      );
-      const result = await response.json();
+    const { data: leavingData, error: fetchError } = await supabase
+      .from('employee_leaving')
+      .select('*')
+      .order('timestamp', { ascending: false });
 
-      if (result.success && result.data) {
-        // Headers are at row 6 (index 5), so data starts from row 7 (index 6)
-        const rows = result.data
-          .slice(6)
-          .filter((row) => row[1] && row[1].toString().trim() !== "")
-          .map((row, index) => ({
-            rowIndex: index + 7, // Row index in Google Sheets (starting from row 7)
-            employeeId: row[1] || "", // Column B
-            name: row[2] || "", // Column C
-            dateOfLeaving: row[3] || "", // Column D
-            mobileNumber: row[4] || "", // Column E
-            reasonOfLeaving: row[5] || "", // Column F
-            firmName: row[6] || "", // Column G
-            fatherName: row[7] || "", // Column H
-            dateOfJoining: row[8] || "", // Column I
-            workLocation: row[9] || "", // Column J
-            designation: row[10] || "", // Column K
-            department: row[11] || "", // Column L
-            approvalStatus: row[21] || "", // Column V (index 21)
-          }));
+    if (fetchError) throw fetchError;
 
-        const sortedRows = rows.sort((a, b) => {
-          if (
-            a.approvalStatus === "Approved" &&
-            b.approvalStatus !== "Approved"
-          ) {
-            return 1; // a goes after b
-          }
-          if (
-            a.approvalStatus !== "Approved" &&
-            b.approvalStatus === "Approved"
-          ) {
-            return -1; // a goes before b
-          }
-          return 0; // keep original order
-        });
+    // Transform the data to match the existing structure
+    const transformedData = leavingData.map((record, index) => ({
+      rowIndex: record.id, // Using the actual database ID
+      employeeId: record.employee_id || '',
+      name: record.name || '',
+      dateOfLeaving: record.date_of_leaving || '',
+      mobileNumber: record.mobile_number || '',
+      reasonOfLeaving: record.reason_of_leaving || '',
+      firmName: record.firm_name || '',
+      fatherName: record.father_name || '',
+      dateOfJoining: record.date_of_joining || '',
+      workLocation: record.work_location || '',
+      designation: record.designation || '',
+      department: record.department || '',
+      approvalStatus: record.resignation_acceptance ? 'Approved' : 'Pending', // Map to your status field
+    }));
 
-        setData(sortedRows);
-      } else {
-        throw new Error(result.error || "Failed to fetch data");
-      }
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    // Sort: Pending first, then Approved
+    const sortedRows = transformedData.sort((a, b) => {
+      if (a.approvalStatus === 'Approved' && b.approvalStatus !== 'Approved') return 1;
+      if (a.approvalStatus !== 'Approved' && b.approvalStatus === 'Approved') return -1;
+      return 0;
+    });
+
+    setData(sortedRows);
+  } catch (err) {
+    console.error("Error fetching data:", err);
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
+ const handleApprove = async (rowId) => {
+  try {
+    setProcessingRows((prev) => new Set([...prev, rowId]));
+
+    // Update the approval status in employee_leaving table
+    const { error: updateError } = await supabase
+      .from('employee_leaving')
+      .update({ 
+        resignation_acceptance: true,
+        actual: new Date().toISOString().split('T')[0] // Set actual date if needed
+      })
+      .eq('id', rowId);
+
+    if (updateError) throw updateError;
+
+    // Get the current row data to get employee_id
+    const currentRow = data.find((row) => row.rowIndex === rowId);
+    
+    if (currentRow && currentRow.employeeId) {
+      // Update the joining table status to Inactive
+      const { error: joiningError } = await supabase
+        .from('joining')
+        .update({ status: 'Inactive' })
+        .eq('rbp_joining_id', currentRow.employeeId);
+
+      if (joiningError) throw joiningError;
     }
-  };
 
-  const handleApprove = async (rowIndex) => {
-    try {
-      setProcessingRows((prev) => new Set([...prev, rowIndex]));
+    // Update local state
+    setData((prevData) =>
+      prevData.map((row) =>
+        row.rowIndex === rowId
+          ? { ...row, approvalStatus: "Approved" }
+          : row
+      )
+    );
+    
+    alert("Successfully approved!");
+  } catch (err) {
+    console.error("Error approving:", err);
+    alert("Failed to approve: " + err.message);
+  } finally {
+    setProcessingRows((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(rowId);
+      return newSet;
+    });
+  }
+};
 
-      const formData = new URLSearchParams();
-      formData.append("action", "updateCell");
-      formData.append("sheetName", SHEET_NAME);
-      formData.append("rowIndex", rowIndex);
-      formData.append("columnIndex", 22); // Column V (1-based index)
-      formData.append("value", "Approved");
 
-      const response = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        const currentRow = data.find((row) => row.rowIndex === rowIndex);
-        const employeeId = currentRow.employeeId;
-
-        const joiningFormData = new URLSearchParams();
-        joiningFormData.append("action", "updateJoiningStatus");
-        joiningFormData.append("employeeId", employeeId);
-        joiningFormData.append("newStatus", "Inactive");
-
-        await fetch(SCRIPT_URL, {
-          method: "POST",
-          body: joiningFormData,
-        });
-
-        setData((prevData) =>
-          prevData.map((row) =>
-            row.rowIndex === rowIndex
-              ? { ...row, approvalStatus: "Approved" }
-              : row
-          )
-        );
-        alert("Successfully approved!");
-      } else {
-        throw new Error(result.error || "Failed to approve");
-      }
-    } catch (err) {
-      console.error("Error approving:", err);
-      alert("Failed to approve: " + err.message);
-    } finally {
-      setProcessingRows((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(rowIndex);
-        return newSet;
-      });
-    }
-  };
 
   if (loading) {
     return (

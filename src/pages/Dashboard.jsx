@@ -1,16 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-} from "recharts";
+import supabase from "../utils/supabase";
+
 import {
   Users,
   UserCheck,
@@ -89,344 +79,257 @@ const Dashboard = () => {
   };
 
   // Fetch Leave Management Data for New Analytics
-  const fetchLeaveManagementAnalytics = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=Leave%20Management&action=fetch"
-      );
+ const fetchLeaveManagementAnalytics = async () => {
+  try {
+    console.log("🔍 Fetching leave management analytics from Supabase...");
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    const { data, error } = await supabase
+      .from('employee_leaving')
+      .select('reason_of_leaving, status');
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from Leave Management sheet"
-        );
-      }
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
-
-      const headers = rawData[0];
-      const dataRows = rawData.slice(1);
-
-      const statusIndex = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase().includes("status")
-      );
-      const leaveTypeIndex = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase().includes("leave type")
-      );
-
-      const statusCounts = {};
-      const typeCounts = {};
-
-      dataRows.forEach((row) => {
-        const status = row[statusIndex]?.toString().trim() || "Unknown";
-        if (statusCounts[status]) {
-          statusCounts[status] += 1;
-        } else {
-          statusCounts[status] = 1;
-        }
-
-        const leaveType = row[leaveTypeIndex]?.toString().trim() || "Unknown";
-        if (typeCounts[leaveType]) {
-          typeCounts[leaveType] += 1;
-        } else {
-          typeCounts[leaveType] = 1;
-        }
-      });
-
-      const statusArray = Object.keys(statusCounts).map((key) => ({
-        status: key,
-        count: statusCounts[key],
-      }));
-
-      const typeArray = Object.keys(typeCounts).map((key) => ({
-        type: key,
-        count: typeCounts[key],
-      }));
-
-      setLeaveStatusData(statusArray);
-      setLeaveTypeData(typeArray);
-    } catch (error) {
-      console.error("Error fetching leave management analytics:", error);
-      setLeaveStatusData([]);
-      setLeaveTypeData([]);
+    if (error) {
+      throw new Error(error.message);
     }
-  };
 
-  const fetchJoiningCount = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec"
-      );
+    const dataRows = data || [];
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const statusCounts = {};
+    const typeCounts = {};
+
+    dataRows.forEach((row) => {
+      // Status count (using status field)
+      const status = row.status?.toString().trim() || "Unknown";
+      if (statusCounts[status]) {
+        statusCounts[status] += 1;
+      } else {
+        statusCounts[status] = 1;
       }
 
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from JOINING sheet"
-        );
+      // Leave type count (using reason_of_leaving as leave type)
+      const leaveType = row.reason_of_leaving?.toString().trim() || "Unknown";
+      if (typeCounts[leaveType]) {
+        typeCounts[leaveType] += 1;
+      } else {
+        typeCounts[leaveType] = 1;
       }
+    });
 
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
+    const statusArray = Object.keys(statusCounts).map((key) => ({
+      status: key,
+      count: statusCounts[key],
+    }));
 
-      const headers = rawData[5];
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
+    const typeArray = Object.keys(typeCounts).map((key) => ({
+      type: key,
+      count: typeCounts[key],
+    }));
 
-      const statusIndex = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "status"
-      );
+    setLeaveStatusData(statusArray);
+    setLeaveTypeData(typeArray);
+  } catch (error) {
+    console.error("Error fetching leave management analytics:", error);
+    setLeaveStatusData([]);
+    setLeaveTypeData([]);
+  }
+};
 
-      const dateOfJoiningIndex = headers.findIndex(
-        (h) =>
-          h && h.toString().trim().toLowerCase().includes("date of joining")
-      );
 
-      const designationIndex = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "designation"
-      );
 
-      let activeCount = 0;
-      const monthlyHiring = {};
-      const designationCounts = {};
 
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-      const currentDate = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const monthIndex = (currentDate.getMonth() - i + 12) % 12;
-        const monthYear = `${months[monthIndex]} ${currentDate.getFullYear()}`;
-        monthlyHiring[monthYear] = { hired: 0 };
-      }
+const fetchJoiningCount = async () => {
+  try {
+    console.log("🔍 Fetching joining data from Supabase...");
 
-      if (statusIndex !== -1) {
-        activeCount = dataRows.filter(
-          (row) =>
-            row[statusIndex]?.toString().trim().toLowerCase() === "active"
-        ).length;
-      }
+    const { data, error } = await supabase
+      .from('joining')
+      .select('*');
 
-      if (dateOfJoiningIndex !== -1) {
-        dataRows.forEach((row) => {
-          const dateStr = row[dateOfJoiningIndex];
-          if (dateStr) {
-            const date = parseSheetDate(dateStr);
-            if (date) {
-              const monthYear = `${
-                months[date.getMonth()]
-              } ${date.getFullYear()}`;
-              if (monthlyHiring[monthYear]) {
-                monthlyHiring[monthYear].hired += 1;
-              } else {
-                monthlyHiring[monthYear] = { hired: 1 };
-              }
-            }
-          }
-        });
-      }
-
-      if (designationIndex !== -1) {
-        dataRows.forEach((row) => {
-          const designation = row[designationIndex]?.toString().trim();
-          if (designation) {
-            if (designationCounts[designation]) {
-              designationCounts[designation] += 1;
-            } else {
-              designationCounts[designation] = 1;
-            }
-          }
-        });
-
-        const designationArray = Object.keys(designationCounts).map((key) => ({
-          designation: key,
-          employees: designationCounts[key],
-        }));
-
-        setDesignationData(designationArray);
-      }
-
-      setActiveEmployee(dataRows.length);
-
-      return {
-        total: dataRows.length,
-        active: activeCount,
-        monthlyHiring,
-      };
-    } catch (error) {
-      console.error("Error fetching joining count:", error);
-      return { total: 0, active: 0, monthlyHiring: {} };
+    if (error) {
+      throw new Error(error.message);
     }
-  };
 
-  const fetchDepartmentData = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec"
-      );
+    const dataRows = data || [];
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    let activeCount = 0;
+    const monthlyHiring = {};
+    const designationCounts = {};
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from JOINING sheet"
-        );
-      }
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const currentDate = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (currentDate.getMonth() - i + 12) % 12;
+      const monthYear = `${months[monthIndex]} ${currentDate.getFullYear()}`;
+      monthlyHiring[monthYear] = { hired: 0 };
+    }
 
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
+    // Count active employees - case insensitive
+    activeCount = dataRows.filter(
+      (row) => row.status?.toString().trim().toLowerCase() === "active"  // toLowerCase() add किया
+    ).length;
 
-      const headers = rawData[5];
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-
-      const departmentIndex = 20;
-
-      const departmentCounts = {};
-
-      dataRows.forEach((row) => {
-        const department = row[departmentIndex]?.toString().trim();
-        if (department) {
-          if (departmentCounts[department]) {
-            departmentCounts[department] += 1;
+    // Process monthly hiring data - सिर्फ उन्हीं को count करें जिनके पास valid date_of_joining है
+    dataRows.forEach((row) => {
+      const dateStr = row.date_of_joining;
+      if (dateStr) {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          const monthYear = `${
+            months[date.getMonth()]
+          } ${date.getFullYear()}`;
+          if (monthlyHiring[monthYear]) {
+            monthlyHiring[monthYear].hired += 1;
           } else {
-            departmentCounts[department] = 1;
+            monthlyHiring[monthYear] = { hired: 1 };
           }
         }
-      });
+      }
+    });
 
-      const departmentArray = Object.keys(departmentCounts).map((key) => ({
-        department: key,
-        employees: departmentCounts[key],
-      }));
+    // Process designation counts
+    dataRows.forEach((row) => {
+      const designation = row.designation?.toString().trim();
+      if (designation) {
+        if (designationCounts[designation]) {
+          designationCounts[designation] += 1;
+        } else {
+          designationCounts[designation] = 1;
+        }
+      }
+    });
 
-      return departmentArray;
-    } catch (error) {
-      console.error("Error fetching department data:", error);
-      return [];
+    const designationArray = Object.keys(designationCounts).map((key) => ({
+      designation: key,
+      employees: designationCounts[key],
+    }));
+
+    setDesignationData(designationArray);
+    setActiveEmployee(dataRows.length);
+
+    return {
+      total: dataRows.length,
+      active: activeCount,
+      monthlyHiring,
+    };
+  } catch (error) {
+    console.error("Error fetching joining count:", error);
+    return { total: 0, active: 0, monthlyHiring: {} };
+  }
+};
+
+ const fetchDepartmentData = async () => {
+  try {
+    console.log("🔍 Fetching department data from Supabase...");
+
+    const { data, error } = await supabase
+      .from('joining')
+      .select('department');
+
+    if (error) {
+      throw new Error(error.message);
     }
-  };
 
-  const fetchLeaveCount = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=LEAVING&action=fetch"
-      );
+    const dataRows = data || [];
+    const departmentCounts = {};
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    dataRows.forEach((row) => {
+      const department = row.department?.toString().trim();
+      if (department) {
+        if (departmentCounts[department]) {
+          departmentCounts[department] += 1;
+        } else {
+          departmentCounts[department] = 1;
+        }
       }
+    });
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from LEAVING sheet"
-        );
-      }
+    const departmentArray = Object.keys(departmentCounts).map((key) => ({
+      department: key,
+      employees: departmentCounts[key],
+    }));
 
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
+    return departmentArray;
+  } catch (error) {
+    console.error("Error fetching department data:", error);
+    return [];
+  }
+};
 
-      const headers = rawData[5];
-      const dataRows = rawData.slice(6);
 
-      let thisMonthCount = 0;
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
+const fetchLeaveCount = async () => {
+  try {
+    console.log("🔍 Fetching leaving data from Supabase...");
 
-      if (dataRows.length > 0) {
-        thisMonthCount = dataRows.filter((row) => {
-          const dateStr = row[3];
-          if (dateStr) {
-            const parsedDate = parseSheetDate(dateStr);
-            return (
-              parsedDate &&
-              parsedDate.getMonth() === currentMonth &&
-              parsedDate.getFullYear() === currentYear
-            );
-          }
-          return false;
-        }).length;
-      }
+    const { data, error } = await supabase
+      .from('employee_leaving')
+      .select('*');
 
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-      const monthlyLeaving = {};
+    if (error) {
+      throw new Error(error.message);
+    }
 
-      for (let i = 5; i >= 0; i--) {
-        const monthIndex = (now.getMonth() - i + 12) % 12;
-        const monthYear = `${months[monthIndex]} ${now.getFullYear()}`;
-        monthlyLeaving[monthYear] = { left: 0 };
-      }
+    const dataRows = data || [];
 
-      dataRows.forEach((row) => {
-        const dateStr = row[3];
+    let thisMonthCount = 0;
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    if (dataRows.length > 0) {
+      thisMonthCount = dataRows.filter((row) => {
+        const dateStr = row.date_of_leaving;
         if (dateStr) {
-          const date = parseSheetDate(dateStr);
-          if (date) {
-            const monthYear = `${
-              months[date.getMonth()]
-            } ${date.getFullYear()}`;
-            if (monthlyLeaving[monthYear]) {
-              monthlyLeaving[monthYear].left += 1;
-            } else {
-              monthlyLeaving[monthYear] = { left: 1 };
-            }
+          const parsedDate = new Date(dateStr);
+          return (
+            !isNaN(parsedDate.getTime()) &&
+            parsedDate.getMonth() === currentMonth &&
+            parsedDate.getFullYear() === currentYear
+          );
+        }
+        return false;
+      }).length;
+    }
+
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const monthlyLeaving = {};
+
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (now.getMonth() - i + 12) % 12;
+      const monthYear = `${months[monthIndex]} ${now.getFullYear()}`;
+      monthlyLeaving[monthYear] = { left: 0 };
+    }
+
+    dataRows.forEach((row) => {
+      const dateStr = row.date_of_leaving;
+      if (dateStr) {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          const monthYear = `${
+            months[date.getMonth()]
+          } ${date.getFullYear()}`;
+          if (monthlyLeaving[monthYear]) {
+            monthlyLeaving[monthYear].left += 1;
+          } else {
+            monthlyLeaving[monthYear] = { left: 1 };
           }
         }
-      });
+      }
+    });
 
-      setLeftEmployee(dataRows.length);
-      setLeaveThisMonth(thisMonthCount);
+    setLeftEmployee(dataRows.length);
+    setLeaveThisMonth(thisMonthCount);
 
-      return { total: dataRows.length, monthlyLeaving };
-    } catch (error) {
-      console.error("Error fetching leave count:", error);
-      return { total: 0, monthlyLeaving: {} };
-    }
-  };
+    return { total: dataRows.length, monthlyLeaving };
+  } catch (error) {
+    console.error("Error fetching leave count:", error);
+    return { total: 0, monthlyLeaving: {} };
+  }
+};
 
   const prepareMonthlyHiringData = (hiringData, leavingData) => {
     const months = [
@@ -470,430 +373,269 @@ const Dashboard = () => {
     return colors[status.toLowerCase()] || "#3B82F6";
   };
 
-  const fetchIndentCount = async () => {
-    try {
-      console.log("🔍 Fetching data from INDENT sheet...");
+const fetchIndentCount = async () => {
+  try {
+    console.log("🔍 Fetching data from INDENT table...");
 
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=INDENT&action=fetch"
-      );
+    const { data, error } = await supabase
+      .from('indent')
+      .select('indent_number');
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from INDENT sheet"
-        );
-      }
-
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
-
-      const headers = rawData[5];
-      const dataRows = rawData.slice(6);
-
-      const indentNumberIndex = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "indent number"
-      );
-
-      if (indentNumberIndex === -1) {
-        console.error("❌ 'Indent Number' column not found in headers");
-        return 0;
-      }
-
-      const indentCount = dataRows.filter((row) => {
-        const indentNumber = row[indentNumberIndex]?.toString().trim();
-        const isValidIndent =
-          indentNumber &&
-          indentNumber !== "" &&
-          !indentNumber.toLowerCase().includes("indent") &&
-          !isNaN(parseInt(indentNumber.replace(/[^0-9]/g, "")));
-
-        if (isValidIndent) {
-          console.log("✅ Found valid Indent Number:", indentNumber);
-        }
-        return isValidIndent;
-      }).length;
-
-      console.log("📈 Final indentCount:", indentCount);
-      return indentCount;
-    } catch (error) {
-      console.error("❌ Error fetching indent count:", error);
-      return 0;
+    if (error) {
+      throw new Error(error.message);
     }
-  };
 
-  const fetchEnquiryCount = async () => {
-    try {
-      console.log("🔍 Fetching data from ENQUIRY sheet...");
+    const dataRows = data || [];
 
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch"
-      );
+    const indentCount = dataRows.filter((row) => {
+      const indentNumber = row.indent_number?.toString().trim();
+      const isValidIndent =
+        indentNumber &&
+        indentNumber !== "" &&
+        !indentNumber.toLowerCase().includes("indent") &&
+        !isNaN(parseInt(indentNumber.replace(/[^0-9]/g, "")));
 
-      console.log("📡 Response status:", response.status);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (isValidIndent) {
+        console.log("✅ Found valid Indent Number:", indentNumber);
       }
+      return isValidIndent;
+    }).length;
 
-      const result = await response.json();
-      console.log("🧾 Raw result from ENQUIRY API:", result);
+    console.log("📈 Final indentCount:", indentCount);
+    return indentCount;
+  } catch (error) {
+    console.error("❌ Error fetching indent count:", error);
+    return 0;
+  }
+};
 
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from ENQUIRY sheet"
-        );
-      }
 
-      const rawData = result.data || result;
-      console.log(
-        "📊 ENQUIRY Parsed rawData:",
-        Array.isArray(rawData),
-        rawData.length,
-        rawData.slice(0, 5)
-      );
 
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
+const fetchEnquiryCount = async () => {
+  try {
+    console.log("🔍 Fetching data from ENQUIRY table...");
 
-      const headers = rawData[0];
+    const { data, error } = await supabase
+      .from('enquiry')
+      .select('candidate_enquiry_number, tracker_status');
 
-      const dataRows = rawData.slice(1).filter((row) => {
-        const colC = row[2]?.toString().trim();
-        return colC && colC.toLowerCase() !== "candidate enquiry number";
-      });
-
-      console.log("📋 ENQUIRY Headers:", headers);
-      console.log("📋 ENQUIRY Data rows count:", dataRows.length);
-
-      const columnCIndex = 2;
-
-      const enquiryCount = dataRows.filter((row) => {
-        const value = row[columnCIndex];
-        const hasValue = value && value.toString().trim() !== "";
-        if (hasValue) console.log("✅ Found Enquiry in Column C:", value);
-        return hasValue;
-      }).length;
-
-      const columnYIndex = 24;
-      const joiningCount = dataRows.filter((row) => {
-        const value = row[columnYIndex];
-        const hasValue = value && value.toString().trim() !== "";
-        if (hasValue) console.log("✅ Found Joining in Column Y:", value);
-        return hasValue;
-      }).length;
-
-      console.log("📈 Final enquiryCount:", enquiryCount);
-      console.log("📈 Final joiningCount:", joiningCount);
-
-      return {
-        enquiryCount: enquiryCount,
-        joiningCount: joiningCount,
-      };
-    } catch (error) {
-      console.error("❌ Error fetching enquiry count:", error);
-      return {
-        enquiryCount: 0,
-        joiningCount: 0,
-      };
+    if (error) {
+      throw new Error(error.message);
     }
-  };
 
-  const fetchEnquiryTableDataJoining = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch"
+    const dataRows = data || [];
+
+    console.log("📋 ENQUIRY Data rows count:", dataRows.length);
+
+    // Count enquiries (non-empty candidate_enquiry_number)
+    const enquiryCount = dataRows.filter((row) => {
+      const value = row.candidate_enquiry_number;
+      const hasValue = value && value.toString().trim() !== "";
+      if (hasValue) console.log("✅ Found Enquiry:", value);
+      return hasValue;
+    }).length;
+
+    // Count joining (tracker_status = 'joining')
+    const joiningCount = dataRows.filter((row) => {
+      const value = row.tracker_status;
+      const isJoining = value && value.toString().trim().toLowerCase() === "joining";
+      if (isJoining) console.log("✅ Found Joining in tracker_status");
+      return isJoining;
+    }).length;
+
+    console.log("📈 Final enquiryCount:", enquiryCount);
+    console.log("📈 Final joiningCount:", joiningCount);
+
+    return {
+      enquiryCount: enquiryCount,
+      joiningCount: joiningCount,
+    };
+  } catch (error) {
+    console.error("❌ Error fetching enquiry count:", error);
+    return {
+      enquiryCount: 0,
+      joiningCount: 0,
+    };
+  }
+};
+
+
+
+const fetchEnquiryTableDataJoining = async () => {
+  try {
+    console.log("🔍 Fetching ENQUIRY joining data from Supabase...");
+
+    const { data, error } = await supabase
+      .from('enquiry')
+      .select(
+        'indent_number, candidate_enquiry_number, applying_post, candidate_name, job_experience, department, previous_position, marital_status, tracker_status'
       );
 
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-
-      const result = await response.json();
-      if (!result.success)
-        throw new Error(result.error || "Failed to fetch ENQUIRY data");
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) throw new Error("Expected array data");
-
-      const headers = rawData[0];
-      const dataRows = rawData
-        .slice(1)
-        .filter(
-          (row) =>
-            row[2]?.toString().trim() &&
-            row[2].toString().trim().toLowerCase() !==
-              "candidate enquiry number"
-        );
-
-      const indentNumIdx = 1; // Column B
-      const candidateEnqIdx = 2; // Column C
-      const applyingForIdx = 3; // Column D
-      const candidateNameIdx = 4; // Column E
-      const jobExperienceIdx = 9; // Column J
-      const departmentIdx = 10; // Column K
-      const previousPositionIdx = 11; // Column L
-      const maritalStatusIdx = 13; // Column N
-      const trackerStatusIdx = 24; // Column Y
-
-      const tableData = dataRows
-        .filter((row) => {
-          const trackerStatus = row[trackerStatusIdx]
-            ?.toString()
-            .trim()
-            .toLowerCase();
-          return trackerStatus === "joining";
-        })
-        .map((row) => ({
-          indentNumber: row[indentNumIdx]?.toString().trim() || "-",
-          candidateEnquiry: row[candidateEnqIdx]?.toString().trim() || "-",
-          applyingFor: row[applyingForIdx]?.toString().trim() || "-",
-          candidateName: row[candidateNameIdx]?.toString().trim() || "-",
-          jobExperience: row[jobExperienceIdx]?.toString().trim() || "-",
-          department: row[departmentIdx]?.toString().trim() || "-",
-          previousPosition: row[previousPositionIdx]?.toString().trim() || "-",
-          maritalStatus: row[maritalStatusIdx]?.toString().trim() || "-",
-          trackerStatus: row[trackerStatusIdx]?.toString().trim() || "-",
-        }));
-
-      setEnquiryTableDatajoining(tableData);
-    } catch (error) {
-      console.error("Error fetching enquiry joining table data:", error);
-      setEnquiryTableDatajoining([]);
+    if (error) {
+      throw new Error(error.message);
     }
-  };
 
-  const fetchLiveEmployeeCount = async () => {
-    try {
-      console.log("🔍 Fetching live employee data from JOINING sheet...");
+    // 🟢 SIRF MAP KARO - Koi filter nahi, koi condition nahi
+    const tableData = (data || []).map((row) => ({
+      indentNumber: row.indent_number?.toString().trim() || "-",
+      candidateEnquiry: row.candidate_enquiry_number?.toString().trim() || "-",
+      applyingFor: row.applying_post?.toString().trim() || "-",
+      candidateName: row.candidate_name?.toString().trim() || "-",
+      jobExperience: row.job_experience?.toString().trim() || "-",
+      department: row.department?.toString().trim() || "-",
+      previousPosition: row.previous_position?.toString().trim() || "-",
+      maritalStatus: row.marital_status?.toString().trim() || "-",
+      trackerStatus: row.tracker_status?.toString().trim() || "-",
+    }));
 
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=JOINING&action=fetch"
-      );
+    console.log("Total Enquiry Records (with all status):", tableData.length);
+    setEnquiryTableDatajoining(tableData);
+  } catch (error) {
+    console.error("Error fetching enquiry joining table data:", error);
+    setEnquiryTableDatajoining([]);
+  }
+};
 
-      console.log("📡 Response status:", response.status);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+const fetchLiveEmployeeCount = async () => {
+  try {
+    console.log("🔍 Fetching live employee data from JOINING table...");
 
-      const result = await response.json();
-      console.log("🧾 Raw result from JOINING API:", result);
+    const { data, error } = await supabase
+      .from('joining')
+      .select('status');
 
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from JOINING sheet"
-        );
-      }
-
-      const rawData = result.data || result;
-      console.log(
-        "📊 JOINING Parsed rawData:",
-        Array.isArray(rawData),
-        rawData.length,
-        rawData.slice(0, 5)
-      );
-
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
-
-      const headers = rawData[5];
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-
-      console.log("📋 JOINING Headers:", headers);
-      console.log("📋 JOINING Data rows count:", dataRows.length);
-
-      const statusIndex = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "status"
-      );
-
-      console.log("📍 Status column index:", statusIndex);
-
-      if (statusIndex === -1) {
-        console.error("❌ 'Status' column not found in headers");
-        return 0;
-      }
-
-      const liveEmployeeCount = dataRows.filter((row) => {
-        const status = row[statusIndex]?.toString().trim().toLowerCase();
-        const isActive = status === "active";
-
-        if (isActive) {
-          console.log("✅ Found Active Employee:", row);
-        }
-        return isActive;
-      }).length;
-
-      console.log("📈 Final liveEmployeeCount:", liveEmployeeCount);
-      return liveEmployeeCount;
-    } catch (error) {
-      console.error("❌ Error fetching live employee count:", error);
-      return 0;
+    if (error) {
+      throw new Error(error.message);
     }
-  };
+
+    const dataRows = data || [];
+
+    console.log("📋 JOINING Data rows count:", dataRows.length);
+
+    const liveEmployeeCount = dataRows.filter((row) => {
+      const status = row.status?.toString().trim().toLowerCase(); // toLowerCase() add किया
+      const isActive = status === "active"; // "active" से compare करें
+
+      if (isActive) {
+        console.log("✅ Found Active Employee");
+      }
+      return isActive;
+    }).length;
+
+    console.log("📈 Final liveEmployeeCount:", liveEmployeeCount);
+    return liveEmployeeCount;
+  } catch (error) {
+    console.error("❌ Error fetching live employee count:", error);
+    return 0;
+  }
+};
+
+
 
   // Fetch INDENT Table Data
-  const fetchIndentTableData = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=INDENT&action=fetch"
-      );
+ const fetchIndentTableData = async () => {
+  try {
+    console.log("🔍 Fetching INDENT table data from Supabase...");
 
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const { data, error } = await supabase
+      .from('indent')
+      .select('indent_number, post, prefer, number_of_posts');
 
-      const result = await response.json();
-      if (!result.success)
-        throw new Error(result.error || "Failed to fetch INDENT data");
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) throw new Error("Expected array data");
-
-      const headers = rawData[5];
-      const dataRows = rawData.slice(6);
-
-      const indentNumIdx = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "indent number"
-      );
-      const postIdx = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "post"
-      );
-      const preferIdx = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "prefer"
-      );
-      const numPostsIdx = headers.findIndex(
-        (h) =>
-          h && h.toString().trim().toLowerCase().includes("number of posts")
-      );
-
-      const tableData = dataRows
-        .filter((row) => row[indentNumIdx]?.toString().trim())
-        .map((row) => ({
-          indentNumber: row[indentNumIdx]?.toString().trim() || "-",
-          post: row[postIdx]?.toString().trim() || "-",
-          prefer: row[preferIdx]?.toString().trim() || "-",
-          numberOfPosts: row[numPostsIdx]?.toString().trim() || "-",
-        }));
-
-      setIndentTableData(tableData);
-    } catch (error) {
-      console.error("Error fetching indent table data:", error);
-      setIndentTableData([]);
+    if (error) {
+      throw new Error(error.message);
     }
-  };
 
-  // Fetch ENQUIRY Table Data
-  const fetchEnquiryTableData = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=ENQUIRY&action=fetch"
-      );
-
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-
-      const result = await response.json();
-      if (!result.success)
-        throw new Error(result.error || "Failed to fetch ENQUIRY data");
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) throw new Error("Expected array data");
-
-      const headers = rawData[0];
-      const dataRows = rawData
-        .slice(1)
-        .filter(
-          (row) =>
-            row[2]?.toString().trim() &&
-            row[2].toString().trim().toLowerCase() !==
-              "candidate enquiry number"
-        );
-
-      const indentNumIdx = 1;
-      const candidateEnqIdx = 2;
-      const applyingForIdx = 3;
-      const candidateNameIdx = 4;
-      const experienceIdx = 9;
-      const maritalStatusIdx = 13;
-
-      const tableData = dataRows.map((row) => ({
-        indentNumber: row[indentNumIdx]?.toString().trim() || "-",
-        candidateEnquiry: row[candidateEnqIdx]?.toString().trim() || "-",
-        applyingFor: row[applyingForIdx]?.toString().trim() || "-",
-        candidateName: row[candidateNameIdx]?.toString().trim() || "-",
-        experience: row[experienceIdx]?.toString().trim() || "-",
-        maritalStatus: row[maritalStatusIdx]?.toString().trim() || "-",
+    const tableData = (data || [])
+      .filter((row) => row.indent_number?.toString().trim())
+      .map((row) => ({
+        indentNumber: row.indent_number?.toString().trim() || "-",
+        post: row.post?.toString().trim() || "-",
+        prefer: row.prefer?.toString().trim() || "-",
+        numberOfPosts: row.number_of_posts?.toString().trim() || "-",
       }));
 
-      setEnquiryTableData(tableData);
-    } catch (error) {
-      console.error("Error fetching enquiry table data:", error);
-      setEnquiryTableData([]);
+    setIndentTableData(tableData);
+  } catch (error) {
+    console.error("Error fetching indent table data:", error);
+    setIndentTableData([]);
+  }
+};
+
+
+
+  // Fetch ENQUIRY Table Data
+const fetchEnquiryTableData = async () => {
+  try {
+    console.log("🔍 Fetching ENQUIRY table data from Supabase...");
+
+    const { data, error } = await supabase
+      .from('enquiry')
+      .select(
+        'indent_number, candidate_enquiry_number, applying_post, candidate_name, job_experience, marital_status'
+      );
+
+    if (error) {
+      throw new Error(error.message);
     }
-  };
+
+    // 🟢 BAS ITNA SIMPLE - Sirf map karo, koi condition nahi
+    const tableData = (data || []).map((row) => ({
+      indentNumber: row.indent_number?.toString().trim() || "-",
+      candidateEnquiry: row.candidate_enquiry_number?.toString().trim() || "-",
+      applyingFor: row.applying_post?.toString().trim() || "-",
+      candidateName: row.candidate_name?.toString().trim() || "-",
+      experience: row.job_experience?.toString().trim() || "-",
+      maritalStatus: row.marital_status?.toString().trim() || "-",
+    }));
+
+    console.log("Total Enquiry Records:", tableData.length);
+    setEnquiryTableData(tableData);
+  } catch (error) {
+    console.error("Error fetching enquiry table data:", error);
+    setEnquiryTableData([]);
+  }
+};
 
   // Fetch JOINING Table Data (Active only)
-  const fetchJoiningTableData = async () => {
-    try {
-      const response = await fetch(
-        "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=JOINING&action=fetch"
+const fetchJoiningTableData = async () => {
+  try {
+    console.log("🔍 Fetching JOINING table data from Supabase...");
+
+    const { data, error } = await supabase
+      .from('joining')
+      .select(
+        'rbp_joining_id, status, firm_name, name_as_per_aadhar, date_of_joining, work_location, designation, gender'
       );
 
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-
-      const result = await response.json();
-      if (!result.success)
-        throw new Error(result.error || "Failed to fetch JOINING data");
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) throw new Error("Expected array data");
-
-      const headers = rawData[5];
-      const dataRows = rawData.slice(6);
-
-      const statusIdx = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === "status"
-      );
-
-      const rbpJoiningIdx = 1;
-      const dateOfJoiningIdx = 7;
-      const firmNameIdx = 3;
-      const nameAadharIdx = 4;
-      const workLocationIdx = 8;
-      const designationIdx = 9;
-      const genderIdx = 18;
-
-      const tableData = dataRows
-        .filter(
-          (row) => row[statusIdx]?.toString().trim().toLowerCase() === "active"
-        )
-        .map((row) => ({
-          rbpJoiningId: row[rbpJoiningIdx]?.toString().trim() || "-",
-          status: row[statusIdx]?.toString().trim() || "-",
-          firmName: row[firmNameIdx]?.toString().trim() || "-",
-          nameAadhar: row[nameAadharIdx]?.toString().trim() || "-",
-          dateOfJoining: row[dateOfJoiningIdx]?.toString().trim() || "-",
-          workLocation: row[workLocationIdx]?.toString().trim() || "-",
-          designation: row[designationIdx]?.toString().trim() || "-",
-          gender: row[genderIdx]?.toString().trim() || "-",
-        }));
-
-      setJoiningTableData(tableData);
-    } catch (error) {
-      console.error("Error fetching joining table data:", error);
-      setJoiningTableData([]);
+    if (error) {
+      throw new Error(error.message);
     }
-  };
+
+    // Case-insensitive status check
+    const tableData = (data || [])
+      .filter((row) => {
+        const status = row.status?.toString().trim().toLowerCase();
+        return status === "active"; // "active" से compare करें
+      })
+      .map((row) => ({
+        rbpJoiningId: row.rbp_joining_id?.toString().trim() || "-",
+        status: row.status?.toString().trim() || "-",
+        firmName: row.firm_name?.toString().trim() || "-",
+        nameAadhar: row.name_as_per_aadhar?.toString().trim() || "-",
+        dateOfJoining: row.date_of_joining?.toString().trim() || "-",
+        workLocation: row.work_location?.toString().trim() || "-",
+        designation: row.designation?.toString().trim() || "-",
+        gender: row.gender?.toString().trim() || "-",
+      }));
+
+    console.log("Filtered Active Employees:", tableData.length);
+    setJoiningTableData(tableData);
+  } catch (error) {
+    console.error("Error fetching joining table data:", error);
+    setJoiningTableData([]);
+  }
+};
 
   useEffect(() => {
     const fetchData = async () => {

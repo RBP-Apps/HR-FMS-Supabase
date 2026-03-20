@@ -5,9 +5,11 @@ import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers } from "@fortawesome/free-solid-svg-icons";
+import supabase from "../utils/supabase";
 
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=USER&action=fetch';
-const LEAVING_API_URL = 'https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec?sheet=LEAVING&action=fetch';
+
+
+
 
 localStorage.removeItem('hasSeenLanguageHint');
 
@@ -18,84 +20,53 @@ const Login = () => {
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true);
 
-    try {
-      const [userRes, leavingRes] = await Promise.all([
-        fetch(SHEET_API_URL),
-        fetch(LEAVING_API_URL)
-      ]);
+  try {
+    // 🔹 1. Fetch user from Supabase
+    const { data: users, error } = await supabase
+      .from("users_hr")
+      .select("*")
+      .eq("username", username)
+      .eq("password", password)
+      .single();
 
-      const userJson = await userRes.json();
-      const leavingJson = await leavingRes.json();
-
-      if (!userJson.success || !leavingJson.success) {
-        toast.error('Error fetching data');
-        setSubmitting(false);
-        return;
-      }
-
-      const userRows = userJson.data;
-      const userHeaders = userRows[0];
-      const users = userRows.slice(1).map(row => {
-        let obj = {};
-        userHeaders.forEach((h, i) => obj[h] = row[i]);
-        return obj;
-      });
-
-      const leavingRows = leavingJson.data;
-      const leavingHeaders = leavingRows[5];
-      const leavingData = leavingRows.slice(6).map((row) => {
-        let obj = {};
-        leavingHeaders.forEach((h, i) => (obj[h] = row[i]));
-        return obj;
-      });
-
-      const matchedUser = users.find(
-        (u) => u.Username === username && u.Password === password
-      );
-
-      if (!matchedUser) {
-        toast.error('Invalid credentials');
-        setSubmitting(false);
-        return;
-      }
-
-      const userName = matchedUser[userHeaders[2]];
-      const isUserLeaving = leavingData.some(record => {
-        const leavingName = record[leavingHeaders[2]];
-        const leavingStatus = record[leavingHeaders[13]];
-        return leavingName && userName &&
-          leavingName.toString().toLowerCase() === userName.toString().toLowerCase() &&
-          leavingStatus !== null && leavingStatus !== undefined && leavingStatus !== '';
-      });
-
-      if (isUserLeaving) {
-        toast.error('Employee access has been deactivated');
-        setSubmitting(false);
-        return;
-      }
-
-      toast.success('Login successful!');
-      localStorage.setItem('user', JSON.stringify(matchedUser));
-      login(matchedUser);
-
-      const adminStatus = matchedUser.Admin ? matchedUser.Admin.trim().toLowerCase() : 'no';
-      if (adminStatus === "yes") {
-        navigate("/", { replace: true });
-      } else {
-        navigate("/my-profile", { replace: true });
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error('Network error');
-    } finally {
+    if (error || !users) {
+      toast.error("Invalid credentials");
       setSubmitting(false);
+      return;
     }
-  };
 
+    // 🔹 2. Check access (instead of leaving sheet logic)
+    if (users.access === false) {
+      toast.error("Employee access has been deactivated");
+      setSubmitting(false);
+      return;
+    }
+
+    // 🔹 3. Success login
+    toast.success("Login successful!");
+    localStorage.setItem("user", JSON.stringify(users));
+    login(users);
+
+    // 🔹 4. Role based navigation (same logic)
+    const role = users.role ? users.role.toLowerCase() : "user";
+
+    if (role === "admin") {
+      navigate("/", { replace: true });
+    } else {
+      navigate("/my-profile", { replace: true });
+    }
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Network error");
+  } finally {
+    setSubmitting(false);
+  }
+};
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-100 via-purple-100 to-white">
       <div className="max-w-md w-full p-8 rounded-2xl shadow-xl border border-white/20 bg-white/60 backdrop-blur-lg space-y-8 transition-transform hover:scale-[1.01] duration-200">
