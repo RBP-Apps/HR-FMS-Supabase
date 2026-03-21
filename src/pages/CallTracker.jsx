@@ -60,6 +60,18 @@ const handleEditInputChange = (e) => {
   }));
 };
 
+
+
+const formatDateForDB = (dateStr) => {
+  if (!dateStr) return null;
+
+  const date = new Date(dateStr);
+
+  if (isNaN(date.getTime())) return null;
+
+  return date.toISOString().split("T")[0]; // YYYY-MM-DD
+};
+
 const handleEditSubmit = async (e) => {
   e.preventDefault();
   setSubmitting(true); // Reuse existing submitting state
@@ -386,7 +398,7 @@ const updateEnquirySheet = async (enquiryNo, statusValue) => {
         selectedItem.candidateEnquiryNo || '',
         formData.status,
         formData.candidateSays,
-        formatDOB(formData.nextDate) || '',
+        formatDateForDB(formData.nextDate)
       ];
 
       await postToSheet(rowData);

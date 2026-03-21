@@ -36,6 +36,9 @@ const FindEnquiry = () => {
     return index.toString();
   };
 
+
+  
+
 const handleEditClick = (item) => {
   setSelectedItem(item);
   setEditFormData({
@@ -127,101 +130,7 @@ const handleEditClick = (item) => {
     aadharNo: "",
   });
 
-  // Google Drive folder ID for file uploads
 
-  // Fetch all necessary data
-  // const fetchAllData = async () => {
-  //   setLoading(true);
-  //   setTableLoading(true);
-  //   setError(null);
-
-  //   try {
-  //     // ===== FETCH INDENT DATA =====
-  //     const { data: indentRows, error: indentError } = await supabase
-  //       .from("indent")
-  //       .select("*");
-
-  //     if (indentError) throw indentError;
-
-  //     const processedIndent = indentRows
-  //       .filter((row) => row.status === "NeedMore")
-  //       .map((row) => ({
-  //         id: row.id,
-  //         indentNo: row.indent_number,
-  //         post: row.post,
-  //         department: row.department,
-  //         gender: row.gender,
-  //         prefer: row.prefer,
-  //         numberOfPost: row.number_of_posts,
-  //         competitionDate: row.completion_date,
-  //         socialSite: row.social_site,
-  //         status: row.status,
-  //         plannedDate: row.planned_2,
-  //         actual: row.actual_2,
-  //         experience: row.experience,
-  //       }));
-
-  //     // ===== FETCH ENQUIRY DATA =====
-  //     const { data: enquiryRows, error: enquiryError } = await supabase
-  //       .from("enquiry")
-  //       .select("*");
-
-  //     if (enquiryError) throw enquiryError;
-
-  //     const processedEnquiry = enquiryRows.map((row) => ({
-  //       id: row.timestamp,
-  //       indentNo: row.indent_number,
-  //       candidateEnquiryNo: row.candidate_enquiry_number,
-  //       applyingForPost: row.applying_post,
-  //       department: row.department,
-  //       candidateName: row.candidate_name,
-  //       candidateDOB: row.dob,
-  //       candidatePhone: row.candidate_phone,
-  //       candidateEmail: row.candidate_email,
-  //       previousCompany: row.previous_company_name,
-  //       jobExperience: row.job_experience,
-  //       previousPosition: row.previous_position,
-  //       reasonForLeaving: row.reason_of_leaving,
-  //       maritalStatus: row.marital_status,
-  //       lastEmployerMobile: row.last_employer_mobile,
-  //       candidatePhoto: row.candidate_photo,
-  //       candidateResume: row.resume_copy,
-  //       referenceBy: row.reference_by,
-  //       presentAddress: row.present_address,
-  //       aadharNo: row.aadhar_number,
-  //       status: row.tracker_status,
-  //     }));
-
-  //     // ===== RECRUITMENT COUNT LOGIC (same as before) =====
-  //     const indentRecruitmentCount = {};
-
-  //     processedEnquiry.forEach((row) => {
-  //       const indentNo = row.indentNo;
-  //       if (indentNo) {
-  //         if (!indentRecruitmentCount[indentNo]) {
-  //           indentRecruitmentCount[indentNo] = 0;
-  //         }
-  //         indentRecruitmentCount[indentNo]++;
-  //       }
-  //     });
-
-  //     const pendingTasks = processedIndent.filter((task) => {
-  //       const requiredPosts = parseInt(task.numberOfPost) || 0;
-  //       const completed = indentRecruitmentCount[task.indentNo] || 0;
-  //       return completed < requiredPosts;
-  //     });
-
-  //     setIndentData(pendingTasks);
-  //     setEnquiryData(processedEnquiry);
-  //   } catch (error) {
-  //     console.error("Error fetching data:", error);
-  //     setError(error.message);
-  //     toast.error("Failed to fetch data");
-  //   } finally {
-  //     setLoading(false);
-  //     setTableLoading(false);
-  //   }
-  // };
 
   const fetchAllData = async () => {
   setLoading(true);
