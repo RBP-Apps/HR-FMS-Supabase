@@ -157,7 +157,70 @@ const updateJoiningRecord = async (joiningNo, formData) => {
 
   // Google Drive folder ID for storing images
 
- const fetchJoiningData = async () => {
+//  const fetchJoiningData = async () => {
+//   setLoading(true);
+//   setTableLoading(true);
+//   setError(null);
+
+//   try {
+//     const { data, error } = await supabase
+//       .from("joining")
+//       .select("*")
+//       .order("timestamp_date", { ascending: false });
+
+//     if (error) throw error;
+
+//     const processedData = data.map((row) => ({
+//       timestamp: row.timestamp_date || "",
+//       joiningNo: row.rbp_joining_id || "",
+//       candidateName: row.name_as_per_aadhar || "",
+//       fatherName: row.father_name || "",
+//       dateOfJoining: row.date_of_joining || "",
+//       joiningPlace: row.work_location || "",
+//       designation: row.designation || "",
+//       salary: row.salary || "",
+//       aadharPhoto: row.aadhar_front_photo || "",
+//       panCard: row.pan_card || "",
+//       currentAddress: row.current_address || "",
+//       addressAsPerAadhar: row.aadhar_address || "",
+//       bodAsPerAadhar: row.date_of_birth || "",
+//       gender: row.gender || "",
+//       mobileNo: row.mobile_number || "",
+//       familyMobileNo: row.family_number || "",
+//       relationWithFamily: row.family_relationship || "",
+//       pfId: row.past_pf_id || "",
+//       accountNo: row.bank_account_number || "",
+//       ifscCode: row.ifsc_code || "",
+//       branchName: row.branch_name || "",
+//       email: row.personal_email || "",
+//       esicNo: row.past_esic_number || "",
+//       plannedDate: row.planned_date || "",
+//       actual: row.actual_date || "",
+//       pdcCheckbox: row.pdc === "YES" ? "YES" : "-",
+//     }));
+
+//     const pendingTasks = processedData.filter(
+//       (task) => task.plannedDate && !task.actual
+//     );
+
+//     const historyTasks = processedData.filter(
+//       (task) => task.plannedDate && task.actual
+//     );
+
+//     setPendingData(pendingTasks);
+//     setHistoryData(historyTasks);
+//   } catch (error) {
+//     console.error("Error fetching joining data:", error);
+//     setError(error.message);
+//     toast.error(`Failed to load joining data: ${error.message}`);
+//   } finally {
+//     setLoading(false);
+//     setTableLoading(false);
+//   }
+// };
+
+
+const fetchJoiningData = async () => {
   setLoading(true);
   setTableLoading(true);
   setError(null);
@@ -170,33 +233,68 @@ const updateJoiningRecord = async (joiningNo, formData) => {
 
     if (error) throw error;
 
-    const processedData = data.map((row) => ({
-      timestamp: row.timestamp_date || "",
-      joiningNo: row.rbp_joining_id || "",
-      candidateName: row.name_as_per_aadhar || "",
-      fatherName: row.father_name || "",
-      dateOfJoining: row.date_of_joining || "",
-      joiningPlace: row.work_location || "",
-      designation: row.designation || "",
-      salary: row.salary || "",
-      aadharPhoto: row.aadhar_front_photo || "",
-      panCard: row.pan_card || "",
-      currentAddress: row.current_address || "",
-      addressAsPerAadhar: row.aadhar_address || "",
-      bodAsPerAadhar: row.date_of_birth || "",
-      gender: row.gender || "",
-      mobileNo: row.mobile_number || "",
-      familyMobileNo: row.family_number || "",
-      relationWithFamily: row.family_relationship || "",
-      pfId: row.past_pf_id || "",
-      accountNo: row.bank_account_number || "",
-      ifscCode: row.ifsc_code || "",
-      branchName: row.branch_name || "",
-      email: row.personal_email || "",
-      esicNo: row.past_esic_number || "",
-      plannedDate: row.planned_date || "",
-      actual: row.actual_date || "",
-      pdcCheckbox: row.pdc === "YES" ? "YES" : "-",
+    // Also fetch assets data for each employee
+    const processedData = await Promise.all(data.map(async (row) => {
+      // Fetch assets data for this employee
+      const { data: assetsData } = await supabase
+        .from("assets")
+        .select("*")
+        .eq("employee_id", row.rbp_joining_id)
+        .order("timestamp", { ascending: false })
+        .limit(1);
+      
+      const latestAsset = assetsData?.[0];
+
+      return {
+        timestamp: row.timestamp_date || "",
+        joiningNo: row.rbp_joining_id || "",
+        candidateName: row.name_as_per_aadhar || "",
+        fatherName: row.father_name || "",
+        dateOfJoining: row.date_of_joining || "",
+        joiningPlace: row.work_location || "",
+        designation: row.designation || "",
+        salary: row.salary || "",
+        aadharPhoto: row.aadhar_front_photo || "",
+        panCard: row.pan_card || "",
+        currentAddress: row.current_address || "",
+        addressAsPerAadhar: row.aadhar_address || "",
+        bodAsPerAadhar: row.date_of_birth || "",
+        gender: row.gender || "",
+        mobileNo: row.mobile_number || "",
+        familyMobileNo: row.family_number || "",
+        relationWithFamily: row.family_relationship || "",
+        pfId: row.past_pf_id || "",
+        accountNo: row.bank_account_number || "",
+        ifscCode: row.ifsc_code || "",
+        branchName: row.branch_name || "",
+        email: row.personal_email || "",
+        esicNo: row.past_esic_number || "",
+        plannedDate: row.planned_date || "",
+        actual: row.actual_date || "",
+        pdcCheckbox: row.pdc === "YES" ? "YES" : "-",
+        
+        // Add all the new fields from the checklist
+        salarySlipResume: row.salary_slip_resume_checked || false,
+        offerLetterReceived: row.offer_letter_received || false,
+        welcomeMeeting: row.welcome_meeting || false,
+        biometricAccess: row.biometric_access || false,
+        officialEmailId: row.official_email_id || false,
+        assignAssets: row.assets_assigned || false,
+        pfEsic: row.pf_esic_completed || false,
+        companyDirectory: row.company_directory_added || false,
+        
+        // Fields from assets table
+        punchCode: latestAsset?.punch_code || "",
+        emailPassword: latestAsset?.email_password || "",
+        laptop: latestAsset?.laptop || "",
+        mobile: latestAsset?.mobile || "",
+        vehicle: latestAsset?.vehicle || "",
+        sim: latestAsset?.sim || "",
+        agreementDocument: latestAsset?.manual || "",
+        pfNumber: latestAsset?.pf || "",
+        esicNumber: latestAsset?.esic || "",
+        pdcFileUrl: latestAsset?.pdc_file || "",
+      };
     }));
 
     const pendingTasks = processedData.filter(
@@ -254,48 +352,6 @@ const fetchAssetsData = async (employeeId) => {
 };
 
 
-  // Upload image to Google Drive
-  const uploadImageToDrive = async (file, fileName) => {
-    try {
-      const reader = new FileReader();
-      return new Promise((resolve, reject) => {
-        reader.onload = async () => {
-          try {
-            const base64Data = reader.result;
-            const response = await fetch(
-              "https://script.google.com/macros/s/AKfycby9QCly-0XBtGHUqanlO6mPWRn79e_XOYhYUG6irCL60WG96JJpDCc4iTOdLRuVeUOa/exec",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: new URLSearchParams({
-                  action: "uploadFile",
-                  base64Data: base64Data,
-                  fileName: fileName,
-                  mimeType: file.type,
-                  folderId: DRIVE_FOLDER_ID,
-                }).toString(),
-              }
-            );
-
-            const result = await response.json();
-            if (result.success) {
-              resolve(result.fileUrl);
-            } else {
-              reject(new Error(result.error || "Upload failed"));
-            }
-          } catch (error) {
-            reject(error);
-          }
-        };
-        reader.onerror = () => reject(new Error("Failed to read file"));
-        reader.readAsDataURL(file);
-      });
-    } catch (error) {
-      throw new Error(`Upload failed: ${error.message}`);
-    }
-  };
 
   useEffect(() => {
     fetchJoiningData();
@@ -923,7 +979,7 @@ const saveAssetsData = async (employeeId, employeeName, assetsData) => {
           )}
 
 
-          {activeTab === "history" && (
+          {/* {activeTab === "history" && (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-white">
       <thead className="bg-gray-100">
@@ -1105,6 +1161,333 @@ const saveAssetsData = async (employeeId, employeeName, assetsData) => {
                     <span>-</span>
                   )
                 )}
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+    {filteredHistoryData.length === 0 && (
+      <div className="px-6 py-12 text-center">
+        <p className="text-gray-500">No after joining work history found.</p>
+      </div>
+    )}
+  </div>
+)} */}
+{activeTab === "history" && (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-white">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Action
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Employee ID
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Name
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Designation
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Date Of Joining
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Salary Slip & Resume
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Offer Letter
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Welcome Meeting
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Biometric Access
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Punch Code
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Official Email ID
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Email Password
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Assets Assigned
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Laptop
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Mobile
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Vehicle
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            SIM
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            PF/ESIC
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            PF Number
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            ESIC Number
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Company Directory
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Agreement Document
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            PDC
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            PDC File
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-white">
+        {tableLoading ? (
+          <tr>
+            <td colSpan="25" className="px-6 py-12 text-center">
+              <div className="flex justify-center flex-col items-center">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                <span className="text-gray-600 text-sm">
+                  Loading call history...
+                </span>
+              </div>
+            </td>
+          </tr>
+        ) : filteredHistoryData.length === 0 ? (
+          <tr>
+            <td colSpan="25" className="px-6 py-12 text-center">
+              <p className="text-gray-500">No call history found.</p>
+            </td>
+          </tr>
+        ) : (
+          filteredHistoryData.map((item, index) => (
+            <tr key={index} className="hover:bg-white hover:">
+              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditSubmit(item)}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700 text-xs flex items-center justify-center min-w-[60px]"
+                    >
+                      {editSubmitting ? (
+                        <>
+                          <svg
+                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Save
+                        </>
+                      ) : (
+                        "Save"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditMode(false);
+                        setEditingItem(null);
+                      }}
+                      disabled={editSubmitting}
+                      className="px-3 py-1 text-white bg-gray-600 rounded-md hover:bg-gray-700 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEditClick(item)}
+                    className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                  >
+                    Edit
+                  </button>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="joiningNo"
+                    value={editFormData.joiningNo}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.joiningNo
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="candidateName"
+                    value={editFormData.candidateName}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.candidateName
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="designation"
+                    value={editFormData.designation}
+                    onChange={handleEditInputChange}
+                    className="w-32 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  item.designation
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <input
+                    type="text"
+                    name="dateOfJoining"
+                    value={editFormData.dateOfJoining}
+                    onChange={handleEditInputChange}
+                    className="w-28 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  />
+                ) : (
+                  formatDOB(item.dateOfJoining)
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.salarySlipResume ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.salarySlipResume ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.offerLetterReceived ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.offerLetterReceived ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.welcomeMeeting ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.welcomeMeeting ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.biometricAccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.biometricAccess ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.punchCode || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.officialEmailId ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.officialEmailId ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.emailPassword ? '✓ Set' : '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.assignAssets ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.assignAssets ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.laptop || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.mobile || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.vehicle || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.sim || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.pfEsic ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.pfEsic ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.pfNumber || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.esicNumber || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs rounded-full ${item.companyDirectory ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {item.companyDirectory ? '✓' : '✗'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.agreementDocument ? (
+                  <a href={item.agreementDocument} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    View
+                  </a>
+                ) : '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {editMode && editingItem?.joiningNo === item.joiningNo ? (
+                  <select
+                    name="pdcCheckbox"
+                    value={editFormData.pdcCheckbox}
+                    onChange={handleEditInputChange}
+                    className="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  >
+                    <option value="-">-</option>
+                    <option value="YES">YES</option>
+                  </select>
+                ) : (
+                  item.pdcCheckbox === "YES" ? (
+                    <span className="px-2 py-1 text-xs rounded-full bg-indigo-100 font-semibold text-indigo-800">
+                      YES
+                    </span>
+                  ) : (
+                    <span>-</span>
+                  )
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.pdcFileUrl ? (
+                  <a href={item.pdcFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    View
+                  </a>
+                ) : '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className="px-2 py-1 text-xs rounded-full bg-green-500 font-semibold text-white">
+                  Completed
+                </span>
               </td>
             </tr>
           ))
@@ -1419,7 +1802,7 @@ const saveAssetsData = async (employeeId, employeeName, assetsData) => {
           <input
             type="file"
             id="manualImage"
-            accept="image/*"
+            // accept="image/*"
             onChange={(e) => handleImageUpload(e, "manualImage")}
             className="hidden"
           />

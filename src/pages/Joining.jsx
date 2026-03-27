@@ -27,6 +27,7 @@ const Joining = () => {
   const [followUpData, setFollowUpData] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [joiningRecords, setJoiningRecords] = useState([]);
   const [shareFormData, setShareFormData] = useState({
     recipientName: "",
     recipientEmail: "",
@@ -508,63 +509,65 @@ const [joiningFormData, setJoiningFormData] = useState({
   }
 
   // Actual working version with real data fetching
-  const fetchLastJoiningId = async () => {
-    try {
-      console.log("Fetching last joining ID from Supabase...");
+const fetchLastJoiningId = async () => {
+  try {
+    console.log("Fetching last joining ID from Supabase...");
 
-      const { data, error } = await supabase
-        .from("joining")
-        .select("rbp_joining_id")
-        .order("rbp_joining_id", { ascending: false })
-        .limit(1);
+    // Get ALL joining IDs to find the maximum number
+    const { data, error } = await supabase
+      .from("joining")
+      .select("rbp_joining_id");
 
-      if (error) throw error;
+    if (error) throw error;
 
-      let lastId = 0;
-      let foundIds = [];
+    let maxId = 0;
 
-      if (data && data.length > 0) {
-        data.forEach((item) => {
-          const joiningId = item.rbp_joining_id;
-
-          if (joiningId && joiningId.trim() !== "") {
-            foundIds.push(joiningId);
-
-            // Handle both RBP-001 and RBP001 formats
-            const cleanId = joiningId.toString().replace("RBP-", "RBP").trim();
-
-            if (cleanId.startsWith("RBP")) {
-              const numericPart = cleanId.replace("RBP", "");
-              const idNumber = parseInt(numericPart);
-
-              if (!isNaN(idNumber) && idNumber > lastId) {
-                lastId = idNumber;
-              }
-            }
+    if (data && data.length > 0) {
+      // Loop through all records to find the maximum ID number
+      data.forEach((record) => {
+        const joiningId = record.rbp_joining_id;
+        
+        if (joiningId && joiningId.includes('-')) {
+          const numberPart = joiningId.split('-')[1];
+          const num = parseInt(numberPart);
+          if (!isNaN(num) && num > maxId) {
+            maxId = num;
           }
-        });
-      }
-
-      // If no IDs found, start from 1, else increment
-      const nextIdNumber = lastId === 0 ? 1 : lastId + 1;
-      const nextId = `RBP-${nextIdNumber.toString().padStart(3, "0")}`;
-
-      setNextJoiningId(nextId);
-      setJoiningFormData((prev) => ({
-        ...prev,
-        joiningId: nextId,
-      }));
-    } catch (error) {
-      console.error("Error fetching last joining ID:", error);
-      // Fallback to RBP-001
-      const fallbackId = "RBP-001";
-      setNextJoiningId(fallbackId);
-      setJoiningFormData((prev) => ({
-        ...prev,
-        joiningId: fallbackId,
-      }));
+        } else if (joiningId && joiningId.startsWith('RBP')) {
+          const numberPart = joiningId.replace('RBP', '');
+          const num = parseInt(numberPart);
+          if (!isNaN(num) && num > maxId) {
+            maxId = num;
+          }
+        }
+      });
     }
-  };
+
+    // Increment by 1
+    const nextIdNumber = maxId + 1;
+    const nextId = `RBP-${nextIdNumber}`;
+
+    console.log("Current Max ID:", maxId);
+    console.log("Next Joining ID:", nextId);
+
+    setNextJoiningId(nextId);
+    setJoiningFormData((prev) => ({
+      ...prev,
+      joiningId: nextId,
+    }));
+    
+  } catch (error) {
+    console.error("Error fetching joining IDs:", error);
+    // Fallback to RBP-1
+    const fallbackId = "RBP-1";
+    setNextJoiningId(fallbackId);
+    setJoiningFormData((prev) => ({
+      ...prev,
+      joiningId: fallbackId,
+    }));
+  }
+};
+
 
   const fetchMasterData = async () => {
     try {
@@ -662,93 +665,214 @@ const [joiningFormData, setJoiningFormData] = useState({
     }));
   };
 
+  // const fetchJoiningData = async () => {
+  //   setLoading(true);
+  //   setTableLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     // Fetch from enquiry table
+  //     const { data: enquiryData, error: enquiryError } = await supabase
+  //       .from("enquiry")
+  //       .select("*")
+  //       .order("created_at", { ascending: false });
+
+  //     if (enquiryError) throw enquiryError;
+
+  //     // Fetch from follow_up table
+  //     const { data: followUpData, error: followUpError } = await supabase
+  //       .from("follow_up")
+  //       .select("enquiry_number, status");
+
+  //     if (followUpError) throw followUpError;
+
+  //     // Process enquiry data
+  //     const allProcessedEnquiryData = enquiryData
+  //       .map((row) => ({
+  //         id: row.id,
+  //         indentNo: row.indent_number,
+  //         candidateEnquiryNo: row.candidate_enquiry_number,
+  //         applyingForPost: row.applying_post,
+  //         department: row.department || "",
+  //         candidateName: row.candidate_name,
+  //         candidateDOB: row.dob,
+  //         candidatePhone: row.candidate_phone,
+  //         candidateEmail: row.candidate_email,
+  //         previousCompany: row.previous_company_name,
+  //         jobExperience: row.job_experience || "",
+  //         lastSalary: "", // Not in new schema
+  //         previousPosition: row.previous_position || "",
+  //         reasonForLeaving: row.reason_of_leaving || "",
+  //         maritalStatus: row.marital_status || "",
+  //         lastEmployerMobile: row.last_employer_mobile || "",
+  //         candidatePhoto: row.candidate_photo || "",
+  //         candidateResume: row.resume_copy || "",
+  //         referenceBy: row.reference_by || "",
+  //         presentAddress: row.present_address || "",
+  //         aadharNo: row.aadhar_number || "",
+  //         designation: row.applying_post || "",
+  //         actualDate: row.actual_1 || "", // Column AA equivalent
+  //         joiningDate: row.actual_2 || "", // Column AB equivalent
+  //       }))
+  //       // Filter out items with null/empty values in actual_1
+  //       .filter(
+  //         (item) => item.actualDate && item.actualDate.toString().trim() !== "",
+  //       );
+
+  //     setFollowUpData(followUpData || []);
+
+  //     // Items where candidate is selected for Joining
+  //     const itemsWithJoiningStatus = allProcessedEnquiryData.filter((item) => {
+  //       return followUpData?.some(
+  //         (followUp) =>
+  //           followUp.enquiry_number === item.candidateEnquiryNo &&
+  //           followUp.status?.includes("Joining"),
+  //       );
+  //     });
+
+  //     // Filter out items with non-null values in actual_2 (Pending)
+  //     const pendingItems = itemsWithJoiningStatus.filter(
+  //       (item) =>
+  //         !item.joiningDate || item.joiningDate.toString().trim() === "",
+  //     );
+
+  //     // Filter out items with null/empty values in actual_2 (History)
+  //     const historyItems = itemsWithJoiningStatus.filter(
+  //       (item) => item.joiningDate && item.joiningDate.toString().trim() !== "",
+  //     );
+
+  //     setJoiningData(pendingItems);
+  //     setHistoryJoiningData(historyItems);
+  //   } catch (error) {
+  //     console.error("Error fetching data:", error);
+  //     setError(error.message);
+  //     toast.error("Failed to fetch data");
+  //   } finally {
+  //     setLoading(false);
+  //     setTableLoading(false);
+  //   }
+  // };
+
+
+
   const fetchJoiningData = async () => {
-    setLoading(true);
-    setTableLoading(true);
-    setError(null);
+  setLoading(true);
+  setTableLoading(true);
+  setError(null);
 
-    try {
-      // Fetch from enquiry table
-      const { data: enquiryData, error: enquiryError } = await supabase
-        .from("enquiry")
-        .select("*")
-        .order("created_at", { ascending: false });
+  try {
+    // Fetch from enquiry table
+    const { data: enquiryData, error: enquiryError } = await supabase
+      .from("enquiry")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (enquiryError) throw enquiryError;
+    if (enquiryError) throw enquiryError;
 
-      // Fetch from follow_up table
-      const { data: followUpData, error: followUpError } = await supabase
-        .from("follow_up")
-        .select("enquiry_number, status");
+    // Fetch from follow_up table
+    const { data: followUpData, error: followUpError } = await supabase
+      .from("follow_up")
+      .select("enquiry_number, status");
 
-      if (followUpError) throw followUpError;
+    if (followUpError) throw followUpError;
 
-      // Process enquiry data
-      const allProcessedEnquiryData = enquiryData
-        .map((row) => ({
-          id: row.id,
-          indentNo: row.indent_number,
-          candidateEnquiryNo: row.candidate_enquiry_number,
-          applyingForPost: row.applying_post,
-          department: row.department || "",
-          candidateName: row.candidate_name,
-          candidateDOB: row.dob,
-          candidatePhone: row.candidate_phone,
-          candidateEmail: row.candidate_email,
-          previousCompany: row.previous_company_name,
-          jobExperience: row.job_experience || "",
-          lastSalary: "", // Not in new schema
-          previousPosition: row.previous_position || "",
-          reasonForLeaving: row.reason_of_leaving || "",
-          maritalStatus: row.marital_status || "",
-          lastEmployerMobile: row.last_employer_mobile || "",
-          candidatePhoto: row.candidate_photo || "",
-          candidateResume: row.resume_copy || "",
-          referenceBy: row.reference_by || "",
-          presentAddress: row.present_address || "",
-          aadharNo: row.aadhar_number || "",
-          designation: row.applying_post || "",
-          actualDate: row.actual_1 || "", // Column AA equivalent
-          joiningDate: row.actual_2 || "", // Column AB equivalent
-        }))
-        // Filter out items with null/empty values in actual_1
-        .filter(
-          (item) => item.actualDate && item.actualDate.toString().trim() !== "",
-        );
-
-      setFollowUpData(followUpData || []);
-
-      // Items where candidate is selected for Joining
-      const itemsWithJoiningStatus = allProcessedEnquiryData.filter((item) => {
-        return followUpData?.some(
-          (followUp) =>
-            followUp.enquiry_number === item.candidateEnquiryNo &&
-            followUp.status?.includes("Joining"),
-        );
-      });
-
-      // Filter out items with non-null values in actual_2 (Pending)
-      const pendingItems = itemsWithJoiningStatus.filter(
-        (item) =>
-          !item.joiningDate || item.joiningDate.toString().trim() === "",
+    // Process enquiry data
+    const allProcessedEnquiryData = enquiryData
+      .map((row) => ({
+        id: row.id,
+        indentNo: row.indent_number,
+        candidateEnquiryNo: row.candidate_enquiry_number,
+        applyingForPost: row.applying_post,
+        department: row.department || "",
+        candidateName: row.candidate_name,
+        candidateDOB: row.dob,
+        candidatePhone: row.candidate_phone,
+        candidateEmail: row.candidate_email,
+        previousCompany: row.previous_company_name,
+        jobExperience: row.job_experience || "",
+        lastSalary: "", // Not in new schema
+        previousPosition: row.previous_position || "",
+        reasonForLeaving: row.reason_of_leaving || "",
+        maritalStatus: row.marital_status || "",
+        lastEmployerMobile: row.last_employer_mobile || "",
+        candidatePhoto: row.candidate_photo || "",
+        candidateResume: row.resume_copy || "",
+        referenceBy: row.reference_by || "",
+        presentAddress: row.present_address || "",
+        aadharNo: row.aadhar_number || "",
+        designation: row.applying_post || "",
+        actualDate: row.actual_1 || "", // Column AA equivalent
+        joiningDate: row.actual_2 || "", // Column AB equivalent
+      }))
+      // Filter out items with null/empty values in actual_1
+      .filter(
+        (item) => item.actualDate && item.actualDate.toString().trim() !== "",
       );
 
-      // Filter out items with null/empty values in actual_2 (History)
-      const historyItems = itemsWithJoiningStatus.filter(
-        (item) => item.joiningDate && item.joiningDate.toString().trim() !== "",
-      );
+    setFollowUpData(followUpData || []);
 
-      setJoiningData(pendingItems);
-      setHistoryJoiningData(historyItems);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setError(error.message);
-      toast.error("Failed to fetch data");
-    } finally {
-      setLoading(false);
-      setTableLoading(false);
-    }
+    // Items where candidate is selected for Joining
+    const itemsWithJoiningStatus = allProcessedEnquiryData.filter((item) => {
+      return followUpData?.some(
+        (followUp) =>
+          followUp.enquiry_number === item.candidateEnquiryNo &&
+          followUp.status?.includes("Joining"),
+      );
+    });
+
+    // Filter out items with non-null values in actual_2 (Pending)
+    const pendingItems = itemsWithJoiningStatus.filter(
+      (item) =>
+        !item.joiningDate || item.joiningDate.toString().trim() === "",
+    );
+
+    // Filter out items with null/empty values in actual_2 (History)
+    const historyItems = itemsWithJoiningStatus.filter(
+      (item) => item.joiningDate && item.joiningDate.toString().trim() !== "",
+    );
+
+    setJoiningData(pendingItems);
+    setHistoryJoiningData(historyItems);
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    setError(error.message);
+    toast.error("Failed to fetch data");
+  } finally {
+    setLoading(false);
+    setTableLoading(false);
+  }
+};
+
+
+// Add this function to fetch joining data for history items
+const fetchJoiningDataForHistory = async () => {
+  try {
+    const { data: joiningData, error } = await supabase
+      .from("joining")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return joiningData;
+  } catch (error) {
+    console.error("Error fetching joining data:", error);
+    return [];
+  }
+};
+
+// Modify your useEffect to also fetch joining data
+useEffect(() => {
+  const loadData = async () => {
+    await fetchJoiningData();
+    const joiningRecords = await fetchJoiningDataForHistory();
+    setJoiningRecords(joiningRecords); // Store in a new state
   };
+  loadData();
+  fetchFirmNames();
+  fetchLastJoiningId();
+  fetchMasterData();
+}, []);
+
 
   const fetchFirmNames = async () => {
     try {
@@ -1431,7 +1555,7 @@ const handleJoiningClick = (item) => {
             </div>
           )}
 
-   {activeTab === "history" && (
+   {/* {activeTab === "history" && (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
@@ -1574,6 +1698,233 @@ const handleJoiningClick = (item) => {
       </tbody>
     </table>
   </div>
+)} */}
+
+{activeTab === "history" && (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Action
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Indent Number
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Name
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Father Name
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Date of Joining
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Designation
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Department
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Salary
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Mobile Number
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Personal Email
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Aadhar Address
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Current Address
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Bank Account
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            IFSC Code
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            PF ID
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            ESIC No
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Company PF
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Company ESIC
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Attendance Type
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Aadhar Front
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Aadhar Back
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            PAN Card
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {tableLoading ? (
+          <tr>
+            <td colSpan="23" className="px-6 py-12 text-center">
+              <div className="flex justify-center flex-col items-center">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                <span className="text-gray-600 text-sm">
+                  Loading history...
+                </span>
+              </div>
+            </td>
+          </tr>
+        ) : error ? (
+          <tr>
+            <td colSpan="23" className="px-6 py-12 text-center">
+              <p className="text-red-500">Error: {error}</p>
+              <button
+                onClick={() => {
+                  fetchJoiningData();
+                  fetchJoiningDataForHistory();
+                }}
+                className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              >
+                Retry
+              </button>
+            </td>
+          </tr>
+        ) : filteredHistoryData.length === 0 ? (
+          <tr>
+            <td colSpan="23" className="px-6 py-12 text-center">
+              <p className="text-gray-500">No history found.</p>
+            </td>
+          </tr>
+        ) : (
+          filteredHistoryData.map((item) => {
+            // Find matching joining record
+            const joiningRecord = joiningRecords.find(
+              (record) => record.rbp_joining_id?.includes(item.candidateEnquiryNo)
+            );
+            
+            return (
+              <tr key={item.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <button
+                    onClick={() => handleEditClick(item)}
+                    className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                  >
+                    Edit
+                  </button>
+                </td>
+               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+  {item.indentNo || "-"}
+</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.name_as_per_aadhar || item.candidateName || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.father_name || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.date_of_joining ? formatDate(joiningRecord.date_of_joining) : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.designation || item.applyingForPost || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.department || item.department || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.salary || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.mobile_number || item.candidatePhone || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.personal_email || item.candidateEmail || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.aadhar_address ? (
+                    <div className="max-w-[150px] truncate" title={joiningRecord.aadhar_address}>
+                      {joiningRecord.aadhar_address}
+                    </div>
+                  ) : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.current_address ? (
+                    <div className="max-w-[150px] truncate" title={joiningRecord.current_address}>
+                      {joiningRecord.current_address}
+                    </div>
+                  ) : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.bank_account_number || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.ifsc_code || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.past_pf_id || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.past_esic_number || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span className={`px-2 py-1 text-xs rounded-full ${joiningRecord?.company_pf_provided ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {joiningRecord?.company_pf_provided ? 'Yes' : 'No'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span className={`px-2 py-1 text-xs rounded-full ${joiningRecord?.company_esic_provided ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {joiningRecord?.company_esic_provided ? 'Yes' : 'No'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.attendance_type || "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.aadhar_front_photo ? (
+                    <a href={joiningRecord.aadhar_front_photo} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                      View
+                    </a>
+                  ) : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.aadhar_back_photo ? (
+                    <a href={joiningRecord.aadhar_back_photo} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                      View
+                    </a>
+                  ) : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {joiningRecord?.pan_card ? (
+                    <a href={joiningRecord.pan_card} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                      View
+                    </a>
+                  ) : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                    Completed
+                  </span>
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </table>
+  </div>
 )}
         </div>
              {showEditJoiningModal && selectedItem && (
@@ -1606,13 +1957,13 @@ const handleJoiningClick = (item) => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         RBP-Joining ID (जॉइनिंग आईडी) *
                       </label>
-                      <input
-                        type="text"
-                        name="joiningId"
-                        value={editJoiningFormData.joiningId || ""}
-                        readOnly
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-100 text-gray-700 cursor-not-allowed"
-                      />
+                     <input
+  type="text"
+  name="joiningId"
+  value={joiningFormData.joiningId}
+  readOnly
+  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-100 text-gray-700 cursor-not-allowed"
+/>
                       <p className="text-xs text-gray-500 mt-1">
                         Joining ID (cannot be edited)
                       </p>

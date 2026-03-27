@@ -652,7 +652,7 @@ const historyData = enquiryData.filter(
             </div>
           )}
 
-    {activeTab === "history" && (
+{activeTab === "history" && (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
@@ -676,13 +676,31 @@ const historyData = enquiryData.filter(
             Candidate Name
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            DOB
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Phone
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Email
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Prev. Company
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Experience
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Prev. Position
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Marital Status
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Address
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Aadhar No.
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Photo
@@ -698,7 +716,7 @@ const historyData = enquiryData.filter(
       <tbody className="bg-white divide-y divide-gray-200">
         {tableLoading ? (
           <tr>
-            <td colSpan="12" className="px-6 py-12 text-center">
+            <td colSpan="18" className="px-6 py-12 text-center">
               <div className="flex justify-center flex-col items-center">
                 <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
                 <span className="text-gray-600 text-sm">
@@ -709,7 +727,7 @@ const historyData = enquiryData.filter(
           </tr>
         ) : filteredHistoryData.length === 0 ? (
           <tr>
-            <td colSpan="12" className="px-6 py-12 text-center">
+            <td colSpan="18" className="px-6 py-12 text-center">
               <p className="text-gray-500">
                 No enquiry history found.
               </p>
@@ -743,13 +761,35 @@ const historyData = enquiryData.filter(
                 {item.candidateName}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.candidateDOB ? new Date(item.candidateDOB).toLocaleDateString() : "-"}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.candidatePhone}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.candidateEmail}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {item.jobExperience}
+                {item.previousCompany || "-"}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.jobExperience || "-"}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.previousPosition || "-"}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.maritalStatus || "-"}
+              </td>
+              <td className="px-6 py-4 text-sm text-gray-900">
+                {item.presentAddress ? (
+                  <div className="max-w-xs truncate" title={item.presentAddress}>
+                    {item.presentAddress}
+                  </div>
+                ) : "-"}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {item.aadharNo || "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.candidatePhoto ? (
@@ -771,9 +811,7 @@ const historyData = enquiryData.filter(
                       View File
                     </a>
                   )
-                ) : (
-                  "-"
-                )}
+                ) : "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {item.candidateResume ? (
@@ -785,9 +823,7 @@ const historyData = enquiryData.filter(
                   >
                     View
                   </a>
-                ) : (
-                  "-"
-                )}
+                ) : "-"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 <span
