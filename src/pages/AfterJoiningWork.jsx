@@ -219,49 +219,39 @@ const updateJoiningRecord = async (joiningNo, formData) => {
   }
 };
 
-  // Fetch previous assets data from Assets sheet
- const fetchAssetsData = async (employeeId) => {
+const fetchAssetsData = async (employeeId) => {
   try {
+    if (!employeeId) return null;
+
     const { data, error } = await supabase
-      .from("joining")
-      .select(`
-        official_email_id,
-        assets_assigned,
-        pf_esic_completed,
-        company_directory_added,
-        pdc,
-        department,
-        biometric_access,
-        attendance_type
-      `)
-      .eq("rbp_joining_id", employeeId)
-      .single();
+      .from("assets")
+      .select("*")
+      .eq("employee_id", employeeId)
+      .order("timestamp", { ascending: false })
+      .limit(1);
 
     if (error) throw error;
 
-    if (data) {
-      return {
-        punchCode: "", // This might need to be stored in a separate table or column
-        emailId: data.official_email_id || "",
-        emailPassword: "", // Password should be stored securely, maybe not needed
-        laptop: "", // These asset details need to be in a separate table
-        mobile: "",
-        vehicle: "",
-        other: "",
-        manualImageUrl: data.company_directory_added ? "" : "", // Handle images separately
-        pfNumber: data.pf_esic_completed ? "" : "", // PF/ESIC numbers need separate columns
-        esicNumber: "",
-        pdcFileUrl: data.pdc === "YES" ? "" : "", // PDC file URL needs storage
-      };
-    }
+    const row = data?.[0];
 
-    return null;
+    return {
+      punchCode: row?.punch_code || "",
+      emailId: row?.email_id || "",
+      emailPassword: row?.email_password || "",
+      laptop: row?.laptop || "",
+      mobile: row?.mobile || "",
+      vehicle: row?.vehicle || "",
+      other: row?.sim || "",
+      manualImageUrl: row?.manual || "",
+      pfNumber: row?.pf || "",
+      esicNumber: row?.esic || "",
+      pdcFileUrl: row?.pdc_file || "",
+    };
   } catch (error) {
-    console.error("Error fetching assets data:", error);
+    console.error("Assets fetch error:", error);
     return null;
   }
 };
-
 
 
   // Upload image to Google Drive
@@ -311,7 +301,109 @@ const updateJoiningRecord = async (joiningNo, formData) => {
     fetchJoiningData();
   }, []);
 
- const handleAfterJoiningClick = async (item) => {
+//  const handleAfterJoiningClick = async (item) => {
+//   // Reset form data first
+//   setFormData({
+//     checkSalarySlipResume: false,
+//     offerLetterReceived: false,
+//     welcomeMeeting: false,
+//     biometricAccess: false,
+//     punchCode: "",
+//     officialEmailId: false,
+//     emailId: "",
+//     emailPassword: "",
+//     assignAssets: false,
+//     laptop: "",
+//     mobile: "",
+//     vehicle: "",
+//     other: "",
+//     manualImage: null,
+//     manualImageUrl: "",
+//     pfEsic: false,
+//     pfNumber: "",
+//     esicNumber: "",
+//     companyDirectory: false,
+//     pdoCheckbox: false,
+//     pdcFile: null,
+//     pdcFileUrl: "",
+//     assets: [],
+//   });
+
+//   setSelectedItem(item);
+//   setShowModal(true);
+//   setLoading(true);
+
+//   try {
+//     // Fetch current values from Supabase
+//     const { data, error } = await supabase
+//       .from("joining")
+//       .select(`
+//         salary_slip_resume_checked,
+//         offer_letter_received,
+//         welcome_meeting,
+//         biometric_access,
+//         official_email_id,
+//         assets_assigned,
+//         pf_esic_completed,
+//         company_directory_added,
+//         pdc,
+//         department,
+//         attendance_type
+//       `)
+//       .eq("rbp_joining_id", item.joiningNo)
+//       .single();
+
+//     if (error) throw error;
+
+//     // Fetch assets data
+//     const assetsData = await fetchAssetsData(item.joiningNo);
+
+//     const currentValues = {
+//       checkSalarySlipResume: data?.salary_slip_resume_checked || false,
+//       offerLetterReceived: data?.offer_letter_received || false,
+//       welcomeMeeting: data?.welcome_meeting || false,
+//       biometricAccess: data?.biometric_access || false,
+//       officialEmailId: !!data?.official_email_id,
+//       assignAssets: data?.assets_assigned || false,
+//       pfEsic: data?.pf_esic_completed || false,
+//       companyDirectory: data?.company_directory_added || false,
+//       pdoCheckbox: data?.pdc === "YES",
+//     };
+
+//     // Merge with assets data if available
+//     const finalFormData = {
+//       ...currentValues,
+//       punchCode: assetsData?.punchCode || "",
+//       emailId: assetsData?.emailId || data?.official_email_id || "",
+//       emailPassword: assetsData?.emailPassword || "",
+//       laptop: assetsData?.laptop || "",
+//       mobile: assetsData?.mobile || "",
+//       vehicle: assetsData?.vehicle || "",
+//       other: assetsData?.other || "",
+//       manualImageUrl: assetsData?.manualImageUrl || "",
+//       pfNumber: assetsData?.pfNumber || "",
+//       esicNumber: assetsData?.esicNumber || "",
+//       pdcFileUrl: assetsData?.pdcFileUrl || "",
+//       manualImage: null,
+//       pdcFile: null,
+//       assets: [],
+//     };
+
+//     setFormData((prev) => ({
+//       ...prev,
+//       ...finalFormData,
+//     }));
+//   } catch (error) {
+//     console.error("Error fetching current values:", error);
+//     toast.error("Failed to load current values");
+//   } finally {
+//     setLoading(false);
+//   }
+// };
+
+
+
+const handleAfterJoiningClick = async (item) => {
   // Reset form data first
   setFormData({
     checkSalarySlipResume: false,
@@ -344,8 +436,8 @@ const updateJoiningRecord = async (joiningNo, formData) => {
   setLoading(true);
 
   try {
-    // Fetch current values from Supabase
-    const { data, error } = await supabase
+    // Fetch from joining table
+    const { data: joiningData, error: joiningError } = await supabase
       .from("joining")
       .select(`
         salary_slip_resume_checked,
@@ -356,60 +448,95 @@ const updateJoiningRecord = async (joiningNo, formData) => {
         assets_assigned,
         pf_esic_completed,
         company_directory_added,
-        pdc,
-        department,
-        attendance_type
+        pdc
       `)
       .eq("rbp_joining_id", item.joiningNo)
       .single();
 
-    if (error) throw error;
+    if (joiningError) throw joiningError;
 
-    // Fetch assets data
-    const assetsData = await fetchAssetsData(item.joiningNo);
+    // Fetch from assets table
+    const { data: assetsData, error: assetsError } = await supabase
+      .from("assets")
+      .select("*")
+      .eq("employee_id", item.joiningNo)
+      .order("timestamp", { ascending: false })
+      .limit(1);
 
-    const currentValues = {
-      checkSalarySlipResume: data?.salary_slip_resume_checked || false,
-      offerLetterReceived: data?.offer_letter_received || false,
-      welcomeMeeting: data?.welcome_meeting || false,
-      biometricAccess: data?.biometric_access || false,
-      officialEmailId: !!data?.official_email_id,
-      assignAssets: data?.assets_assigned || false,
-      pfEsic: data?.pf_esic_completed || false,
-      companyDirectory: data?.company_directory_added || false,
-      pdoCheckbox: data?.pdc === "YES",
-    };
+    if (assetsError) throw assetsError;
 
-    // Merge with assets data if available
-    const finalFormData = {
-      ...currentValues,
-      punchCode: assetsData?.punchCode || "",
-      emailId: assetsData?.emailId || data?.official_email_id || "",
-      emailPassword: assetsData?.emailPassword || "",
-      laptop: assetsData?.laptop || "",
-      mobile: assetsData?.mobile || "",
-      vehicle: assetsData?.vehicle || "",
-      other: assetsData?.other || "",
-      manualImageUrl: assetsData?.manualImageUrl || "",
-      pfNumber: assetsData?.pfNumber || "",
-      esicNumber: assetsData?.esicNumber || "",
-      pdcFileUrl: assetsData?.pdcFileUrl || "",
+    const latestAsset = assetsData?.[0];
+
+    console.log("Joining Data:", joiningData);
+    console.log("Assets Data:", latestAsset);
+
+    // IMPORTANT: Set the form data with all values
+    const updatedFormData = {
+      // Joining table checkboxes
+      checkSalarySlipResume: joiningData?.salary_slip_resume_checked || false,
+      offerLetterReceived: joiningData?.offer_letter_received || false,
+      welcomeMeeting: joiningData?.welcome_meeting || false,
+      biometricAccess: joiningData?.biometric_access || false,
+      officialEmailId: !!(joiningData?.official_email_id && joiningData.official_email_id !== ""),
+      assignAssets: joiningData?.assets_assigned || false,
+      pfEsic: joiningData?.pf_esic_completed || false,
+      companyDirectory: joiningData?.company_directory_added || false,
+      pdoCheckbox: joiningData?.pdc === "YES",
+      
+      // Email from joining table
+      emailId: joiningData?.official_email_id || latestAsset?.email_id || "",
+      
+      // All fields from assets table
+      emailPassword: latestAsset?.email_password || "",
+      punchCode: latestAsset?.punch_code || "",
+      laptop: latestAsset?.laptop || "",
+      mobile: latestAsset?.mobile || "",
+      vehicle: latestAsset?.vehicle || "",
+      other: latestAsset?.sim || "",
+      manualImageUrl: latestAsset?.manual || "",
+      pfNumber: latestAsset?.pf || "",
+      esicNumber: latestAsset?.esic || "",
+      pdcFileUrl: latestAsset?.pdc_file || "",
+      
+      // Reset file inputs
       manualImage: null,
       pdcFile: null,
-      assets: [],
     };
 
-    setFormData((prev) => ({
-      ...prev,
-      ...finalFormData,
-    }));
+    console.log("Setting Form Data:", updatedFormData);
+    
+    setFormData(updatedFormData);
+    
+    toast.success("Data loaded successfully");
+    
   } catch (error) {
-    console.error("Error fetching current values:", error);
-    toast.error("Failed to load current values");
+    console.error("Error fetching data:", error);
+    toast.error("Failed to load existing data");
   } finally {
     setLoading(false);
   }
 };
+
+useEffect(() => {
+  console.log("Current Form Data State:", {
+    checkSalarySlipResume: formData.checkSalarySlipResume,
+    offerLetterReceived: formData.offerLetterReceived,
+    welcomeMeeting: formData.welcomeMeeting,
+    biometricAccess: formData.biometricAccess,
+    pfEsic: formData.pfEsic,
+    companyDirectory: formData.companyDirectory,
+    pdoCheckbox: formData.pdoCheckbox,
+    punchCode: formData.punchCode,
+    emailId: formData.emailId,
+    laptop: formData.laptop,
+    mobile: formData.mobile,
+    pfNumber: formData.pfNumber,
+    esicNumber: formData.esicNumber,
+    pdcFileUrl: formData.pdcFileUrl,
+    manualImageUrl: formData.manualImageUrl,
+  });
+}, [formData]);
+
 
   const handleCheckboxChange = (name) => {
     setFormData((prev) => ({
@@ -439,29 +566,50 @@ const updateJoiningRecord = async (joiningNo, formData) => {
   // Save assets data to Assets sheet
 const saveAssetsData = async (employeeId, employeeName, assetsData) => {
   try {
-    // Update the joining table with asset-related fields
-    const { error } = await supabase
+    // ✅ STEP 1: joining table update (same as before)
+    const { error: joiningError } = await supabase
       .from("joining")
       .update({
         official_email_id: assetsData.emailId,
-        // Note: Email password should not be stored in plain text
-        // Consider using a secure method or separate service
         pdc: assetsData.pdcFileUrl ? "YES" : "-",
-        // Add other fields as needed
       })
       .eq("rbp_joining_id", employeeId);
 
-    if (error) throw error;
+    if (joiningError) throw joiningError;
 
-    // For storing detailed asset information, you might want to create a new table
-    // For now, we'll just log that assets were assigned
-    console.log("Assets data saved for employee:", employeeId, assetsData);
+    // ✅ STEP 2: INSERT into assets table (NEW ADD)
+    const { error: assetsError } = await supabase
+      .from("assets")
+      .insert([
+        {
+          employee_id: employeeId,
+          employee_name: employeeName,
+          email_id: assetsData.emailId,
+          email_password: assetsData.emailPassword,
+          laptop: assetsData.laptop,
+          mobile: assetsData.mobile,
+          vehicle: assetsData.vehicle,
+          sim: assetsData.other,
+          manual: assetsData.manualImageUrl,
+          punch_code: assetsData.punchCode,
+          pf: assetsData.pfNumber,
+          esic: assetsData.esicNumber,
+          pdc_file: assetsData.pdcFileUrl,
+        },
+      ]);
+
+    if (assetsError) throw assetsError;
+
+    console.log("✅ Assets data inserted successfully");
 
     return { success: true };
   } catch (error) {
     throw new Error(`Failed to save assets data: ${error.message}`);
   }
 };
+
+
+
 
  const handleSubmit = async (e) => {
   e.preventDefault();
@@ -1055,25 +1203,30 @@ const saveAssetsData = async (employeeId, employeeName, assetsData) => {
                     </label>
                   </div>
                 ))}
-                {formData.biometricAccess && (
-                  <div className="mt-2 ml-6 p-3 bg-gray-50 rounded-md">
-                    <div className="grid grid-cols-1 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">
-                          Punch Code
-                        </label>
-                        <input
-                          type="text"
-                          name="punchCode"
-                          value={formData.punchCode}
-                          onChange={handleInputChange}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          placeholder="Enter punch code"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+         {formData.biometricAccess && (
+  <div className="mt-2 ml-6 p-3 bg-gray-50 rounded-md">
+    <div className="grid grid-cols-1 gap-3">
+      <div>
+        <label className="block text-sm font-medium text-gray-500 mb-1">
+          Punch Code
+        </label>
+        <input
+          type="text"
+          name="punchCode"
+          value={formData.punchCode}
+          onChange={handleInputChange}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+          placeholder="Enter punch code"
+        />
+        {formData.punchCode && (
+          <p className="text-xs text-green-600 mt-1">
+            ✓ Current: {formData.punchCode}
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+)}
                 {/* Official Email ID Section */}
                 <div className="space-y-3">
                   <div className="flex items-center">
@@ -1091,37 +1244,46 @@ const saveAssetsData = async (employeeId, employeeName, assetsData) => {
                       Official Email ID (ऑफ़िशियल ईमेल आईडी)
                     </label>
                   </div>
-
-                  {formData.officialEmailId && (
-                    <div className="mt-2 ml-6 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">
-                          Email ID
-                        </label>
-                        <input
-                          type="text"
-                          name="emailId"
-                          value={formData.emailId}
-                          onChange={handleInputChange}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          placeholder="Enter email ID"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">
-                          Password
-                        </label>
-                        <input
-                          type="password"
-                          name="emailPassword"
-                          value={formData.emailPassword}
-                          onChange={handleInputChange}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          placeholder="Enter password"
-                        />
-                      </div>
-                    </div>
-                  )}
+{formData.officialEmailId && (
+  <div className="mt-2 ml-6 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
+    <div>
+      <label className="block text-sm font-medium text-gray-500 mb-1">
+        Email ID
+      </label>
+      <input
+        type="text"
+        name="emailId"
+        value={formData.emailId}
+        onChange={handleInputChange}
+        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+        placeholder="Enter email ID"
+      />
+      {formData.emailId && (
+        <p className="text-xs text-green-600 mt-1">
+          ✓ Current: {formData.emailId}
+        </p>
+      )}
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-500 mb-1">
+        Password
+      </label>
+      <input
+        type="password"
+        name="emailPassword"
+        value={formData.emailPassword}
+        onChange={handleInputChange}
+        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+        placeholder="Enter password"
+      />
+      {formData.emailPassword && (
+        <p className="text-xs text-green-600 mt-1">
+          ✓ Password set
+        </p>
+      )}
+    </div>
+  </div>
+)}
                 </div>
                 <div className="flex items-center">
                   <input
@@ -1138,30 +1300,35 @@ const saveAssetsData = async (employeeId, employeeName, assetsData) => {
                     Assign Assets (असाइन एसेट्स)
                   </label>
                 </div>
-                {formData.assignAssets && (
-                  <div className="mt-2 ml-6 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
-                    {[
-                      { id: "laptop", label: "Laptop" },
-                      { id: "mobile", label: "Mobile" },
-                      { id: "vehicle", label: "Vehicle" },
-                      { id: "other", label: "SIM" },
-                    ].map((asset) => (
-                      <div key={asset.id} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-500">
-                          {asset.label}
-                        </label>
-                        <input
-                          type="text"
-                          name={asset.id}
-                          value={formData[asset.id]}
-                          onChange={handleInputChange}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          placeholder={`Enter ${asset.label} details`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+{formData.assignAssets && (
+  <div className="mt-2 ml-6 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
+    {[
+      { id: "laptop", label: "Laptop" },
+      { id: "mobile", label: "Mobile" },
+      { id: "vehicle", label: "Vehicle" },
+      { id: "other", label: "SIM" },
+    ].map((asset) => (
+      <div key={asset.id} className="space-y-2">
+        <label className="block text-sm font-medium text-gray-500">
+          {asset.label}
+        </label>
+        <input
+          type="text"
+          name={asset.id}
+          value={formData[asset.id]}
+          onChange={handleInputChange}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+          placeholder={`Enter ${asset.label} details`}
+        />
+        {formData[asset.id] && (
+          <p className="text-xs text-green-600 mt-1">
+            ✓ Current: {formData[asset.id]}
+          </p>
+        )}
+      </div>
+    ))}
+  </div>
+)}
 
                 <div className="space-y-3">
                   <div className="flex items-center">
@@ -1180,209 +1347,210 @@ const saveAssetsData = async (employeeId, employeeName, assetsData) => {
                     </label>
                   </div>
 
-                  {formData.pfEsic && (
-                    <div className="mt-2 ml-6 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">
-                          PF Number
-                        </label>
-                        <input
-                          type="text"
-                          name="pfNumber"
-                          value={formData.pfNumber}
-                          onChange={handleInputChange}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          placeholder="Enter PF number"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">
-                          ESIC Number
-                        </label>
-                        <input
-                          type="text"
-                          name="esicNumber"
-                          value={formData.esicNumber}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          placeholder="Enter ESIC number"
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                    </div>
-                  )}
+       {formData.pfEsic && (
+  <div className="mt-2 ml-6 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
+    <div>
+      <label className="block text-sm font-medium text-gray-500 mb-1">
+        PF Number
+      </label>
+      <input
+        type="text"
+        name="pfNumber"
+        value={formData.pfNumber}
+        onChange={handleInputChange}
+        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+        placeholder="Enter PF number"
+      />
+      {formData.pfNumber && (
+        <p className="text-xs text-green-600 mt-1">
+          ✓ Current: {formData.pfNumber}
+        </p>
+      )}
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-500 mb-1">
+        ESIC Number
+      </label>
+      <input
+        type="text"
+        name="esicNumber"
+        value={formData.esicNumber}
+        onChange={handleInputChange}
+        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+        placeholder="Enter ESIC number"
+      />
+      {formData.esicNumber && (
+        <p className="text-xs text-green-600 mt-1">
+          ✓ Current: {formData.esicNumber}
+        </p>
+      )}
+    </div>
+  </div>
+)}
                 </div>
 
                 {/* Company Directory Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="companyDirectory"
-                      checked={formData.companyDirectory}
-                      onChange={() => handleCheckboxChange("companyDirectory")}
-                      className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
-                    />
-                    <label
-                      htmlFor="companyDirectory"
-                      className="ml-2 text-sm text-gray-500"
-                    >
-                      Company Directory (कंपनी निर्देशिका)
-                    </label>
-                  </div>
+                {/* Company Directory Section */}
+<div className="space-y-3">
+  <div className="flex items-center">
+    <input
+      type="checkbox"
+      id="companyDirectory"
+      checked={formData.companyDirectory}
+      onChange={() => handleCheckboxChange("companyDirectory")}
+      className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
+    />
+    <label
+      htmlFor="companyDirectory"
+      className="ml-2 text-sm text-gray-500"
+    >
+      Company Directory (कंपनी निर्देशिका)
+    </label>
+  </div>
 
-                  {formData.companyDirectory && (
-                    <div className="mt-2 ml-6 p-3 bg-gray-50 rounded-md">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-500">
-                          Aggrement
-                        </label>
-                        <div className="space-y-2">
-                          <div className="flex items-center">
-                            <input
-                              type="file"
-                              id="manualImage"
-                              accept="image/*"
-                              onChange={(e) =>
-                                handleImageUpload(e, "manualImage")
-                              }
-                              className="hidden"
-                            />
-                            <label
-                              htmlFor="manualImage"
-                              className="cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 flex items-center"
-                            >
-                              <svg
-                                className="w-4 h-4 mr-1"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                ></path>
-                              </svg>
-                              {formData.manualImage
-                                ? "Change Manual"
-                                : formData.manualImageUrl
-                                  ? "Replace Manual"
-                                  : "Aggrement Upload"}
-                            </label>
-                          </div>
-                          {/* Show existing manual image if available */}
-                          {formData.manualImageUrl && !formData.manualImage && (
-                            <div className="mt-2">
-                              <img
-                                src={formData.manualImageUrl}
-                                alt="Existing Manual"
-                                className="h-32 w-full object-contain rounded border"
-                                onError={(e) => {
-                                  e.target.style.display = "none";
-                                }}
-                              />
-                              <p className="text-xs text-gray-500 mt-1">
-                                Current manual image
-                              </p>
-                            </div>
-                          )}
-                          {/* Show new selected manual image preview */}
-                          {formData.manualImage && (
-                            <div className="mt-2">
-                              <img
-                                src={URL.createObjectURL(formData.manualImage)}
-                                alt="New Manual"
-                                className="h-32 w-full object-contain rounded border"
-                              />
-                              <p className="text-xs text-green-600 mt-1">
-                                New manual image selected
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+{formData.companyDirectory && (
+  <div className="mt-2 ml-6 p-3 bg-gray-50 rounded-md">
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-500">
+        Agreement Document
+      </label>
+      <div className="space-y-2">
+        <div className="flex items-center">
+          <input
+            type="file"
+            id="manualImage"
+            accept="image/*"
+            onChange={(e) => handleImageUpload(e, "manualImage")}
+            className="hidden"
+          />
+          <label
+            htmlFor="manualImage"
+            className="cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            {formData.manualImage ? "Change Agreement" : formData.manualImageUrl ? "Replace Agreement" : "Upload Agreement"}
+          </label>
+        </div>
+        
+        {/* Show existing manual image */}
+        {formData.manualImageUrl && !formData.manualImage && (
+          <div className="mt-2">
+            <img
+              src={formData.manualImageUrl}
+              alt="Existing Agreement"
+              className="h-32 w-full object-contain rounded border"
+              onError={(e) => e.target.style.display = "none"}
+            />
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs text-green-600">✓ Agreement file exists</p>
+              <a 
+                href={formData.manualImageUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 text-xs hover:underline"
+              >
+                View Full Image
+              </a>
+            </div>
+          </div>
+        )}
+        
+        {/* Show new selected image preview */}
+        {formData.manualImage && (
+          <div className="mt-2">
+            <img
+              src={URL.createObjectURL(formData.manualImage)}
+              alt="New Agreement"
+              className="h-32 w-full object-contain rounded border"
+            />
+            <p className="text-xs text-green-600 mt-1">
+              New file selected: {formData.manualImage.name}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+</div>
 
                 {/* PDC Checkbox Section */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="pdoCheckbox"
-                      checked={formData.pdoCheckbox}
-                      onChange={() => handleCheckboxChange("pdoCheckbox")}
-                      className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
-                    />
-                    <label
-                      htmlFor="pdoCheckbox"
-                      className="ml-2 text-sm text-gray-500"
-                    >
-                      PDC
-                    </label>
-                  </div>
+      {/* PDC Checkbox Section */}
+<div className="space-y-3 pt-2">
+  <div className="flex items-center">
+    <input
+      type="checkbox"
+      id="pdoCheckbox"
+      checked={formData.pdoCheckbox}
+      onChange={() => handleCheckboxChange("pdoCheckbox")}
+      className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
+    />
+    <label
+      htmlFor="pdoCheckbox"
+      className="ml-2 text-sm text-gray-500"
+    >
+      PDC (Post Dated Cheque)
+    </label>
+  </div>
 
-                  {formData.pdoCheckbox && (
-                    <div className="mt-2 ml-6 p-3 bg-gray-50 rounded-md">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-500">
-                          PDC Upload
-                        </label>
-                        <div className="space-y-2">
-                          <div className="flex items-center">
-                            <input
-                              type="file"
-                              id="pdcFile"
-                              onChange={(e) =>
-                                handleImageUpload(e, "pdcFile")
-                              }
-                              className="hidden"
-                            />
-                            <label
-                              htmlFor="pdcFile"
-                              className="cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 flex items-center"
-                            >
-                              <svg
-                                className="w-4 h-4 mr-1"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                ></path>
-                              </svg>
-                              {formData.pdcFile
-                                ? "Change PDC File"
-                                : formData.pdcFileUrl
-                                  ? "Replace PDC File"
-                                  : "Upload PDC File"}
-                            </label>
-                          </div>
-                          {formData.pdcFileUrl && !formData.pdcFile && (
-                            <div className="mt-2">
-                              <a href={formData.pdcFileUrl} target="_blank" rel="noreferrer" className="text-blue-600 text-sm hover:underline">
-                                View Current PDC File
-                              </a>
-                            </div>
-                          )}
-                          {formData.pdcFile && (
-                            <div className="mt-2 text-sm text-green-600">
-                              Selected file: {formData.pdcFile.name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+ {formData.pdoCheckbox && (
+  <div className="mt-2 ml-6 p-3 bg-gray-50 rounded-md">
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-500">
+        PDC Document Upload
+      </label>
+      <div className="space-y-2">
+        <div className="flex items-center">
+          <input
+            type="file"
+            id="pdcFile"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => handleImageUpload(e, "pdcFile")}
+            className="hidden"
+          />
+          <label
+            htmlFor="pdcFile"
+            className="cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            {formData.pdcFile ? "Change PDC File" : formData.pdcFileUrl ? "Replace PDC File" : "Upload PDC File"}
+          </label>
+        </div>
+        
+        {/* Show existing PDC file link */}
+        {formData.pdcFileUrl && !formData.pdcFile && (
+          <div className="mt-2">
+            <a 
+              href={formData.pdcFileUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 text-sm hover:underline flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Existing PDC File
+            </a>
+            <p className="text-xs text-green-600 mt-1">✓ PDC file already uploaded</p>
+          </div>
+        )}
+        
+        {/* Show new selected PDC file info */}
+        {formData.pdcFile && (
+          <div className="mt-2 text-sm text-green-600">
+            New file selected: {formData.pdcFile.name}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+</div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">

@@ -284,3 +284,27 @@ CREATE TABLE users_hr (
     access BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+CREATE TABLE assets (
+    id BIGSERIAL PRIMARY KEY,
+
+    timestamp TIMESTAMP DEFAULT NOW(),        -- Column A
+    employee_id VARCHAR(50),                  -- Column B
+    employee_name VARCHAR(150),               -- Column C
+    email_id VARCHAR(150),                   -- Column D
+    email_password VARCHAR(150),             -- Column E
+
+    laptop VARCHAR(100),                     -- Column F
+    mobile VARCHAR(100),                     -- Column G
+    vehicle VARCHAR(100),                    -- Column H
+    sim VARCHAR(100),                        -- Column I
+
+    manual TEXT,                             -- Column J (file URL)
+    punch_code VARCHAR(50),                  -- Column K
+    pf VARCHAR(50),                          -- Column L
+    esic VARCHAR(50),                        -- Column M
+
+    pdc_file TEXT                            -- Column N (file URL)
+
+);
