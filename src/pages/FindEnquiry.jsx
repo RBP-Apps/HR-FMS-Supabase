@@ -209,11 +209,25 @@ const handleEditClick = (item) => {
       }
     });
 
+
+
+    // const pendingTasks = processedIndent.filter((task) => {
+    //   const requiredPosts = parseInt(task.numberOfPost) || 0;
+    //   const completed = indentRecruitmentCount[task.indentNo] || 0;
+    //   return completed < requiredPosts;
+    // });
+
     const pendingTasks = processedIndent.filter((task) => {
-      const requiredPosts = parseInt(task.numberOfPost) || 0;
-      const completed = indentRecruitmentCount[task.indentNo] || 0;
-      return completed < requiredPosts;
-    });
+  const requiredPosts = parseInt(task.numberOfPost) || 0;
+  // Count only COMPLETED enquiries (where status is "Complete")
+  const completed = processedEnquiry.filter(
+    (enquiry) => enquiry.indentNo === task.indentNo && enquiry.status === "Complete"
+  ).length;
+  return completed < requiredPosts;
+});
+
+
+
 
     setIndentData(pendingTasks);
     setEnquiryData(processedEnquiry);
@@ -275,15 +289,6 @@ const handleEditClick = (item) => {
     return `ENQ-${String(nextNumber).padStart(2, "0")}`;
   };
 
-  // Convert file to base64
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
-  };
 
   // Upload file to Google Drive
   const uploadFileToSupabase = async (file, type) => {
