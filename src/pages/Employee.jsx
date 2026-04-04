@@ -338,12 +338,12 @@ const Employee = () => {
         {/* Tab Content */}
         <div className="p-6">
           {activeTab === "joining" && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-[500px] overflow-y-auto">
               <div className="max-h-96 overflow-y-auto">
                 {" "}
                 {/* Added scroll container */}
                 <table className="min-w-full divide-y divide-white">
-                  <thead className="bg-gray-100 sticky top-0 z-10">
+                  <thead className="bg-gray-100 sticky top-0 z-10 text-nowrap">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Action
@@ -690,7 +690,7 @@ const Employee = () => {
             <div className="overflow-x-auto">
               <div className="max-h-96 overflow-y-auto">
                 <table className="min-w-full divide-y divide-white">
-                  <thead className="bg-gray-100 sticky top-0 z-10">
+                  <thead className="bg-gray-100 sticky top-0 z-10 text-nowrap">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Action

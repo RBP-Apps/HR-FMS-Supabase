@@ -210,13 +210,6 @@ const handleEditClick = (item) => {
     });
 
 
-
-    // const pendingTasks = processedIndent.filter((task) => {
-    //   const requiredPosts = parseInt(task.numberOfPost) || 0;
-    //   const completed = indentRecruitmentCount[task.indentNo] || 0;
-    //   return completed < requiredPosts;
-    // });
-
     const pendingTasks = processedIndent.filter((task) => {
   const requiredPosts = parseInt(task.numberOfPost) || 0;
   // Count only COMPLETED enquiries (where status is "Complete")
@@ -564,7 +557,7 @@ const historyData = enquiryData.filter(
         <div className="p-6">
           {activeTab === "pending" && (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 ">
+              <table className="min-w-full divide-y divide-gray-200 text-nowrap">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium  text-gray-500 uppercase tracking-wider">
@@ -660,7 +653,7 @@ const historyData = enquiryData.filter(
 {activeTab === "history" && (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
-      <thead className="bg-gray-50">
+      <thead className="bg-gray-50 text-nowrap">
         <tr>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Action

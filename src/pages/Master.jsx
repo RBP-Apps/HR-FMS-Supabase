@@ -161,9 +161,9 @@ export default function MasterDataManagement() {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Master Data Management
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
+          {/* <p className="text-gray-500 text-sm mt-1">
             Manage HODs, Departments, Employees and more
-          </p>
+          </p> */}
         </div>
 
         <button
@@ -187,7 +187,7 @@ export default function MasterDataManagement() {
       </div>
 
       {/* STATS CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
           <div className="flex justify-between items-center">
             <div>
@@ -244,15 +244,15 @@ export default function MasterDataManagement() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* ================= DESKTOP TABLE ================= */}
       <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
         <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800">
+            {/* <h2 className="text-lg font-semibold text-gray-800">
               Master Data Records
-            </h2>
+            </h2> */}
             {loading && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>

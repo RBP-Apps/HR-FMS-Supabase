@@ -596,7 +596,7 @@ const handleSubmit = async (e) => {
         <div className="overflow-x-auto">
           {/* Add max-height and overflow-y to the table container */}
           <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200 shadow">
+            <table className="min-w-full divide-y divide-gray-200 shadow text-nowrap">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
