@@ -26,6 +26,9 @@ const FindEnquiry = () => {
 
   const [showEditModal, setShowEditModal] = useState(false);
 
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
 
   const getColumnIndexFromLetter = (column) => {
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -476,21 +479,34 @@ const historyData = enquiryData.filter(
     }
   };
 
+  const uniqueIndents = Array.from(new Set([...indentData.map(i => i.indentNo), ...historyData.map(i => i.indentNo)].filter(Boolean)));
+  const uniquePosts = Array.from(new Set([...indentData.map(i => i.post), ...historyData.map(i => i.applyingForPost)].filter(Boolean)));
+  const uniqueNames = Array.from(new Set(historyData.map(i => i.candidateName).filter(Boolean)));
+
   const filteredPendingData = indentData.filter((item) => {
-    const matchesSearch =
+    const matchesSearch = searchTerm === "" || 
       item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.post === filterPost;
+    const matchesName = filterName === ""; // Indents don't have candidate names
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   const filteredHistoryData = historyData.filter((item) => {
-    const matchesSearch =
+    const matchesSearch = searchTerm === "" || 
       item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.candidateEnquiryNo
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      item.candidateEnquiryNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.applyingForPost === filterPost;
+    const matchesName = filterName === "" || item.candidateName === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   return (
@@ -499,29 +515,110 @@ const historyData = enquiryData.filter(
         <h1 className="text-2xl font-bold text-gray-800">Find Enquiry</h1>
       </div>
 
-      {/* Filter and Search */}
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-indigo-500 text-gray-600  "
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-            />
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="enqIndentList"
+                placeholder="Select/Search Indent"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="enqIndentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Post Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="enqPostList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="enqPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Name As Per Aadhaar</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="enqNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="enqNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
           </div>
         </div>
-        <button
-          onClick={() => handleEnquiryClick()}
-          className="px-3 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 text-sm"
-        >
-          New Enquiry
-        </button>
+
+        {/* Actions Button */}
+        <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+
+          <button
+            onClick={() => handleEnquiryClick()}
+            className="px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 text-sm flex items-center"
+          >
+            New Enquiry
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

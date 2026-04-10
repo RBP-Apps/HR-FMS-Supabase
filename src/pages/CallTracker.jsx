@@ -37,6 +37,10 @@ const CallTracker = () => {
   // const [editFormData, setEditFormData] = useState({});
   const [editSubmitting, setEditSubmitting] = useState(false);
 
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
+
   // Add these functions
   const handleEditClick = (item) => {
     setSelectedItem(item);
@@ -444,16 +448,37 @@ const CallTracker = () => {
     }
   };
 
+  const uniqueIndents = Array.from(new Set([...pendingData.map(i => i.indentNo), ...historyData.map(i => i.indentNo)].filter(Boolean)));
+  const uniquePosts = Array.from(new Set([...pendingData.map(i => i.applyingForPost), ...historyData.map(i => i.applyingForPost)].filter(Boolean)));
+  const uniqueNames = Array.from(new Set([...pendingData.map(i => i.candidateName), ...historyData.map(i => i.candidateName)].filter(Boolean)));
+
   const filteredPendingData = pendingData.filter(item => {
-    const matchesSearch = item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.candidateEnquiryNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesSearch = searchTerm === "" ||
+      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.candidateEnquiryNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.applyingForPost === filterPost;
+    const matchesName = filterName === "" || item.candidateName === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   const filteredHistoryData = historyData.filter(item => {
-    const matchesSearch = item.enquiryNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.candidateSays?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesSearch = searchTerm === "" ||
+      item.enquiryNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.candidateSays?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.applyingForPost === filterPost;
+    const matchesName = filterName === "" || item.candidateName === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   return (
@@ -462,22 +487,102 @@ const CallTracker = () => {
         <h1 className="text-2xl font-bold text-gray-800">Call Tracker</h1>
       </div>
 
-      {/* Filter and Search */}
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search by candidate name or enquiry number..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-600"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-            />
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="callIndentList"
+                placeholder="Select/Search Indent"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="callIndentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
           </div>
+
+          {/* Post Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="callPostList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="callPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Name As Per Aadhaar</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="callNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="callNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        <div className="flex justify-end pt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
         </div>
       </div>
 
@@ -511,9 +616,13 @@ const CallTracker = () => {
         {/* Tab Content */}
         <div className="p-6">
           {activeTab === "pending" && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 text-nowrap">
+            // <div className="overflow-x-auto">
+            //   <table className="min-w-full divide-y divide-gray-200">
+            //     <thead className="bg-gray-50 text-nowrap">
+            <div className="overflow-auto max-h-[400px]">
+  <table className="min-w-full divide-y divide-gray-200">
+    
+    <thead className="bg-gray-50 sticky top-0 z-10 text-nowrap">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
@@ -647,11 +756,13 @@ const CallTracker = () => {
 
 
           {activeTab === "history" && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-
-                {/* 🔹 THEAD */}
-                <thead className="bg-gray-50 text-nowrap">
+            // <div className="overflow-x-auto">
+            //   <table className="min-w-full divide-y divide-gray-200">
+            //     <thead className="bg-gray-50 text-nowrap">
+            <div className="overflow-auto max-h-[400px]">
+  <table className="min-w-full divide-y divide-gray-200">
+    
+    <thead className="bg-gray-50 sticky top-0 z-10 text-nowrap">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Indent No.</th>
@@ -744,10 +855,10 @@ const CallTracker = () => {
                         <td className="px-6 py-4 text-sm">
                           <span
                             className={`px-2 py-1 text-xs rounded-full ${item.status === "Joining"
-                                ? "bg-green-100 text-green-800"
-                                : item.status === "Reject"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-blue-100 text-blue-800"
+                              ? "bg-green-100 text-green-800"
+                              : item.status === "Reject"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-blue-100 text-blue-800"
                               }`}
                           >
                             {item.status}

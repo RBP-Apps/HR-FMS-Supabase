@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Filter, Search, Clock, CheckCircle, ImageIcon } from "lucide-react";
+import { Filter, Search, Clock, CheckCircle, ImageIcon, X } from "lucide-react";
 import useDataStore from "../store/dataStore";
 import supabase from "../utils/supabase";
 
@@ -21,6 +21,10 @@ const Employee = () => {
 
   const [editingRow, setEditingRow] = useState(null);
   const [editData, setEditData] = useState({});
+
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
 
   const formatDOB = (dateString) => {
     if (!dateString) return "";
@@ -261,24 +265,38 @@ const Employee = () => {
     fetchLeavingData();
   }, []);
 
+  const uniqueIndents = Array.from(new Set([...joiningData, ...leavingData].map(i => i.employeeId).filter(Boolean)));
+  const uniquePosts = Array.from(new Set([...joiningData, ...leavingData].map(i => i.designation).filter(Boolean)));
+  const uniqueNames = Array.from(new Set([...joiningData.map(i => i.nameAsPerAadhar), ...leavingData.map(i => i.name)].filter(Boolean)));
+
   const filteredJoiningData = joiningData.filter((item) => {
-    const matchesSearch =
-      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = searchTerm === "" || 
+      item.nameAsPerAadhar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.fatherName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.emailId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.mobileNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+
+    const matchesIndent = filterIndentNo === "" || item.employeeId === filterIndentNo;
+    const matchesPost = filterPost === "" || item.designation === filterPost;
+    const matchesName = filterName === "" || item.nameAsPerAadhar === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   const filteredLeavingData = leavingData.filter((item) => {
-    const matchesSearch =
+    const matchesSearch = searchTerm === "" || 
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+
+    const matchesIndent = filterIndentNo === "" || item.employeeId === filterIndentNo;
+    const matchesPost = filterPost === "" || item.designation === filterPost;
+    const matchesName = filterName === "" || item.name === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   return (
@@ -288,21 +306,102 @@ const Employee = () => {
       </div>
 
       {/* Filter and Search - This section won't scroll */}
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search by name, employee ID, or designation..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300   rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white  text-gray-500 "
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 "
-            />
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter (Mapped to Emp ID for this page) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="empIndentList"
+                placeholder="Select/Search Indent/ID"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="empIndentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
           </div>
+
+          {/* Post Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="empPostList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="empPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Name As Per Aadhaar</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="empNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="empNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        <div className="flex justify-end pt-2 mt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
         </div>
       </div>
 

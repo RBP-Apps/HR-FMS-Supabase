@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Search, X } from "lucide-react";
 import supabase from "../utils/supabase";
 
 export default function MasterDataManagement() {
@@ -7,7 +8,12 @@ export default function MasterDataManagement() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterFirmName, setFilterFirmName] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
+
   const [formData, setFormData] = useState({
     hod_name: "",
     firm_name: "",
@@ -48,7 +54,7 @@ export default function MasterDataManagement() {
   // ================= HANDLE FORM INPUT =================
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Mobile number validation
     if (name === "mobile_no") {
       const digitsOnly = value.replace(/\D/g, "");
@@ -98,7 +104,7 @@ export default function MasterDataManagement() {
         mobile_no: "",
         designation: ""
       });
-      
+
       fetchMasterData();
     } catch (error) {
       console.error("Error adding master data:", error);
@@ -152,18 +158,33 @@ export default function MasterDataManagement() {
   const uniqueDepartments = [...new Set(masterData.map(item => item.department).filter(Boolean))];
   const uniqueFirms = [...new Set(masterData.map(item => item.firm_name).filter(Boolean))];
 
+  const filteredData = masterData.filter(item => {
+    const matchesSearch = searchTerm === "" ||
+      item.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.id?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterFirmName === "" || item.firm_name?.toString() === filterFirmName?.toString();
+    const matchesPost = filterPost === "" || item.designation === filterPost;
+    const matchesName = filterName === "" || item.employee_name === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
+  });
+
+  const uniqueIndents = Array.from(new Set(masterData.map(i => i.id).filter(Boolean)));
+  const uniquePosts = Array.from(new Set(masterData.map(i => i.designation).filter(Boolean)));
+  const uniqueNames = Array.from(new Set(masterData.map(i => i.employee_name).filter(Boolean)));
+
   // ================= UI =================
   return (
     <div className="p-2 md:p-4 lg:p-6 space-y-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Master Data Management
+          {/* <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Master System
           </h1>
-          {/* <p className="text-gray-500 text-sm mt-1">
-            Manage HODs, Departments, Employees and more
-          </p> */}
+          */}
         </div>
 
         <button
@@ -186,65 +207,104 @@ export default function MasterDataManagement() {
         </button>
       </div>
 
-      {/* STATS CARDS */}
-      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-500 text-sm">Total Records</p>
-              <p className="text-2xl font-bold text-gray-900">{masterData.length}</p>
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col space-y-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter (Mapped to ID) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Firm Name</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="masterIndentList"
+                placeholder="Select/Search ID"
+                value={filterFirmName}
+                onChange={(e) => setFilterFirmName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="masterIndentList">
+                {uniqueFirms.map(firm => (
+                  <option key={firm} value={firm} />
+                ))}
+              </datalist>
             </div>
-            <div className="p-3 rounded-full bg-purple-50">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8M12 8v8" />
-              </svg>
+          </div>
+
+          {/* Post Filter (Mapped to Designation) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post (Designation)</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="masterPostList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="masterPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter (Mapped to Employee Name) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Employee Name</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="masterNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="masterNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-500 text-sm">Departments</p>
-              <p className="text-2xl font-bold text-gray-900">{uniqueDepartments.length}</p>
-            </div>
-            <div className="p-3 rounded-full bg-blue-50">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-          </div>
+        {/* Clear Filters Button */}
+        <div className="flex justify-end pt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
         </div>
-
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-500 text-sm">Firms</p>
-              <p className="text-2xl font-bold text-gray-900">{uniqueFirms.length}</p>
-            </div>
-            <div className="p-3 rounded-full bg-green-50">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-500 text-sm">Employees</p>
-              <p className="text-2xl font-bold text-gray-900">{masterData.filter(item => item.employee_name).length}</p>
-            </div>
-            <div className="p-3 rounded-full bg-yellow-50">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0c-.553 0-1 .447-1 1s.447 1 1 1 1-.447 1-1-.447-1-1-1z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div> */}
+      </div>
 
       {/* ================= DESKTOP TABLE ================= */}
       <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
@@ -262,7 +322,7 @@ export default function MasterDataManagement() {
           </div>
         </div>
 
-        <div className="overflow-x-auto max-h-[600px]">
+        <div className="overflow-x-auto max-h-[400px]">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-30">
               <tr className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
@@ -288,20 +348,20 @@ export default function MasterDataManagement() {
                     </div>
                   </td>
                 </tr>
-              ) : masterData.length === 0 ? (
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="text-center py-8">
-                    <p className="text-gray-500">No records found. Click "Add New Record" to get started.</p>
+                    <p className="text-gray-500">No records found.</p>
                   </td>
                 </tr>
               ) : (
-                masterData.map((item, index) => (
+                filteredData.map((item, index) => (
                   <tr
                     key={item.id}
                     className="border-b border-gray-100 hover:bg-purple-50 transition-all duration-150"
                   >
                     <td className="px-4 py-4 text-gray-500">{index + 1}</td>
-                    
+
                     {/* HOD Name */}
                     <td className="px-4 py-4">
                       {editId === item.id ? (
@@ -404,11 +464,10 @@ export default function MasterDataManagement() {
                           <option value="Leave">Leave</option>
                         </select>
                       ) : (
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          item.attendance_type === "Present" ? "bg-green-100 text-green-700" :
-                          item.attendance_type === "Absent" ? "bg-red-100 text-red-700" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs ${item.attendance_type === "Present" ? "bg-green-100 text-green-700" :
+                            item.attendance_type === "Absent" ? "bg-red-100 text-red-700" :
+                              "bg-gray-100 text-gray-700"
+                          }`}>
                           {item.attendance_type || "-"}
                         </span>
                       )}
@@ -465,7 +524,7 @@ export default function MasterDataManagement() {
         </div>
 
         <div className="px-6 py-4 border-t border-gray-100 text-sm text-gray-500">
-          Showing {masterData.length} of {masterData.length} records
+          Showing {filteredData.length} of {masterData.length} records
         </div>
       </div>
 
@@ -477,7 +536,7 @@ export default function MasterDataManagement() {
               Master Data Records
             </h2>
             <span className="bg-purple-100 text-purple-800 text-xs font-medium px-3 py-1 rounded-full">
-              {masterData.length} records
+              {filteredData.length} records
             </span>
           </div>
 
@@ -486,13 +545,13 @@ export default function MasterDataManagement() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
               <p className="text-gray-500 mt-2">Loading records...</p>
             </div>
-          ) : masterData.length === 0 ? (
+          ) : filteredData.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500">No records found.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {masterData.map((item, index) => (
+              {filteredData.map((item, index) => (
                 <div
                   key={item.id}
                   className="border border-gray-200 rounded-xl p-4 hover:border-purple-300 transition-all duration-200"
@@ -507,11 +566,10 @@ export default function MasterDataManagement() {
                         </h3>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${
-                          item.attendance_type === "Present" ? "bg-green-100 text-green-700" :
-                          item.attendance_type === "Absent" ? "bg-red-100 text-red-700" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.attendance_type === "Present" ? "bg-green-100 text-green-700" :
+                            item.attendance_type === "Absent" ? "bg-red-100 text-red-700" :
+                              "bg-gray-100 text-gray-700"
+                          }`}>
                           {item.attendance_type || "N/A"}
                         </span>
                         {item.department && (

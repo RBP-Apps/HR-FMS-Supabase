@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { HistoryIcon, Plus, X } from 'lucide-react';
+import { HistoryIcon, Plus, X, Search } from 'lucide-react';
 import useDataStore from '../store/dataStore';
 import toast from 'react-hot-toast';
 import supabase from "../utils/supabase";
@@ -27,6 +27,11 @@ const Indent = () => {
   const [submitting, setSubmitting] = useState(false);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [socialSiteOptions, setSocialSiteOptions] = useState([]);
+
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterGender, setFilterGender] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
 
 
@@ -319,6 +324,24 @@ const handleSubmit = async (e) => {
     setShowModal(false);
   };
 
+  const uniqueIndents = Array.from(new Set(indentData.map(i => i.indentNumber).filter(Boolean)));
+  const uniquePosts = Array.from(new Set(indentData.map(i => i.post).filter(Boolean)));
+  const uniqueGenders = ["Male", "Female", "Any"];
+
+  const filteredIndentData = indentData.filter((item) => {
+    const matchesSearch = searchTerm === "" || 
+      item.indentNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.gender?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNumber === filterIndentNo;
+    const matchesPost = filterPost === "" || item.post === filterPost;
+    const matchesGender = filterGender === "" || item.gender?.toLowerCase() === filterGender.toLowerCase();
+
+    return matchesSearch && matchesIndent && matchesPost && matchesGender;
+  });
+
   return (
     <div className="space-y-6 page-content p-6">
       <div className="flex items-center justify-between">
@@ -587,9 +610,108 @@ const handleSubmit = async (e) => {
 
       {/* Info Card */}
       <div className="bg-white rounded-xl shadow-lg border p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">
+        <h2 className="text-lg font-bold text-gray-800">
           Indent Management
         </h2>
+      </div>
+
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="indentList"
+                placeholder="Select/Search Indent"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="indentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Gender Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Gender</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="genderList"
+                placeholder="Select/Search Gender"
+                value={filterGender}
+                onChange={(e) => setFilterGender(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="genderList">
+                {uniqueGenders.map(gender => (
+                  <option key={gender} value={gender} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Post Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="postList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="postList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        <div className="flex justify-end pt-2 mt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterGender("");
+              setFilterPost("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+        </div>
       </div>
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -649,8 +771,14 @@ const handleSubmit = async (e) => {
                       <p className="text-gray-500">No indent data found.</p>
                     </td>
                   </tr>
+                ) : filteredIndentData.length === 0 ? (
+                  <tr>
+                    <td colSpan="10" className="px-6 py-12 text-center">
+                      <p className="text-gray-500">No matching indent records found.</p>
+                    </td>
+                  </tr>
                 ) : (
-                  indentData.map((item, index) => (
+                  filteredIndentData.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         {item.indentNumber}

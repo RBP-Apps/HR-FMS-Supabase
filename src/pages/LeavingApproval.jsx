@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Search, X } from "lucide-react";
 import supabase from "../utils/supabase";
 
 
@@ -9,7 +10,10 @@ const LeavingApproval = () => {
   const [error, setError] = useState(null);
   const [processingRows, setProcessingRows] = useState(new Set());
 
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -164,9 +168,110 @@ const fetchData = async () => {
         >
           Leaving Approval
         </h1>
-        <p style={{ color: "#6b7280", marginTop: "8px" }}>
+        <p style={{ color: "#6b7280", marginTop: "8px", fontWeight: "500", marginBottom: "20px" }}>
           Total Records: {data.length}
         </p>
+      </div>
+
+      {/* Dynamic Filters Section */}
+      <div style={{ backgroundColor: "white", padding: "16px", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+          {/* Indent Number Filter (Mapped to Employee ID) */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "12px", fontWeight: "500", color: "#6b7280", marginBottom: "4px" }}>Indent Number</label>
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                list="leavingIndentList"
+                placeholder="Select/Search Indent/ID"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                style={{ width: "100%", padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+              />
+              <datalist id="leavingIndentList">
+                {Array.from(new Set(data.map(i => i.employeeId).filter(Boolean))).map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Post Filter */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "12px", fontWeight: "500", color: "#6b7280", marginBottom: "4px" }}>Post</label>
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                list="leavingPostList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                style={{ width: "100%", padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+              />
+              <datalist id="leavingPostList">
+                {Array.from(new Set(data.map(i => i.designation).filter(Boolean))).map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "12px", fontWeight: "500", color: "#6b7280", marginBottom: "4px" }}>Name As Per Aadhaar</label>
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                list="leavingNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                style={{ width: "100%", padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+              />
+              <datalist id="leavingNameList">
+                {Array.from(new Set(data.map(i => i.name).filter(Boolean))).map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "12px", fontWeight: "500", color: "#6b7280", marginBottom: "4px" }}>Global Search</label>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", height: "100%" }}>
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                style={{ width: "100%", padding: "8px 12px 8px 36px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                style={{ position: "absolute", left: "12px", color: "#6b7280" }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "8px", borderTop: "1px solid #f3f4f6" }}>
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            style={{ padding: "8px 16px", backgroundColor: "#f3f4f6", color: "#4b5563", borderRadius: "8px", border: "none", display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: "500", cursor: "pointer" }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+        </div>
       </div>
 
       <div
@@ -341,7 +446,18 @@ const fetchData = async () => {
               </tr>
             </thead>
             <tbody>
-              {data.map((row, index) => (
+              {data.filter(item => {
+                const matchesSearch = searchTerm === "" || 
+                  item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
+            
+                const matchesIndent = filterIndentNo === "" || item.employeeId === filterIndentNo;
+                const matchesPost = filterPost === "" || item.designation === filterPost;
+                const matchesName = filterName === "" || item.name === filterName;
+            
+                return matchesSearch && matchesIndent && matchesPost && matchesName;
+              }).map((row, index) => (
                 <tr
                   key={index}
                   style={{
@@ -476,7 +592,18 @@ const fetchData = async () => {
             </tbody>
           </table>
 
-          {data.length === 0 && (
+          {data.filter(item => {
+                const matchesSearch = searchTerm === "" || 
+                  item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
+            
+                const matchesIndent = filterIndentNo === "" || item.employeeId === filterIndentNo;
+                const matchesPost = filterPost === "" || item.designation === filterPost;
+                const matchesName = filterName === "" || item.name === filterName;
+            
+                return matchesSearch && matchesIndent && matchesPost && matchesName;
+              }).length === 0 && (
             <div
               style={{ textAlign: "center", padding: "32px", color: "#6b7280" }}
             >

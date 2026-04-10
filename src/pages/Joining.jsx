@@ -41,6 +41,9 @@ const Joining = () => {
   const [relationshipOptions, setRelationshipOptions] = useState([]);
   const [attendanceTypeOptions, setAttendanceTypeOptions] = useState([]);
 
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
 
   const [showEditJoiningModal, setShowEditJoiningModal] = useState(false);
   const [editJoiningFormData, setEditJoiningFormData] = useState({});
@@ -1116,20 +1119,48 @@ const Joining = () => {
     }
   };
 
+  const uniqueIndents = Array.from(new Set([...joiningData, ...historyJoiningData].map(i => i.indentNo).filter(Boolean)));
+  const uniquePosts = Array.from(new Set([...joiningData, ...historyJoiningData].map(i => i.applyingForPost).filter(Boolean)));
+  
+  const uniqueNames = Array.from(new Set([...joiningData, ...historyJoiningData].map(i => {
+    const record = joiningRecords.find(r => r.mobile_number === i.candidatePhone);
+    return record?.name_as_per_aadhar || i.candidateName;
+  }).filter(Boolean)));
+
   const filteredJoiningData = joiningData.filter((item) => {
-    const matchesSearch =
+    const record = joiningRecords.find(r => r.mobile_number === item.candidatePhone);
+    const itemAadhaarName = record?.name_as_per_aadhar || item.candidateName || "";
+
+    const matchesSearch = searchTerm === "" || 
       item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      itemAadhaarName.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.applyingForPost === filterPost;
+    const matchesName = filterName === "" || itemAadhaarName === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   const filteredHistoryData = historyJoiningData.filter((item) => {
-    const matchesSearch =
+    const record = joiningRecords.find(r => r.mobile_number === item.candidatePhone);
+    const itemAadhaarName = record?.name_as_per_aadhar || item.candidateName || "";
+
+    const matchesSearch = searchTerm === "" || 
       item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      itemAadhaarName.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.applyingForPost === filterPost;
+    const matchesName = filterName === "" || itemAadhaarName === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
   });
 
   return (
@@ -1157,50 +1188,131 @@ const Joining = () => {
         </div>
       </div> */}
 
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-  <div className="flex flex-1 max-w-md">
-    <div className="relative w-full">
-      <input
-        type="text"
-        placeholder="Search by name, post or phone number..."
-        className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-600"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-      <Search
-        size={20}
-        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-      />
-    </div>
-  </div>
-  
-  {/* 👇 New Employee Joining Button - ये add करें */}
-  <button
-    onClick={() => {
-      // Create a dummy/empty item object for new employee
-      const emptyItem = {
-        id: null,
-        indentNo: "",
-        candidateEnquiryNo: "",
-        applyingForPost: "",
-        department: "",
-        candidateName: "",
-        candidateDOB: "",
-        candidatePhone: "",
-        candidateEmail: "",
-        presentAddress: "",
-        designation: "",
-        actualDate: "",
-        joiningDate: ""
-      };
-      handleJoiningClick(emptyItem);
-    }}
-    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 whitespace-nowrap"
-  >
-    <UserPlus size={18} />
-    New Employee Joining
-  </button>
-</div>
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="joiningIndentList"
+                placeholder="Select/Search Indent"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="joiningIndentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Post Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Applying For Post</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="joiningPostList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="joiningPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Name As Per Aadhaar</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="joiningNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="joiningNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Actions Button */}
+        <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+
+          {/* 👇 New Employee Joining Button */}
+          <button
+            onClick={() => {
+              // Create a dummy/empty item object for new employee
+              const emptyItem = {
+                id: null,
+                indentNo: "",
+                candidateEnquiryNo: "",
+                applyingForPost: "",
+                department: "",
+                candidateName: "",
+                candidateDOB: "",
+                candidatePhone: "",
+                candidateEmail: "",
+                presentAddress: "",
+                designation: "",
+                actualDate: "",
+                joiningDate: ""
+              };
+              handleJoiningClick(emptyItem);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 whitespace-nowrap text-sm"
+          >
+            <UserPlus size={16} />
+            New Employee Joining
+          </button>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow overflow-hidden">

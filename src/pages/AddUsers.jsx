@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Search, X } from "lucide-react";
 import supabase from "../utils/supabase";
 
 export default function UserRegistration() {
@@ -11,6 +12,11 @@ export default function UserRegistration() {
     department: "",
     given_by: "",
   });
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
 
   // ========== PAGE OPTIONS को masterData से dynamic बनाएं ==========
   const [pageOptions, setPageOptions] = useState([]);
@@ -237,6 +243,23 @@ export default function UserRegistration() {
     }
   };
 
+  const uniqueIndents = Array.from(new Set(users.map(u => u.id).filter(Boolean)));
+  const uniquePosts = Array.from(new Set(users.map(u => u.role).filter(Boolean)));
+  const uniqueNames = Array.from(new Set(users.map(u => u.doer_name).filter(Boolean)));
+
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch = searchTerm === "" || 
+      u.doer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.id?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.role?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || u.id?.toString() === filterIndentNo?.toString();
+    const matchesPost = filterPost === "" || u.role === filterPost;
+    const matchesName = filterName === "" || u.doer_name === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
+  });
+
   // ================= UI =================
   return (
     <div className="p-2 md:p-4 lg:p-6 space-y-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
@@ -379,6 +402,105 @@ export default function UserRegistration() {
         </div>
       </div>
 
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col space-y-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter (Mapped to User ID) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number (ID)</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="auIndentList"
+                placeholder="Select/Search ID"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="auIndentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Post Filter (Mapped to Role) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post (Role)</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="auPostList"
+                placeholder="Select/Search Role"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="auPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter (Mapped to doer_name) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Name</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="auNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="auNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        <div className="flex justify-end pt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
       {/* ================= DESKTOP TABLE ================= */}
       <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
         <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50">
@@ -415,7 +537,7 @@ export default function UserRegistration() {
             </thead>
 
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr
                   key={u.id}
                   className="border-b border-gray-100 hover:bg-purple-50 transition-all duration-150"
@@ -673,7 +795,7 @@ export default function UserRegistration() {
         </div>
 
         <div className="px-6 py-4 border-t border-gray-100 text-sm text-gray-500">
-          Showing {users.length} of {users.length} users
+          Showing {filteredUsers.length} of {users.length} users
         </div>
       </div>
 
@@ -685,12 +807,12 @@ export default function UserRegistration() {
               User Accounts
             </h2>
             <span className="bg-purple-100 text-purple-800 text-xs font-medium px-3 py-1 rounded-full">
-              {users.length} users
+              {filteredUsers.length} users
             </span>
           </div>
 
           <div className="space-y-4">
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <div
                 key={u.id}
                 className="border border-gray-200 rounded-xl p-4 hover:border-purple-300 transition-all duration-200"
