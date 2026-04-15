@@ -15,107 +15,141 @@ const LeavingApproval = () => {
   const [filterPost, setFilterPost] = useState("");
   const [filterName, setFilterName] = useState("");
 
+  // Modal States
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [selectedRowId, setSelectedRowId] = useState(null);
+  const [lastWorkingDate, setLastWorkingDate] = useState("");
+  const [fnfDate, setFnfDate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
 
-const fetchData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    const { data: leavingData, error: fetchError } = await supabase
-      .from('employee_leaving')
-      .select('*')
-      .order('timestamp', { ascending: false });
+      const { data: leavingData, error: fetchError } = await supabase
+        .from('employee_leaving')
+        .select('*')
+        .order('timestamp', { ascending: false });
 
-    if (fetchError) throw fetchError;
+      if (fetchError) throw fetchError;
 
-    // Transform the data to match the existing structure
-    const transformedData = leavingData.map((record, index) => ({
-      rowIndex: record.id, // Using the actual database ID
-      employeeId: record.employee_id || '',
-      name: record.name || '',
-      dateOfLeaving: record.date_of_leaving || '',
-      mobileNumber: record.mobile_number || '',
-      reasonOfLeaving: record.reason_of_leaving || '',
-      firmName: record.firm_name || '',
-      fatherName: record.father_name || '',
-      dateOfJoining: record.date_of_joining || '',
-      workLocation: record.work_location || '',
-      designation: record.designation || '',
-      department: record.department || '',
-      approvalStatus: record.resignation_acceptance ? 'Approved' : 'Pending', // Map to your status field
-    }));
+      // Transform the data to match the existing structure
+      const transformedData = leavingData.map((record, index) => ({
+        rowIndex: record.id, // Using the actual database ID
+        employeeId: record.employee_id || '',
+        name: record.name || '',
+        dateOfLeaving: record.date_of_leaving || '',
+        mobileNumber: record.mobile_number || '',
+        reasonOfLeaving: record.reason_of_leaving || '',
+        firmName: record.firm_name || '',
+        fatherName: record.father_name || '',
+        dateOfJoining: record.date_of_joining || '',
+        workLocation: record.work_location || '',
+        designation: record.designation || '',
+        department: record.department || '',
+        lastWorkingDate: record.last_working_date || '',
+        fnfDate: record.fnf_date || '',
+        approvalStatus: record.resignation_acceptance ? 'Approved' : 'Pending', // Map to your status field
+      }));
 
-    // Sort: Pending first, then Approved
-    const sortedRows = transformedData.sort((a, b) => {
-      if (a.approvalStatus === 'Approved' && b.approvalStatus !== 'Approved') return 1;
-      if (a.approvalStatus !== 'Approved' && b.approvalStatus === 'Approved') return -1;
-      return 0;
-    });
+      // Sort: Pending first, then Approved
+      const sortedRows = transformedData.sort((a, b) => {
+        if (a.approvalStatus === 'Approved' && b.approvalStatus !== 'Approved') return 1;
+        if (a.approvalStatus !== 'Approved' && b.approvalStatus === 'Approved') return -1;
+        return 0;
+      });
 
-    setData(sortedRows);
-  } catch (err) {
-    console.error("Error fetching data:", err);
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+      setData(sortedRows);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
- const handleApprove = async (rowId) => {
-  try {
-    setProcessingRows((prev) => new Set([...prev, rowId]));
 
-    // Update the approval status in employee_leaving table
-    const { error: updateError } = await supabase
-      .from('employee_leaving')
-      .update({ 
-        resignation_acceptance: true,
-        actual: new Date().toISOString().split('T')[0] // Set actual date if needed
-      })
-      .eq('id', rowId);
 
-    if (updateError) throw updateError;
+  const handleApprove = (rowId) => {
+    setSelectedRowId(rowId);
+    setLastWorkingDate("");
+    setFnfDate("");
+    setShowApproveModal(true);
+  };
 
-    // Get the current row data to get employee_id
-    const currentRow = data.find((row) => row.rowIndex === rowId);
-    
-    if (currentRow && currentRow.employeeId) {
-      // Update the joining table status to Inactive
-      const { error: joiningError } = await supabase
-        .from('joining')
-        .update({ status: 'Inactive' })
-        .eq('rbp_joining_id', currentRow.employeeId);
-
-      if (joiningError) throw joiningError;
+  const confirmApprove = async () => {
+    if (!lastWorkingDate || !fnfDate) {
+      alert("Please fill both Last Working Date and F & F Date.");
+      return;
     }
 
-    // Update local state
-    setData((prevData) =>
-      prevData.map((row) =>
-        row.rowIndex === rowId
-          ? { ...row, approvalStatus: "Approved" }
-          : row
-      )
-    );
-    
-    alert("Successfully approved!");
-  } catch (err) {
-    console.error("Error approving:", err);
-    alert("Failed to approve: " + err.message);
-  } finally {
-    setProcessingRows((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(rowId);
-      return newSet;
-    });
-  }
-};
+    try {
+      setIsSubmitting(true);
+      setProcessingRows((prev) => new Set([...prev, selectedRowId]));
+
+      // Update the approval status and dates in employee_leaving table
+      const { error: updateError } = await supabase
+        .from('employee_leaving')
+        .update({
+          resignation_acceptance: true,
+          last_working_date: lastWorkingDate,
+          fnf_date: fnfDate,
+          actual: lastWorkingDate // Setting actual leaving date to Last Working Date
+        })
+        .eq('id', selectedRowId);
+
+      if (updateError) throw updateError;
+
+      // Get the current row data to get employee_id
+      const currentRow = data.find((row) => row.rowIndex === selectedRowId);
+
+      if (currentRow && currentRow.employeeId) {
+        // Update the joining table status to Inactive
+        const { error: joiningError } = await supabase
+          .from('joining')
+          .update({
+            status: 'Inactive',
+            leaving_date: lastWorkingDate
+          })
+          .eq('rbp_joining_id', currentRow.employeeId);
+
+        if (joiningError) throw joiningError;
+      }
+
+      // Update local state
+      setData((prevData) =>
+        prevData.map((row) =>
+          row.rowIndex === selectedRowId
+            ? {
+              ...row,
+              approvalStatus: "Approved",
+              lastWorkingDate: lastWorkingDate,
+              fnfDate: fnfDate
+            }
+            : row
+        )
+      );
+
+      setShowApproveModal(false);
+      alert("Successfully approved!");
+    } catch (err) {
+      console.error("Error approving:", err);
+      alert("Failed to approve: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+      setProcessingRows((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedRowId);
+        return newSet;
+      });
+    }
+  };
 
 
 
@@ -353,6 +387,28 @@ const fetchData = async () => {
                     whiteSpace: "nowrap",
                   }}
                 >
+                  Last Working Date
+                </th>
+                <th
+                  style={{
+                    padding: "12px 16px",
+                    textAlign: "left",
+                    fontWeight: "600",
+                    borderBottom: "2px solid #1d4ed8",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  F & F Date
+                </th>
+                <th
+                  style={{
+                    padding: "12px 16px",
+                    textAlign: "left",
+                    fontWeight: "600",
+                    borderBottom: "2px solid #1d4ed8",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   Mobile Number
                 </th>
                 <th
@@ -447,15 +503,15 @@ const fetchData = async () => {
             </thead>
             <tbody>
               {data.filter(item => {
-                const matchesSearch = searchTerm === "" || 
+                const matchesSearch = searchTerm === "" ||
                   item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
-            
+
                 const matchesIndent = filterIndentNo === "" || item.employeeId === filterIndentNo;
                 const matchesPost = filterPost === "" || item.designation === filterPost;
                 const matchesName = filterName === "" || item.name === filterName;
-            
+
                 return matchesSearch && matchesIndent && matchesPost && matchesName;
               }).map((row, index) => (
                 <tr
@@ -468,8 +524,8 @@ const fetchData = async () => {
                     (e.currentTarget.style.backgroundColor = "#f3f4f6")
                   }
                   onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      index % 2 === 0 ? "white" : "#f9fafb")
+                  (e.currentTarget.style.backgroundColor =
+                    index % 2 === 0 ? "white" : "#f9fafb")
                   }
                 >
                   <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
@@ -486,21 +542,21 @@ const fetchData = async () => {
                         border: "none",
                         cursor:
                           row.approvalStatus === "Approved" ||
-                          processingRows.has(row.rowIndex)
+                            processingRows.has(row.rowIndex)
                             ? "not-allowed"
                             : "pointer",
                         backgroundColor:
                           row.approvalStatus === "Approved"
                             ? "#d1fae5"
                             : processingRows.has(row.rowIndex)
-                            ? "#d1d5db"
-                            : "#2563eb",
+                              ? "#d1d5db"
+                              : "#2563eb",
                         color:
                           row.approvalStatus === "Approved"
                             ? "#065f46"
                             : processingRows.has(row.rowIndex)
-                            ? "#6b7280"
-                            : "white",
+                              ? "#6b7280"
+                              : "white",
                         transition: "all 0.2s",
                       }}
                       onMouseEnter={(e) => {
@@ -523,8 +579,8 @@ const fetchData = async () => {
                       {processingRows.has(row.rowIndex)
                         ? "Processing..."
                         : row.approvalStatus === "Approved"
-                        ? "Approved"
-                        : "Approve"}
+                          ? "Approved"
+                          : "Approve"}
                     </button>
                   </td>
                   <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
@@ -535,6 +591,12 @@ const fetchData = async () => {
                   </td>
                   <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
                     {row.dateOfLeaving}
+                  </td>
+                  <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
+                    {row.lastWorkingDate}
+                  </td>
+                  <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
+                    {row.fnfDate}
                   </td>
                   <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
                     {row.mobileNumber}
@@ -593,25 +655,130 @@ const fetchData = async () => {
           </table>
 
           {data.filter(item => {
-                const matchesSearch = searchTerm === "" || 
-                  item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
-            
-                const matchesIndent = filterIndentNo === "" || item.employeeId === filterIndentNo;
-                const matchesPost = filterPost === "" || item.designation === filterPost;
-                const matchesName = filterName === "" || item.name === filterName;
-            
-                return matchesSearch && matchesIndent && matchesPost && matchesName;
-              }).length === 0 && (
-            <div
-              style={{ textAlign: "center", padding: "32px", color: "#6b7280" }}
-            >
-              No records found
-            </div>
-          )}
+            const matchesSearch = searchTerm === "" ||
+              item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
+
+            const matchesIndent = filterIndentNo === "" || item.employeeId === filterIndentNo;
+            const matchesPost = filterPost === "" || item.designation === filterPost;
+            const matchesName = filterName === "" || item.name === filterName;
+
+            return matchesSearch && matchesIndent && matchesPost && matchesName;
+          }).length === 0 && (
+              <div
+                style={{ textAlign: "center", padding: "32px", color: "#6b7280" }}
+              >
+                No records found
+              </div>
+            )}
         </div>
       </div>
+
+      {/* Approval Modal */}
+      {showApproveModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: "white",
+            padding: "24px",
+            borderRadius: "12px",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            width: "100%",
+            maxWidth: "400px",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>Finalize Approval</h2>
+              <button onClick={() => setShowApproveModal(false)} style={{ border: "none", background: "none", cursor: "pointer", color: "#6b7280" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ spaceY: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Last Working Date</label>
+                <input
+                  type="date"
+                  value={lastWorkingDate}
+                  onChange={(e) => setLastWorkingDate(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                    boxSizing: "border-box"
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>F & F Date</label>
+                <input
+                  type="date"
+                  value={fnfDate}
+                  onChange={(e) => setFnfDate(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                    boxSizing: "border-box"
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+              <button
+                onClick={() => setShowApproveModal(false)}
+                disabled={isSubmitting}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  backgroundColor: "white",
+                  color: "#374151",
+                  border: "1px solid #d1d5db",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmApprove}
+                disabled={isSubmitting}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  backgroundColor: "#2563eb",
+                  color: "white",
+                  border: "none",
+                  cursor: isSubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {isSubmitting ? "Approving..." : "Complete Approval"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

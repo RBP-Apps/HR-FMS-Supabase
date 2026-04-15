@@ -75,28 +75,33 @@ const Employee = () => {
     try {
       setSubmitting(true);
 
+      const updateData = {
+        rbp_joining_id: editLeavingData.employeeId,
+        name_as_per_aadhar: editLeavingData.name,
+        date_of_joining: editLeavingData.dateOfJoining || null,
+        leaving_date: editLeavingData.dateOfLeaving || null,
+        mobile_number: editLeavingData.mobileNo || null,
+        father_name: editLeavingData.fatherName || null,
+        designation: editLeavingData.designation || null,
+        salary: editLeavingData.salary === "" || editLeavingData.salary === null ? null : parseFloat(editLeavingData.salary),
+        leaving_reason: editLeavingData.reasonOfLeaving || null,
+        status: "Inactive",
+      };
+
       const { error } = await supabase
         .from("joining")
-        .update({
-          name_as_per_aadhar: editLeavingData.name,
-          designation: editLeavingData.designation,
-          salary: editLeavingData.salary,
-          mobile_number: editLeavingData.mobileNo,
-          father_name: editLeavingData.fatherName,
-          leaving_date: editLeavingData.dateOfLeaving,
-          leaving_reason: editLeavingData.reasonOfLeaving,
-          status: "Inactive",
-        })
-        .eq("rbp_joining_id", editLeavingData.employeeId);
+        .update(updateData)
+        .eq("id", editLeavingData.id);
 
       if (error) throw error;
 
       setEditingLeavingRow(null);
       setEditLeavingData({});
       fetchLeavingData();
+      setShowModal(false);
     } catch (err) {
       console.error("Error saving leaving data:", err);
-      toast.error("Failed to save changes");
+      toast.error("Failed to save changes: " + (err.message || "Unknown error"));
     } finally {
       setSubmitting(false);
     }
@@ -125,23 +130,53 @@ const Employee = () => {
     try {
       setSubmitting(true);
 
+      const updateData = {
+        rbp_joining_id: editData.employeeId,
+        status: editData.status,
+        firm_name: editData.firmName,
+        name_as_per_aadhar: editData.nameAsPerAadhar,
+        blood_group: editData.bloodGroup,
+        father_name: editData.fatherName,
+        date_of_joining: editData.dateOfJoining || null,
+        work_location: editData.workLocation,
+        designation: editData.designation,
+        salary: editData.salary === "" || editData.salary === null ? null : parseFloat(editData.salary),
+        family_relationship: editData.relationshipWithFamily,
+        current_address: editData.currentAddress,
+        aadhar_address: editData.aadharAddress,
+        date_of_birth: editData.dateOfBirth || null,
+        gender: editData.gender,
+        mobile_number: editData.mobileNumber,
+        family_number: editData.familyNumber,
+        past_pf_id: editData.pastPfId,
+        past_esic_number: editData.pastEsicNumber,
+        bank_account_number: editData.currentBankAcNo,
+        ifsc_code: editData.ifscCode,
+        branch_name: editData.branchName,
+        personal_email: editData.personalEmail,
+        attendance_type: editData.attendanceType,
+        company_pf_provided: editData.companyProvidesPf === "Yes",
+        company_esic_provided: editData.companyProvidesEsic === "Yes",
+        company_mail_provided: editData.companyProvidesEmail === "Yes",
+        candidate_validated: editData.validateCandidate === "Yes",
+        gmail_id_issued: editData.issueGmailId === "Yes",
+        joining_letter_issued: editData.issueJoiningLetter === "Yes",
+        attendance_registration: editData.attendanceRegistration === "Yes",
+      };
+
       const { error } = await supabase
         .from("joining")
-        .update({
-          name_as_per_aadhar: editData.nameAsPerAadhar,
-          designation: editData.designation,
-          salary: editData.salary,
-          mobile_number: editData.mobileNumber,
-          father_name: editData.fatherName,
-        })
-        .eq("rbp_joining_id", editData.employeeId);
+        .update(updateData)
+        .eq("id", editData.id);
 
       if (error) throw error;
 
       setEditingRow(null);
       fetchJoiningData();
+      setShowModal(false);
     } catch (err) {
-      console.error(err);
+      console.error("Error saving joining data:", err);
+      toast.error("Failed to save changes: " + (err.message || "Unknown error"));
     } finally {
       setSubmitting(false);
     }
@@ -166,6 +201,7 @@ const Employee = () => {
       if (error) throw error;
 
       const processedData = data.map((row) => ({
+        id: row.id,
         employeeId: row.rbp_joining_id || "",
         status: row.status || "",
         firmName: row.firm_name || "",
@@ -238,6 +274,7 @@ const Employee = () => {
       if (error) throw error;
 
       const processedData = data.map((row) => ({
+        id: row.id,
         employeeId: row.rbp_joining_id || "",
         status: row.status || "",
         name: row.name_as_per_aadhar || "",
@@ -270,7 +307,7 @@ const Employee = () => {
   const uniqueNames = Array.from(new Set([...joiningData.map(i => i.nameAsPerAadhar), ...leavingData.map(i => i.name)].filter(Boolean)));
 
   const filteredJoiningData = joiningData.filter((item) => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.nameAsPerAadhar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -287,7 +324,7 @@ const Employee = () => {
   });
 
   const filteredLeavingData = leavingData.filter((item) => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -410,22 +447,20 @@ const Employee = () => {
         <div className="border-b border-gray-300 ">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "joining"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "joining"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("joining")}
             >
               <CheckCircle size={16} className="inline mr-2" />
               Active ({filteredJoiningData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "leaving"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "leaving"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("leaving")}
             >
               <Clock size={16} className="inline mr-2" />
@@ -980,36 +1015,87 @@ const Employee = () => {
               {/* ================= JOINING FORM ================= */}
               {modalType === "joining" && (
                 <div className="grid grid-cols-2 gap-4">
-                  {Object.keys(editData).map((key) => (
-                    <div key={key}>
-                      <label className="text-xs font-medium capitalize">
-                        {key}
-                      </label>
+                  {Object.keys(editData).map((key) => {
+                    if (key === "id" || key.toLowerCase().includes("photo") || key.toLowerCase().includes("card")) return null;
+                    const isDateField = ["dateOfJoining", "dateOfBirth"].includes(key) || key.toLowerCase().includes("date");
+                    const isSelectField = ["companyProvidesPf", "companyProvidesEsic", "companyProvidesEmail", "validateCandidate", "issueGmailId", "issueJoiningLetter", "attendanceRegistration"].includes(key);
 
-                      <input
-                        value={editData[key] || ""}
-                        onChange={(e) => handleChange(key, e.target.value)}
-                        className="border p-2 rounded w-full"
-                      />
-                    </div>
-                  ))}
+                    // Format date for input: must be YYYY-MM-DD
+                    let val = editData[key] || "";
+                    if (isDateField && val) {
+                      try {
+                        const d = new Date(val);
+                        if (!isNaN(d.getTime())) {
+                          val = d.toISOString().split('T')[0];
+                        }
+                      } catch (e) {
+                        console.error("Date parse error", e);
+                      }
+                    }
+
+                    return (
+                      <div key={key}>
+                        <label className="text-xs font-medium text-gray-500 capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </label>
+                        {isSelectField ? (
+                          <select
+                            value={editData[key] || "No"}
+                            onChange={(e) => handleChange(key, e.target.value)}
+                            className="border p-2 rounded w-full text-sm focus:ring-1 focus:ring-indigo-500 outline-none mt-1"
+                          >
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                          </select>
+                        ) : (
+                          <input
+                            type={isDateField ? "date" : key === "salary" ? "number" : "text"}
+                            value={val}
+                            onChange={(e) => handleChange(key, e.target.value)}
+                            className="border p-2 rounded w-full text-sm focus:ring-1 focus:ring-indigo-500 outline-none mt-1"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               {/* ================= LEAVING FORM ================= */}
-              {Object.keys(editLeavingData).map((key) => (
-                <div key={key}>
-                  <label className="text-xs font-medium capitalize">
-                    {key}
-                  </label>
+              {modalType === "leaving" && (
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.keys(editLeavingData).map((key) => {
+                    if (key === "id") return null;
+                    const isDateField = ["dateOfJoining", "dateOfLeaving"].includes(key) || key.toLowerCase().includes("date");
 
-                  <input
-                    value={editLeavingData[key] || ""}
-                    onChange={(e) => handleLeavingChange(key, e.target.value)}
-                    className="border p-2 rounded w-full"
-                  />
+                    let val = editLeavingData[key] || "";
+                    if (isDateField && val) {
+                      try {
+                        const d = new Date(val);
+                        if (!isNaN(d.getTime())) {
+                          val = d.toISOString().split('T')[0];
+                        }
+                      } catch (e) {
+                        console.error("Date parse error", e);
+                      }
+                    }
+
+                    return (
+                      <div key={key}>
+                        <label className="text-xs font-medium text-gray-500 capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </label>
+                        <input
+                          type={isDateField ? "date" : key === "salary" ? "number" : "text"}
+                          value={val}
+                          onChange={(e) => handleLeavingChange(key, e.target.value)}
+                          className="border p-2 rounded w-full text-sm focus:ring-1 focus:ring-indigo-500 outline-none mt-1"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
               {/* ================= BUTTONS ================= */}
               <div className="flex justify-end space-x-2 mt-6">
                 <button
