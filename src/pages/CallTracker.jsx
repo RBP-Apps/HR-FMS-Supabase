@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Clock, CheckCircle, X, Upload } from 'lucide-react';
+import { Search, Clock, CheckCircle, X, Upload, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import supabase from "../utils/supabase";
 
@@ -61,7 +61,51 @@ const CallTracker = () => {
     }));
   };
 
+  // Progress column ke liye helper functions
+  const getCompletionStats = (rowData, visibleColumns) => {
+    const columnsToCheck = visibleColumns.filter(col =>
+      col !== 'Action'
+    );
 
+    const total = columnsToCheck.length;
+    let filled = 0;
+
+    columnsToCheck.forEach(column => {
+      let value;
+      switch (column) {
+        case 'Indent No.': value = rowData.indentNo; break;
+        case 'Candidate Enquiry No.': value = rowData.candidateEnquiryNo; break;
+        case 'Applying For Post': value = rowData.applyingForPost; break;
+        case 'Department': value = rowData.department; break;
+        case 'Candidate Name': value = rowData.candidateName; break;
+        case 'Phone': value = rowData.candidatePhone; break;
+        case 'Email': value = rowData.candidateEmail; break;
+        case 'Photo': value = rowData.candidatePhoto; break;
+        case 'Resume': value = rowData.candidateResume; break;
+        default: value = rowData[column.toLowerCase().replace(/ /g, '')];
+      }
+
+      if (value !== null && value !== undefined && String(value).trim() !== '') {
+        filled++;
+      }
+    });
+
+    const unfilled = total - filled;
+    const percent = total > 0 ? Math.round((filled / total) * 100) : 0;
+    return { total, filled, unfilled, percent };
+  };
+
+  const getProgressColor = (percent) => {
+    if (percent < 40) return "bg-red-500";
+    if (percent <= 70) return "bg-yellow-500";
+    return "bg-green-500";
+  };
+
+
+  const visibleColumns = [
+    'Indent No.', 'Candidate Enquiry No.', 'Applying For Post',
+    'Department', 'Candidate Name', 'Phone', 'Email', 'Photo', 'Resume'
+  ];
 
   const formatDateForDB = (dateStr) => {
     if (!dateStr) return null;
@@ -362,41 +406,6 @@ const CallTracker = () => {
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   }
 
-  const formatDOB = (dateString) => {
-    if (!dateString) return '';
-
-    // Handle different date formats that might come from the input
-    let date;
-
-    // If it's already a Date object
-    if (dateString instanceof Date) {
-      date = dateString;
-    }
-    // If it's in the format "1/11/2021" (mm/dd/yyyy or dd/mm/yyyy)
-    else if (typeof dateString === 'string' && dateString.includes('/')) {
-      const parts = dateString.split('/');
-      if (parts.length === 3) {
-        if (parseInt(parts[0]) > 12) {
-          date = new Date(parts[2], parts[1] - 1, parts[0]);
-        } else {
-          date = new Date(parts[2], parts[0] - 1, parts[1]);
-        }
-      }
-    }
-    else {
-      date = new Date(dateString);
-    }
-
-    if (isNaN(date.getTime())) {
-      return dateString;
-    }
-
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -446,6 +455,19 @@ const CallTracker = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
   };
 
   const uniqueIndents = Array.from(new Set([...pendingData.map(i => i.indentNo), ...historyData.map(i => i.indentNo)].filter(Boolean)));
@@ -578,7 +600,7 @@ const CallTracker = () => {
               setFilterName("");
               setSearchTerm("");
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <X size={16} />
             Clear Filters
@@ -616,47 +638,48 @@ const CallTracker = () => {
         {/* Tab Content */}
         <div className="p-6">
           {activeTab === "pending" && (
-            // <div className="overflow-x-auto">
-            //   <table className="min-w-full divide-y divide-gray-200">
-            //     <thead className="bg-gray-50 text-nowrap">
+
             <div className="overflow-auto max-h-[400px]">
-  <table className="min-w-full divide-y divide-gray-200">
-    
-    <thead className="bg-gray-50 sticky top-0 z-10 text-nowrap">
+              <table className="min-w-full divide-y divide-gray-200">
+
+                <thead className="bg-gray-50 sticky text-center top-0 z-10 text-nowrap">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="sticky left-0 z-30 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px] border-r">
+                      Progress
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Indent No.
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Candidate Enquiry No.
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Applying For Post
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Department
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Candidate Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Phone
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Photo
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Resume
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-200 text-center">
                   {tableLoading ? (
                     <tr>
                       <td colSpan="9" className="px-6 py-12 text-center">
@@ -689,6 +712,26 @@ const CallTracker = () => {
                   ) : (
                     filteredPendingData.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
+                          {(() => {
+                            const stats = getCompletionStats(item, visibleColumns);
+                            return (
+                              <div className="flex flex-col items-center">
+                                <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                  {stats.filled}/{stats.total} ({stats.percent}%)
+                                </div>
+                                <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                  <div className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${stats.percent}%` }}></div>
+                                </div>
+                                <div className="text-[10px] mt-1 space-x-1">
+                                  <span className="text-gray-600 font-medium">{stats.filled} Filled</span>
+                                  <span className="text-gray-300">|</span>
+                                  <span className="text-gray-500 font-medium">{stats.unfilled} Missing</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <button
                             onClick={() => handleCallClick(item)}
@@ -698,28 +741,28 @@ const CallTracker = () => {
                           </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.indentNo}
+                          {renderField(item.indentNo)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEnquiryNo}
+                          {renderField(item.candidateEnquiryNo)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.applyingForPost}
+                          {renderField(item.applyingForPost)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.department}
+                          {renderField(item.department)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateName}
+                          {renderField(item.candidateName)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhone}
+                          {renderField(item.candidatePhone)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEmail}
+                          {renderField(item.candidateEmail)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhoto ? (
+                          {renderField(item.candidatePhoto ? (
                             <a
                               href={item.candidatePhoto}
                               target="_blank"
@@ -729,11 +772,11 @@ const CallTracker = () => {
                               View
                             </a>
                           ) : (
-                            "-"
-                          )}
+                            ""
+                          ))}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateResume ? (
+                          {renderField(item.candidateResume ? (
                             <a
                               href={item.candidateResume}
                               target="_blank"
@@ -743,8 +786,8 @@ const CallTracker = () => {
                               View
                             </a>
                           ) : (
-                            "-"
-                          )}
+                            ""
+                          ))}
                         </td>
                       </tr>
                     ))
@@ -756,33 +799,34 @@ const CallTracker = () => {
 
 
           {activeTab === "history" && (
-            // <div className="overflow-x-auto">
-            //   <table className="min-w-full divide-y divide-gray-200">
-            //     <thead className="bg-gray-50 text-nowrap">
+
             <div className="overflow-auto max-h-[400px]">
-  <table className="min-w-full divide-y divide-gray-200">
-    
-    <thead className="bg-gray-50 sticky top-0 z-10 text-nowrap">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0 z-50 text-center text-nowrap">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Indent No.</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate Enquiry No.</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Applying For Post</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Photo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resume</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate Says</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Next Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
+                    <th className="sticky top-0 left-0 z-50 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 uppercase min-w-[160px] border-r">
+                      Progress
+                    </th>
+                    <th className="sticky top-0 left-[160px] z-50 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 uppercase min-w-[100px] border-r">
+                      Action
+                    </th>                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Indent No.</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Candidate Enquiry No.</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Applying For Post</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Department</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Candidate Name</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Phone</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Email</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Photo</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Resume</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Candidate Says</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Next Date</th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase">Timestamp</th>
                   </tr>
                 </thead>
 
                 {/* 🔹 TBODY */}
-                <tbody className="bg-white divide-y divide-gray-200 text-nowrap">
+                <tbody className="bg-white divide-y divide-gray-200 text-center text-nowrap">
                   {tableLoading ? (
                     <tr>
                       <td colSpan="14" className="px-6 py-12 text-center">
@@ -804,8 +848,29 @@ const CallTracker = () => {
                     filteredHistoryData.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50">
 
+                        <td className="sticky left-0 z-30 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
+                          {(() => {
+                            const stats = getCompletionStats(item, visibleColumns);
+                            return (
+                              <div className="flex flex-col items-center">
+                                <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                  {stats.filled}/{stats.total} ({stats.percent}%)
+                                </div>
+                                <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                  <div className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${stats.percent}%` }}></div>
+                                </div>
+                                <div className="text-[10px] mt-1 space-x-1">
+                                  <span className="text-gray-600 font-medium">{stats.filled} Filled</span>
+                                  <span className="text-gray-300">|</span>
+                                  <span className="text-gray-500 font-medium">{stats.unfilled} Missing</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
+
                         {/* Action */}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td className="sticky left-[160px] z-30 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
                           <button
                             onClick={() => handleEditClick(item)}
                             className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
@@ -815,17 +880,17 @@ const CallTracker = () => {
                         </td>
 
                         {/* Pending wale fields */}
-                        <td className="px-6 py-4 text-sm">{item.indentNo}</td>
-                        <td className="px-6 py-4 text-sm">{item.candidateEnquiryNo}</td>
-                        <td className="px-6 py-4 text-sm">{item.applyingForPost}</td>
-                        <td className="px-6 py-4 text-sm">{item.department}</td>
-                        <td className="px-6 py-4 text-sm">{item.candidateName}</td>
-                        <td className="px-6 py-4 text-sm">{item.candidatePhone}</td>
-                        <td className="px-6 py-4 text-sm">{item.candidateEmail}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.indentNo)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.candidateEnquiryNo)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.applyingForPost)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.department)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.candidateName)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.candidatePhone)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.candidateEmail)}</td>
 
                         {/* Photo */}
                         <td className="px-6 py-4 text-sm">
-                          {item.candidatePhoto ? (
+                          {renderField(item.candidatePhoto ? (
                             <a
                               href={item.candidatePhoto}
                               target="_blank"
@@ -834,12 +899,12 @@ const CallTracker = () => {
                             >
                               View
                             </a>
-                          ) : "-"}
+                          ) : "")}
                         </td>
 
                         {/* Resume */}
                         <td className="px-6 py-4 text-sm">
-                          {item.candidateResume ? (
+                          {renderField(item.candidateResume ? (
                             <a
                               href={item.candidateResume}
                               target="_blank"
@@ -848,7 +913,7 @@ const CallTracker = () => {
                             >
                               View
                             </a>
-                          ) : "-"}
+                          ) : "")}
                         </td>
 
                         {/* Old fields */}
@@ -861,13 +926,13 @@ const CallTracker = () => {
                                 : "bg-blue-100 text-blue-800"
                               }`}
                           >
-                            {item.status}
+                            {renderField(item.status)}
                           </span>
                         </td>
 
-                        <td className="px-6 py-4 text-sm">{item.candidateSays}</td>
-                        <td className="px-6 py-4 text-sm">{item.nextDate || "-"}</td>
-                        <td className="px-6 py-4 text-sm">{formatDateTime(item.timestamp)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.candidateSays)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(item.nextDate)}</td>
+                        <td className="px-6 py-4 text-sm">{renderField(formatDateTime(item.timestamp))}</td>
 
                       </tr>
                     ))
@@ -1057,7 +1122,7 @@ const CallTracker = () => {
                     : formData.status === "On Hold"
                       ? "Reason For Holding the Candidate *"
                       : formData.status === "Joining"
-                        ? "When the candidate will join the company *"
+                        ? "Remark *"
                         : formData.status === "Reject"
                           ? "Reason for Rejecting the Candidate *"
                           : "Remark *"}

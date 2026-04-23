@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import supabase from "../utils/supabase";
+import { XCircle } from "lucide-react";
 
 export default function MasterDataManagement() {
   const [masterData, setMasterData] = useState([]);
@@ -175,16 +176,27 @@ export default function MasterDataManagement() {
   const uniquePosts = Array.from(new Set(masterData.map(i => i.designation).filter(Boolean)));
   const uniqueNames = Array.from(new Set(masterData.map(i => i.employee_name).filter(Boolean)));
 
+
+ const renderField = (value) => {
+  if (value) {
+    return <span>{value}</span>;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+      <XCircle size={14} />
+      Missing
+    </span>
+  );
+};
+
   // ================= UI =================
   return (
     <div className="p-2 md:p-4 lg:p-6 space-y-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
         <div>
-          {/* <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Master System
-          </h1>
-          */}
+      
         </div>
 
         <button
@@ -210,19 +222,19 @@ export default function MasterDataManagement() {
       {/* Dynamic Filters Section */}
       <div className="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col space-y-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Indent Number Filter (Mapped to ID) */}
+          {/* Firm Name Filter */}
           <div className="flex flex-col">
             <label className="text-xs font-medium text-gray-500 mb-1">Firm Name</label>
             <div className="relative">
               <input
                 type="text"
-                list="masterIndentList"
-                placeholder="Select/Search ID"
+                list="masterFirmList"
+                placeholder="Select/Search Firm"
                 value={filterFirmName}
                 onChange={(e) => setFilterFirmName(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
               />
-              <datalist id="masterIndentList">
+              <datalist id="masterFirmList">
                 {uniqueFirms.map(firm => (
                   <option key={firm} value={firm} />
                 ))}
@@ -293,12 +305,12 @@ export default function MasterDataManagement() {
         <div className="flex justify-end pt-2 border-t border-gray-100">
           <button
             onClick={() => {
-              setFilterIndentNo("");
+              setFilterFirmName("");
               setFilterPost("");
               setFilterName("");
               setSearchTerm("");
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <X size={16} />
             Clear Filters
@@ -310,9 +322,6 @@ export default function MasterDataManagement() {
       <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
         <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50">
           <div className="flex justify-between items-center">
-            {/* <h2 className="text-lg font-semibold text-gray-800">
-              Master Data Records
-            </h2> */}
             {loading && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
@@ -372,7 +381,7 @@ export default function MasterDataManagement() {
                           className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500"
                         />
                       ) : (
-                        <span className="font-medium">{item.hod_name || "-"}</span>
+                        <span className="font-medium">{renderField(item.hod_name)}</span>
                       )}
                     </td>
 
@@ -386,7 +395,7 @@ export default function MasterDataManagement() {
                           className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500"
                         />
                       ) : (
-                        <span>{item.firm_name || "-"}</span>
+                        <span>{renderField(item.firm_name)}</span>
                       )}
                     </td>
 
@@ -401,7 +410,7 @@ export default function MasterDataManagement() {
                         />
                       ) : (
                         <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
-                          {item.department || "-"}
+                          {renderField(item.department)}
                         </span>
                       )}
                     </td>
@@ -416,7 +425,10 @@ export default function MasterDataManagement() {
                           className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500"
                         />
                       ) : (
-                        <span>{item.employee_name || "-"}</span>
+                        // <span>{item.employee_name || "-"}</span>
+                        <span>
+{renderField(item.employee_name)}
+</span>
                       )}
                     </td>
 
@@ -430,7 +442,7 @@ export default function MasterDataManagement() {
                           className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500"
                         />
                       ) : (
-                        <span>{item.mobile_no || "-"}</span>
+                        <span>{renderField(item.mobile_no)}</span>
                       )}
                     </td>
 
@@ -444,7 +456,7 @@ export default function MasterDataManagement() {
                           className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500"
                         />
                       ) : (
-                        <span>{item.designation || "-"}</span>
+                        <span>{renderField(item.designation)}</span>
                       )}
                     </td>
 
@@ -468,7 +480,7 @@ export default function MasterDataManagement() {
                             item.attendance_type === "Absent" ? "bg-red-100 text-red-700" :
                               "bg-gray-100 text-gray-700"
                           }`}>
-                          {item.attendance_type || "-"}
+                          {renderField(item.attendance_type)}
                         </span>
                       )}
                     </td>

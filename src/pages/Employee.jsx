@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Filter, Search, Clock, CheckCircle, ImageIcon, X } from "lucide-react";
+import { Filter, Search, Clock, CheckCircle, ImageIcon, X, XCircle } from "lucide-react";
 import useDataStore from "../store/dataStore";
 import supabase from "../utils/supabase";
 
@@ -25,6 +25,87 @@ const Employee = () => {
   const [filterIndentNo, setFilterIndentNo] = useState("");
   const [filterPost, setFilterPost] = useState("");
   const [filterName, setFilterName] = useState("");
+
+  const visibleColumnsEmployeeJoining = [
+    'Employee ID', 'Firm Name', 'Name As Per Aadhaar', 'Blood Group', 'Father Name', 
+    'Date Of Joining', 'Work Location', 'Designation', 'Salary', 'Aadhaar Frontside photo', 
+    'Aadhaar Backside photo', 'Pan Card', 'Relationship with family Person', 'Current Address', 
+    'Address as per aadhaar card', 'Date of birth aadhaar card', 'Gender', 'Mobile Number', 
+    'Family Number', 'Past PF Id No.', 'Past Esic Number', 'Current Bank Ac No.', 'IFSC Code', 
+    'Branch Name', 'Personal Email-Id', 'Does Company Provide PF', 'Does Company Provide ESIC', 
+    'Does Company Provide Mail-Id', 'Attendance Type', 'Validate the Candidate', 'Issue Gmail id', 
+    'Issue Joining letter', 'Attendance Registration'
+  ];
+
+  const visibleColumnsEmployeeLeaving = [
+    'Employee ID', 'Name', 'Date Of Joining', 'Date Of Leaving', 'Mobile Number', 
+    'Father Name', 'Designation', 'Salary', 'Reason Of Leaving'
+  ];
+
+  const getCompletionStats = (rowData, visibleColumns) => {
+    const total = visibleColumns.length;
+    let filled = 0;
+    
+    visibleColumns.forEach(column => {
+      let value;
+      switch(column) {
+        case 'Employee ID': value = rowData.employeeId; break;
+        case 'Firm Name': value = rowData.firmName; break;
+        case 'Name As Per Aadhaar': value = rowData.nameAsPerAadhar; break;
+        case 'Blood Group': value = rowData.bloodGroup; break;
+        case 'Father Name': value = rowData.fatherName; break;
+        case 'Date Of Joining': value = rowData.dateOfJoining; break;
+        case 'Work Location': value = rowData.workLocation; break;
+        case 'Designation': value = rowData.designation; break;
+        case 'Salary': value = rowData.salary; break;
+        case 'Aadhaar Frontside photo': value = rowData.aadharFrontPhoto; break;
+        case 'Aadhaar Backside photo': value = rowData.aadharBackPhoto; break;
+        case 'Pan Card': value = rowData.panCard; break;
+        case 'Relationship with family Person': value = rowData.relationshipWithFamily; break;
+        case 'Current Address': value = rowData.currentAddress; break;
+        case 'Address as per aadhaar card': value = rowData.aadharAddress; break;
+        case 'Date of birth aadhaar card': value = rowData.dateOfBirth; break;
+        case 'Gender': value = rowData.gender; break;
+        case 'Mobile Number': value = rowData.mobileNumber || rowData.mobileNo; break;
+        case 'Family Number': value = rowData.familyNumber; break;
+        case 'Past PF Id No.': value = rowData.pastPfId; break;
+        case 'Past Esic Number': value = rowData.pastEsicNumber; break;
+        case 'Current Bank Ac No.': value = rowData.currentBankAcNo; break;
+        case 'IFSC Code': value = rowData.ifscCode; break;
+        case 'Branch Name': value = rowData.branchName; break;
+        case 'Personal Email-Id': value = rowData.personalEmail; break;
+        case 'Does Company Provide PF': value = rowData.companyProvidesPf; break;
+        case 'Does Company Provide ESIC': value = rowData.companyProvidesEsic; break;
+        case 'Does Company Provide Mail-Id': value = rowData.companyProvidesEmail; break;
+        case 'Attendance Type': value = rowData.attendanceType; break;
+        case 'Validate the Candidate': value = rowData.validateCandidate; break;
+        case 'Issue Gmail id': value = rowData.issueGmailId; break;
+        case 'Issue Joining letter': value = rowData.issueJoiningLetter; break;
+        case 'Attendance Registration': value = rowData.attendanceRegistration; break;
+
+        // Leaving fields
+        case 'Name': value = rowData.name; break;
+        case 'Date Of Leaving': value = rowData.dateOfLeaving; break;
+        case 'Reason Of Leaving': value = rowData.reasonOfLeaving; break;
+
+        default: value = rowData[column.toLowerCase().replace(/ /g, '')];
+      }
+      
+      if (value !== null && value !== undefined && String(value).trim() !== '') {
+        filled++;
+      }
+    });
+    
+    const unfilled = total - filled;
+    const percent = total > 0 ? Math.round((filled / total) * 100) : 0;
+    return { total, filled, unfilled, percent };
+  };
+
+  const getProgressColor = (percent) => {
+    if (percent < 40) return "bg-red-500";
+    if (percent <= 70) return "bg-yellow-500";
+    return "bg-green-500";
+  };
 
   const formatDOB = (dateString) => {
     if (!dateString) return "";
@@ -105,6 +186,21 @@ const Employee = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+
+
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
   };
 
   const handleLeavingCancel = () => {
@@ -342,8 +438,6 @@ const Employee = () => {
         <h1 className="text-2xl font-bold ">Employee</h1>
       </div>
 
-      {/* Filter and Search - This section won't scroll */}
-      {/* Dynamic Filters Section */}
       <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Indent Number Filter (Mapped to Emp ID for this page) */}
@@ -434,7 +528,7 @@ const Employee = () => {
               setFilterName("");
               setSearchTerm("");
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <X size={16} />
             Clear Filters
@@ -448,8 +542,8 @@ const Employee = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "joining"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("joining")}
             >
@@ -458,8 +552,8 @@ const Employee = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "leaving"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("leaving")}
             >
@@ -472,121 +566,122 @@ const Employee = () => {
         {/* Tab Content */}
         <div className="p-6">
           {activeTab === "joining" && (
-            <div className="overflow-x-auto max-[500px] overflow-y-auto">
-              <div className="max-h-96 overflow-y-auto">
-                {" "}
-                {/* Added scroll container */}
-                <table className="min-w-full divide-y divide-white">
-                  <thead className="bg-gray-100 sticky top-0 z-10 text-nowrap">
+            <div className="overflow-x-auto">
+  <div className="max-h-96 overflow-y-auto">
+    <table className="min-w-full">
+      <thead className="bg-gray-100 sticky top-0 z-40">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="sticky left-0 w-[160px] min-w-[160px] z-30 bg-gray-100 px-6 py-3 text-xs font-medium text-gray-500 uppercase border-r">
+                        Progress
+                      </th>
+                      <th className="sticky left-[160px] min-w-[100px] z-30 bg-gray-100 px-6 py-3  text-xs font-medium text-gray-500 uppercase border-r">
                         Action
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Employee ID
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Firm Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Name As Per Aadhaar
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Blood Group
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Father Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date Of Joining
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Work Location
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Designation
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Salary
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Aadhaar Frontside photo
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Aadhaar Backside photo
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Pan Card
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Relationship with family Person
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Current Address
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Address as per aadhaar card
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date of birth aadhaar card
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Gender
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Mobile Number
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Family Number
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Past PF Id No.
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Past Esic Number
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Current Bank Ac No.
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         IFSC Code
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Branch Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Personal Email-Id
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Does Company Provide PF
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Does Company Provide ESIC
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Does Company Provide Mail-Id
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Attendance Type
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Validate the Candidate
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Issue Gmail id
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Issue Joining letter
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Attendance Registration
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white ">
+                  <tbody className="divide-y divide-white text-center">
                     {tableLoading ? (
                       <tr>
                         <td colSpan="34" className="px-6 py-12 text-center">
@@ -614,9 +709,29 @@ const Employee = () => {
                       filteredJoiningData.map((item, index) => (
                         <tr
                           key={index}
-                          className="hover:bg-white hover:bg-opacity-5"
+                          className="hover:bg-gray-50 group"
                         >
-                          <td className="px-6 py-4 text-sm">
+                          <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
+                            {(() => {
+                              const stats = getCompletionStats(item, visibleColumnsEmployeeJoining);
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                    {stats.filled}/{stats.total} ({stats.percent}%)
+                                  </div>
+                                  <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                    <div className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${stats.percent}%` }}></div>
+                                  </div>
+                                  <div className="text-[10px] mt-1 space-x-1">
+                                    <span className="text-gray-600 font-medium">{stats.filled} Filled</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-gray-500 font-medium">{stats.unfilled} Missing</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="sticky left-[160px] z-20 bg-white group-hover:bg-gray-50 px-6 py-4 text-sm border-r">
                             {editingRow === index ? (
                               <div className="flex space-x-2">
                                 {/* SAVE BUTTON */}
@@ -666,39 +781,39 @@ const Employee = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.employeeId || "-"}
+                            {renderField(item.employeeId)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.status || "-"}
+                            {renderField(item.status)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.firmName || "-"}
+                            {renderField(item.firmName)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.nameAsPerAadhar || "-"}
+                            {renderField(item.nameAsPerAadhar)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.bloodGroup || "-"}
+                            {renderField(item.bloodGroup)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.fatherName || "-"}
+                            {renderField(item.fatherName)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.dateOfJoining
+                            {renderField(item.dateOfJoining
                               ? formatDOB(item.dateOfJoining)
-                              : "-"}
+                              : "-")}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.workLocation}
+                            {renderField(item.workLocation)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.designation || "-"}
+                            {renderField(item.designation)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.salary || "-"}
+                            {renderField(item.salary)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.aadharFrontPhoto ? (
+                            {renderField(item.aadharFrontPhoto ? (
                               <a
                                 href={item.aadharFrontPhoto}
                                 target="_blank"
@@ -708,11 +823,11 @@ const Employee = () => {
                                 <ImageIcon size={20} />
                               </a>
                             ) : (
-                              "-"
-                            )}
+                              ""
+                            ))}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.aadharBackPhoto ? (
+                            {renderField(item.aadharBackPhoto ? (
                               <a
                                 href={item.aadharBackPhoto}
                                 target="_blank"
@@ -722,11 +837,11 @@ const Employee = () => {
                                 <ImageIcon size={20} />
                               </a>
                             ) : (
-                              "-"
-                            )}
+                              ""
+                            ))}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.panCard ? (
+                            {renderField(item.panCard ? (
                               <a
                                 href={item.panCard}
                                 target="_blank"
@@ -736,73 +851,73 @@ const Employee = () => {
                                 <ImageIcon size={20} />
                               </a>
                             ) : (
-                              "-"
-                            )}
+                              ""
+                            ))}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.relationshipWithFamily}
+                            {renderField(item.relationshipWithFamily)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.currentAddress}
+                            {renderField(item.currentAddress)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.aadharAddress}
+                            {renderField(item.aadharAddress)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.dateOfBirth
+                            {renderField(item.dateOfBirth
                               ? formatDOB(item.dateOfBirth)
-                              : "-"}
+                              : "")}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.gender}
+                            {renderField(item.gender)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.mobileNumber || "-"}
+                            {renderField(item.mobileNumber)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.familyNumber}
+                            {renderField(item.familyNumber)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.pastPfId}
+                            {renderField(item.pastPfId)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.pastEsicNumber}
+                            {renderField(item.pastEsicNumber)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.currentBankAcNo}
+                            {renderField(item.currentBankAcNo)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.ifscCode}
+                            {renderField(item.ifscCode)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.branchName}
+                            {renderField(item.branchName)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.personalEmail}
+                            {renderField(item.personalEmail)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.companyProvidesPf}
+                            {renderField(item.companyProvidesPf)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.companyProvidesEsic}
+                            {renderField(item.companyProvidesEsic)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.companyProvidesEmail}
+                            {renderField(item.companyProvidesEmail)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.attendanceType}
+                            {renderField(item.attendanceType)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.validateCandidate}
+                            {renderField(item.validateCandidate)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.issueGmailId}
+                            {renderField(item.issueGmailId)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.issueJoiningLetter}
+                            {renderField(item.issueJoiningLetter)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {item.attendanceRegistration}
+                            {renderField(item.attendanceRegistration)}
                           </td>
                         </tr>
                       ))
@@ -823,37 +938,45 @@ const Employee = () => {
           {activeTab === "leaving" && (
             <div className="overflow-x-auto">
               <div className="max-h-96 overflow-y-auto">
-                <table className="min-w-full divide-y divide-white">
-                  <thead className="bg-gray-100 sticky top-0 z-10 text-nowrap">
+                
+ <table className="min-w-full">
+      <thead className="bg-gray-100 sticky top-0 z-40">
+
+                
+                {/* <table className="min-w-full divide-y divide-white">
+                  <thead className="bg-gray-100 sticky top-0 z-10 text-nowrap text-center"> */}
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="sticky left-0 w-[160px] min-w-[160px] z-30 bg-gray-100 px-6 py-3 text-xs font-medium text-gray-500 uppercase border-r">
+                        Progress
+                      </th>
+                      <th className="sticky left-[160px] min-w-[100px] z-30 bg-gray-100 px-6 py-3  text-xs font-medium text-gray-500 uppercase border-r">
                         Action
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Employee ID
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date Of Joining
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date Of Leaving
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Mobile Number
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Father Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Designation
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Salary
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Reason Of Leaving
                       </th>
                     </tr>
@@ -884,8 +1007,28 @@ const Employee = () => {
                       </tr>
                     ) : (
                       filteredLeavingData.map((item, index) => (
-                        <tr key={index} className="hover:bg-white">
-                          <td className="px-6 py-4 text-sm">
+                        <tr key={index} className="hover:bg-gray-50 group">
+                          <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
+                            {(() => {
+                              const stats = getCompletionStats(item, visibleColumnsEmployeeLeaving);
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                    {stats.filled}/{stats.total} ({stats.percent}%)
+                                  </div>
+                                  <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                    <div className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${stats.percent}%` }}></div>
+                                  </div>
+                                  <div className="text-[10px] mt-1 space-x-1">
+                                    <span className="text-gray-600 font-medium">{stats.filled} Filled</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-gray-500 font-medium">{stats.unfilled} Missing</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="sticky left-[160px] z-20 bg-white group-hover:bg-gray-50 px-6 py-4 text-sm border-r">
                             {editingLeavingRow === index ? (
                               <div className="flex space-x-2">
                                 <button
@@ -941,52 +1084,52 @@ const Employee = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {renderLeavingCell(item.name, "name", index)}
+                            {renderField(renderLeavingCell(item.name, "name", index))}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.dateOfJoining
+                            {renderField(item.dateOfJoining
                               ? formatDOB(item.dateOfJoining)
-                              : "-"}
+                              : "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {renderLeavingCell(
+                            {renderField(renderLeavingCell(
                               item.dateOfLeaving
                                 ? formatDOB(item.dateOfLeaving)
-                                : "-",
+                                : "",
                               "dateOfLeaving",
                               index,
-                            )}
+                            ))}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {renderLeavingCell(
+                            {renderField(renderLeavingCell(
                               item.mobileNo,
                               "mobileNo",
                               index,
-                            )}
+                            ))}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {renderLeavingCell(
+                            {renderField(renderLeavingCell(
                               item.fatherName,
                               "fatherName",
                               index,
-                            )}
+                            ))}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {renderLeavingCell(
+                            {renderField(renderLeavingCell(
                               item.designation,
                               "designation",
                               index,
-                            )}
+                            ))}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {renderLeavingCell(item.salary, "salary", index)}
+                            {renderField(renderLeavingCell(item.salary, "salary", index))}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {renderLeavingCell(
+                            {renderField(renderLeavingCell(
                               item.reasonOfLeaving,
                               "reasonOfLeaving",
                               index,
-                            )}
+                            ))}
                           </td>
                         </tr>
                       ))

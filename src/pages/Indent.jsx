@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { HistoryIcon, Plus, X, Search } from 'lucide-react';
+import { HistoryIcon, Plus, X, Search, XCircle } from 'lucide-react';
 import useDataStore from '../store/dataStore';
 import toast from 'react-hot-toast';
 import supabase from "../utils/supabase";
@@ -35,24 +35,24 @@ const Indent = () => {
 
 
 
-useEffect(() => {
-  const loadData = async () => {
-    setTableLoading(true);
+  useEffect(() => {
+    const loadData = async () => {
+      setTableLoading(true);
 
-    await fetchMasterData();
+      await fetchMasterData();
 
-    const result = await fetchIndentData();
-    if (result.success) {
-      console.log("Indent data loaded");
-    } else {
-      console.error("Error:", result.error);
-    }
+      const result = await fetchIndentData();
+      if (result.success) {
+        console.log("Indent data loaded");
+      } else {
+        console.error("Error:", result.error);
+      }
 
-    setTableLoading(false);
-  };
+      setTableLoading(false);
+    };
 
-  loadData();
-}, []);
+    loadData();
+  }, []);
 
 
   useEffect(() => {
@@ -75,120 +75,165 @@ useEffect(() => {
   }, []);
 
 
-const fetchMasterData = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("master_hr")
-      .select("department, social_site");
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
 
-    if (error) throw error;
-
-    const departments = [
-      ...new Set(data.map((item) => item.department).filter(Boolean)),
-    ];
-
-    const socialSites = [
-      ...new Set(data.map((item) => item.social_site).filter(Boolean)),
-    ];
-
-    setDepartmentOptions(departments);
-    setSocialSiteOptions(socialSites);
-
-    return {
-      success: true,
-      departments,
-      socialSites,
-    };
-  } catch (error) {
-    console.error("Error fetching master data:", error);
-
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-};
-
-
-
-  const getCurrentTimestamp = () => {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-
-    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
   };
 
-const fetchIndentData = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("indent")
-      .select("*")
-      .order("created_at", { ascending: false });
 
-    if (error) throw error;
+  // Progress column ke liye helper functions
+  const getCompletionStats = (rowData, visibleColumns) => {
+    const columnsToCheck = visibleColumns.filter(col =>
+      col !== 'Action' && col !== 'Indent Number'
+    );
 
-    const processedData = data.map((row) => ({
-      timestamp: row.created_at,
-      indentNumber: row.indent_number,
-      post: row.post,
-      gender: row.gender,
-      department: row.department,
-      prefer: row.prefer,
-      noOfPost: row.number_of_posts,
-      completionDate: row.completion_date
-        ? new Date(row.completion_date)
-        : null,
-      socialSite: row.social_site,
-      experience: row.experience,
-      socialSiteTypes: row.social_site_types,
-    }));
+    const total = columnsToCheck.length;
+    let filled = 0;
 
-    setIndentData(processedData);
+    columnsToCheck.forEach(column => {
+      let value;
+      switch (column) {
+        case 'Post': value = rowData.post; break;
+        case 'Gender': value = rowData.gender; break;
+        case 'Department': value = rowData.department; break;
+        case 'Prefer': value = rowData.prefer; break;
+        case 'Experience': value = rowData.experience; break;
+        case 'No. of Post': value = rowData.noOfPost; break;
+        case 'Completion Date': value = rowData.completionDate; break;
+        case 'Social Site': value = rowData.socialSite; break;
+        case 'Social Site Types': value = rowData.socialSiteTypes; break;
+        default: value = rowData[column.toLowerCase().replace(/ /g, '')];
+      }
 
-    return {
-      success: true,
-      data: processedData,
-    };
-  } catch (error) {
-    console.error("Error fetching indent:", error);
+      if (value !== null && value !== undefined && String(value).trim() !== '') {
+        filled++;
+      }
+    });
 
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-};
+    const unfilled = total - filled;
+    const percent = total > 0 ? Math.round((filled / total) * 100) : 0;
+    return { total, filled, unfilled, percent };
+  };
 
-
-
-const generateIndentNumber = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("indent")
-      .select("indent_number")
-      .order("id", { ascending: false })
-      .limit(1);
-
-    if (error) throw error;
-
-    if (!data || data.length === 0) return "REC-01";
-
-    const last = data[0].indent_number;
-    const num = parseInt(last.split("-")[1]) + 1;
-
-    return `REC-${String(num).padStart(2, "0")}`;
-  } catch (error) {
-    console.error(error);
-    return "REC-01";
-  }
-};
+  const getProgressColor = (percent) => {
+    if (percent < 40) return "bg-red-500";
+    if (percent <= 70) return "bg-yellow-500";
+    return "bg-green-500";
+  };
 
 
+  const visibleColumns = [
+    'Post', 'Gender', 'Department', 'Prefer', 'Experience',
+    'No. of Post', 'Completion Date', 'Social Site', 'Social Site Types'
+  ];
+
+
+  const fetchMasterData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("master_hr")
+        .select("department, social_site");
+
+      if (error) throw error;
+
+      const departments = [
+        ...new Set(data.map((item) => item.department).filter(Boolean)),
+      ];
+
+      const socialSites = [
+        ...new Set(data.map((item) => item.social_site).filter(Boolean)),
+      ];
+
+      setDepartmentOptions(departments);
+      setSocialSiteOptions(socialSites);
+
+      return {
+        success: true,
+        departments,
+        socialSites,
+      };
+    } catch (error) {
+      console.error("Error fetching master data:", error);
+
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  };
+
+
+  const fetchIndentData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("indent")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const processedData = data.map((row) => ({
+        timestamp: row.created_at,
+        indentNumber: row.indent_number,
+        post: row.post,
+        gender: row.gender,
+        department: row.department,
+        prefer: row.prefer,
+        noOfPost: row.number_of_posts,
+        completionDate: row.completion_date
+          ? new Date(row.completion_date)
+          : null,
+        socialSite: row.social_site,
+        experience: row.experience,
+        socialSiteTypes: row.social_site_types,
+      }));
+
+      setIndentData(processedData);
+
+      return {
+        success: true,
+        data: processedData,
+      };
+    } catch (error) {
+      console.error("Error fetching indent:", error);
+
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  };
+
+
+  const generateIndentNumber = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("indent")
+        .select("indent_number")
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) return "REC-01";
+
+      const last = data[0].indent_number;
+      const num = parseInt(last.split("-")[1]) + 1;
+
+      return `REC-${String(num).padStart(2, "0")}`;
+    } catch (error) {
+      console.error(error);
+      return "REC-01";
+    }
+  };
 
 
   const handleInputChange = (e) => {
@@ -217,95 +262,86 @@ const generateIndentNumber = async () => {
     });
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  if (
-    !formData.post ||
-    !formData.gender ||
-    !formData.numberOfPost ||
-    !formData.competitionDate ||
-    !formData.socialSite
-  ) {
-    toast.error("Please fill all required fields");
-    return;
-  }
+    if (
+      !formData.post ||
+      !formData.gender ||
+      !formData.numberOfPost ||
+      !formData.competitionDate ||
+      !formData.socialSite
+    ) {
+      toast.error("Please fill all required fields");
+      return;
+    }
 
-  if (formData.prefer === "Experience" && !formData.experience) {
-    toast.error("Please enter experience details");
-    return;
-  }
+    if (formData.prefer === "Experience" && !formData.experience) {
+      toast.error("Please enter experience details");
+      return;
+    }
 
-  if (formData.socialSite === "Yes" && formData.socialSiteTypes.length === 0) {
-    toast.error("Please select at least one social site type");
-    return;
-  }
+    if (formData.socialSite === "Yes" && formData.socialSiteTypes.length === 0) {
+      toast.error("Please select at least one social site type");
+      return;
+    }
 
-  try {
-    setSubmitting(true);
+    try {
+      setSubmitting(true);
 
-    const indentNumber = await generateIndentNumber();
+      const indentNumber = await generateIndentNumber();
 
-    const { error } = await supabase.from("indent").insert([
-      {
-        indent_number: indentNumber,
-        post: formData.post,
-        gender: formData.gender,
-        prefer: formData.prefer,
-        number_of_posts: formData.numberOfPost,
-        completion_date: formData.competitionDate,
-        social_site: formData.socialSite,
-        status: "NeedMore",
-        experience:
-          formData.prefer === "Experience" ? formData.experience : "",
-        social_site_types:
-          formData.socialSite === "Yes"
-            ? formData.socialSiteTypes.join(", ")
-            : "",
-        department: formData.department,
-      },
-    ]);
+      const { error } = await supabase.from("indent").insert([
+        {
+          indent_number: indentNumber,
+          post: formData.post,
+          gender: formData.gender,
+          prefer: formData.prefer,
+          number_of_posts: formData.numberOfPost,
+          completion_date: formData.competitionDate,
+          social_site: formData.socialSite,
+          status: "NeedMore",
+          experience:
+            formData.prefer === "Experience" ? formData.experience : "",
+          social_site_types:
+            formData.socialSite === "Yes"
+              ? formData.socialSiteTypes.join(", ")
+              : "",
+          department: formData.department,
+        },
+      ]);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    toast.success("Indent submitted successfully!");
+      toast.success("Indent submitted successfully!");
 
-    setFormData({
-      post: "",
-      gender: "",
-      department: "",
-      prefer: "",
-      numberOfPost: "",
-      competitionDate: "",
-      socialSite: "",
-      indentNumber: "",
-      timestamp: "",
-      experience: "",
-      socialSiteTypes: [],
-    });
+      setFormData({
+        post: "",
+        gender: "",
+        department: "",
+        prefer: "",
+        numberOfPost: "",
+        competitionDate: "",
+        socialSite: "",
+        indentNumber: "",
+        timestamp: "",
+        experience: "",
+        socialSiteTypes: [],
+      });
 
-    setShowModal(false);
+      setShowModal(false);
 
-    setTableLoading(true);
-    await fetchIndentData();
-    setTableLoading(false);
-  } catch (error) {
-    console.error("Insert error:", error);
-    toast.error("Something went wrong!");
-  } finally {
-    setSubmitting(false);
-  }
-};
-
-  // Helper function to format date for Google Sheets
-  const formatDateForSheet = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month}/${day}/${year}`;
+      setTableLoading(true);
+      await fetchIndentData();
+      setTableLoading(false);
+    } catch (error) {
+      console.error("Insert error:", error);
+      toast.error("Something went wrong!");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
 
   const handleCancel = () => {
     setFormData({
@@ -329,7 +365,7 @@ const handleSubmit = async (e) => {
   const uniqueGenders = ["Male", "Female", "Any"];
 
   const filteredIndentData = indentData.filter((item) => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.indentNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -503,7 +539,7 @@ const handleSubmit = async (e) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Competition Date (समापन तिथि) *
+                  Completion Date (समापन तिथि) *
                 </label>
                 <input
                   type="date"
@@ -706,7 +742,7 @@ const handleSubmit = async (e) => {
               setFilterPost("");
               setSearchTerm("");
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <X size={16} />
             Clear Filters
@@ -716,11 +752,15 @@ const handleSubmit = async (e) => {
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          {/* Add max-height and overflow-y to the table container */}
-          <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
+          {/* <div className="max-h-[calc(100vh-300px)] overflow-y-auto"> */}
+          <div className="max-h-[calc(100vh-300px)] overflow-auto">
+
             <table className="min-w-full divide-y divide-gray-200 shadow text-nowrap">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+              <thead className="bg-gray-50 sticky top-0 z-10 text-nowrap text-center">
                 <tr>
+                  <th className="sticky left-0 z-30 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px] border-r">
+                    Progress
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Indent Number
                   </th>
@@ -753,7 +793,7 @@ const handleSubmit = async (e) => {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white text-center">
                 {tableLoading ? (
                   <tr>
                     <td colSpan="7" className="px-6 py-12 text-center">
@@ -780,11 +820,34 @@ const handleSubmit = async (e) => {
                 ) : (
                   filteredIndentData.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50">
+                      <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
+                        {(() => {
+                          const stats = getCompletionStats(item, visibleColumns);
+                          return (
+                            <div className="flex flex-col items-center">
+                              <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                {stats.filled}/{stats.total} ({stats.percent}%)
+                              </div>
+                              <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                <div
+                                  className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`}
+                                  style={{ width: `${stats.percent}%` }}
+                                ></div>
+                              </div>
+                              <div className="text-[10px] mt-1 space-x-1">
+                                <span className="text-gray-600 font-medium">{stats.filled} Filled</span>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-gray-500 font-medium">{stats.unfilled} Missing</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {item.indentNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.post}
+                        {renderField(item.post)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {item.gender}
@@ -796,7 +859,7 @@ const handleSubmit = async (e) => {
                         {item.prefer}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.experience}
+                        {renderField(item.experience)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {item.noOfPost}
@@ -843,10 +906,10 @@ const handleSubmit = async (e) => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.socialSite}
+                        {renderField(item.socialSite)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.socialSiteTypes}
+                        {renderField(item.socialSiteTypes)}
                       </td>
                     </tr>
                   ))

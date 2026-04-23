@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import supabase from "../utils/supabase";
 
@@ -29,123 +29,123 @@ const AfterLeavingWork = () => {
 
   const [activeTab, setActiveTab] = useState("pending");
 
-const fetchLeavingData = async () => {
-  setLoading(true);
-  setTableLoading(true);
-  setError(null);
+  const fetchLeavingData = async () => {
+    setLoading(true);
+    setTableLoading(true);
+    setError(null);
 
-  try {
-    const { data, error } = await supabase
-      .from("employee_leaving")
-      .select("*");
+    try {
+      const { data, error } = await supabase
+        .from("employee_leaving")
+        .select("*");
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const processedData = data.map((row) => ({
-      timestamp: row.timestamp || "",
-      employeeId: row.employee_id || "",
-      name: row.name || "",
-      dateOfLeaving: row.date_of_leaving || "",
-      mobileNo: row.mobile_number || "",
-      reasonOfLeaving: row.reason_of_leaving || "",
-      firmName: row.firm_name || "",
-      fatherName: row.father_name || "",
-      dateOfJoining: row.date_of_joining || "",
-      workingLocation: row.work_location || "",
-      designation: row.designation || "",
-      department: row.department || "",
-      plannedDate: row.planned_date || "",
-      actual: row.actual || "",
+      const processedData = data.map((row) => ({
+        timestamp: row.timestamp || "",
+        employeeId: row.employee_id || "",
+        name: row.name || "",
+        dateOfLeaving: row.date_of_leaving || "",
+        mobileNo: row.mobile_number || "",
+        reasonOfLeaving: row.reason_of_leaving || "",
+        firmName: row.firm_name || "",
+        fatherName: row.father_name || "",
+        dateOfJoining: row.date_of_joining || "",
+        workingLocation: row.work_location || "",
+        designation: row.designation || "",
+        department: row.department || "",
+        plannedDate: row.planned_date || "",
+        actual: row.actual || "",
 
-      // 👇 important fields add karo
-      resignationLetterReceived: row.resignation_letter_received,
-      resignationAcceptance: row.resignation_acceptance,
-      handoverAssets: row.handover_of_assets,
-      cancellationEmail: row.cancellation_of_email_id,
-      removeBenefit: row.remove_benefit_enrollment,
-      finalReleaseDate: row.final_release_date
-    }));
+        // 👇 important fields add karo
+        resignationLetterReceived: row.resignation_letter_received,
+        resignationAcceptance: row.resignation_acceptance,
+        handoverAssets: row.handover_of_assets,
+        cancellationEmail: row.cancellation_of_email_id,
+        removeBenefit: row.remove_benefit_enrollment,
+        finalReleaseDate: row.final_release_date
+      }));
 
-    // ✅ Pending: checklist complete nahi hua
-    const pendingTasks = processedData.filter(
-      (task) =>
-        !(
+      // ✅ Pending: checklist complete nahi hua
+      const pendingTasks = processedData.filter(
+        (task) =>
+          !(
+            task.resignationLetterReceived &&
+            task.resignationAcceptance &&
+            task.handoverAssets &&
+            task.cancellationEmail &&
+            task.removeBenefit &&
+            task.finalReleaseDate
+          )
+      );
+
+      // ✅ History: checklist complete ho gaya
+      const historyTasks = processedData.filter(
+        (task) =>
           task.resignationLetterReceived &&
           task.resignationAcceptance &&
           task.handoverAssets &&
           task.cancellationEmail &&
           task.removeBenefit &&
           task.finalReleaseDate
-        )
-    );
+      );
 
-    // ✅ History: checklist complete ho gaya
-    const historyTasks = processedData.filter(
-      (task) =>
-        task.resignationLetterReceived &&
-        task.resignationAcceptance &&
-        task.handoverAssets &&
-        task.cancellationEmail &&
-        task.removeBenefit &&
-        task.finalReleaseDate
-    );
+      setPendingData(pendingTasks);
+      setHistoryData(historyTasks);
 
-    setPendingData(pendingTasks);
-    setHistoryData(historyTasks);
-
-  } catch (error) {
-    console.error("Error fetching leaving data:", error);
-    setError(error.message);
-    toast.error(`Failed to load leaving data: ${error.message}`);
-  } finally {
-    setLoading(false);
-    setTableLoading(false);
-  }
-};
+    } catch (error) {
+      console.error("Error fetching leaving data:", error);
+      setError(error.message);
+      toast.error(`Failed to load leaving data: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setTableLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchLeavingData();
   }, []);
 
- const handleAfterLeavingClick = async (item) => {
-  setFormData({
-    resignationLetterReceived: false,
-    resignationAcceptance: false,
-    handoverAssetsIdVisitingCard: false,
-    cancellationEmailBiometric: false,
-    finalReleaseDate: '',
-    removeBenefitEnrollment: false
-  });
-
-  setSelectedItem(item);
-  setShowModal(true);
-  setLoading(true);
-
-  try {
-    const { data, error } = await supabase
-      .from("employee_leaving")
-      .select("*")
-      .eq("employee_id", item.employeeId)
-      .single();
-
-    if (error) throw error;
-
+  const handleAfterLeavingClick = async (item) => {
     setFormData({
-      resignationLetterReceived: data.resignation_letter_received || false,
-      resignationAcceptance: data.resignation_acceptance || false,
-      handoverAssetsIdVisitingCard: data.handover_of_assets || false,
-      cancellationEmailBiometric: data.cancellation_of_email_id || false,
-      finalReleaseDate: data.final_release_date || '',
-      removeBenefitEnrollment: data.remove_benefit_enrollment || false
+      resignationLetterReceived: false,
+      resignationAcceptance: false,
+      handoverAssetsIdVisitingCard: false,
+      cancellationEmailBiometric: false,
+      finalReleaseDate: '',
+      removeBenefitEnrollment: false
     });
 
-  } catch (error) {
-    console.error("Error fetching current values:", error);
-    toast.error("Failed to load current values");
-  } finally {
-    setLoading(false);
-  }
-};
+    setSelectedItem(item);
+    setShowModal(true);
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("employee_leaving")
+        .select("*")
+        .eq("employee_id", item.employeeId)
+        .single();
+
+      if (error) throw error;
+
+      setFormData({
+        resignationLetterReceived: data.resignation_letter_received || false,
+        resignationAcceptance: data.resignation_acceptance || false,
+        handoverAssetsIdVisitingCard: data.handover_of_assets || false,
+        cancellationEmailBiometric: data.cancellation_of_email_id || false,
+        finalReleaseDate: data.final_release_date || '',
+        removeBenefitEnrollment: data.remove_benefit_enrollment || false
+      });
+
+    } catch (error) {
+      console.error("Error fetching current values:", error);
+      toast.error("Failed to load current values");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCheckboxChange = (name) => {
     setFormData(prev => ({
@@ -162,91 +162,88 @@ const fetchLeavingData = async () => {
     }));
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setSubmitting(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setSubmitting(true);
 
-  if (!selectedItem.employeeId) {
-    toast.error("Invalid employee");
-    setSubmitting(false);
-    return;
-  }
-
-  try {
-    const now = new Date();
-    const currentDateFormatted = now.toISOString().split("T")[0];
-
-    const allConditionsMet =
-      formData.resignationLetterReceived &&
-      formData.resignationAcceptance &&
-      formData.handoverAssetsIdVisitingCard &&
-      formData.cancellationEmailBiometric &&
-      formData.removeBenefitEnrollment &&
-      formData.finalReleaseDate;
-
-    const updatePayload = {
-      resignation_letter_received: formData.resignationLetterReceived,
-      resignation_acceptance: formData.resignationAcceptance,
-      handover_of_assets: formData.handoverAssetsIdVisitingCard,
-      cancellation_of_email_id: formData.cancellationEmailBiometric,
-      final_release_date: formData.finalReleaseDate || null,
-      remove_benefit_enrollment: formData.removeBenefitEnrollment
-    };
-
-    // Only update actual if all conditions met
-    if (allConditionsMet) {
-      updatePayload.actual = currentDateFormatted;
+    if (!selectedItem.employeeId) {
+      toast.error("Invalid employee");
+      setSubmitting(false);
+      return;
     }
 
-    const { error } = await supabase
-      .from("employee_leaving")
-      .update(updatePayload)
-      .eq("employee_id", selectedItem.employeeId);
+    try {
+      const now = new Date();
+      const currentDateFormatted = now.toISOString().split("T")[0];
 
-    if (error) throw error;
+      const allConditionsMet =
+        formData.resignationLetterReceived &&
+        formData.resignationAcceptance &&
+        formData.handoverAssetsIdVisitingCard &&
+        formData.cancellationEmailBiometric &&
+        formData.removeBenefitEnrollment &&
+        formData.finalReleaseDate;
 
-    if (allConditionsMet) {
-      toast.success("All conditions met! Actual date updated.");
-    } else {
-      toast.success("Updated successfully.");
+      const updatePayload = {
+        resignation_letter_received: formData.resignationLetterReceived,
+        resignation_acceptance: formData.resignationAcceptance,
+        handover_of_assets: formData.handoverAssetsIdVisitingCard,
+        cancellation_of_email_id: formData.cancellationEmailBiometric,
+        final_release_date: formData.finalReleaseDate || null,
+        remove_benefit_enrollment: formData.removeBenefitEnrollment
+      };
+
+      // Only update actual if all conditions met
+      if (allConditionsMet) {
+        updatePayload.actual = currentDateFormatted;
+      }
+
+      const { error } = await supabase
+        .from("employee_leaving")
+        .update(updatePayload)
+        .eq("employee_id", selectedItem.employeeId);
+
+      if (error) throw error;
+
+      if (allConditionsMet) {
+        toast.success("All conditions met! Actual date updated.");
+      } else {
+        toast.success("Updated successfully.");
+      }
+
+      setShowModal(false);
+      fetchLeavingData();
+
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error(`Update failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setSubmitting(false);
     }
-
-    setShowModal(false);
-    fetchLeavingData();
-
-  } catch (error) {
-    console.error("Update error:", error);
-    toast.error(`Update failed: ${error.message}`);
-  } finally {
-    setLoading(false);
-    setSubmitting(false);
-  }
-};
-
-  const formatDOB = (dateString) => {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString; // Return as-is if not a valid date
-    }
-    
-    const day = date.getDate();
-    const month = date.getMonth();
-    const year = date.getFullYear();
-    
-    return `${day}/${month}/${year}`;
   };
 
-  
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
+  };
+
 
   const uniqueIndents = Array.from(new Set([...pendingData, ...historyData].map(i => i.employeeId).filter(Boolean)));
   const uniquePosts = Array.from(new Set([...pendingData, ...historyData].map(i => i.designation).filter(Boolean)));
   const uniqueNames = Array.from(new Set([...pendingData, ...historyData].map(i => i.name).filter(Boolean)));
 
   const filteredPendingData = pendingData.filter(item => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -258,7 +255,7 @@ const handleSubmit = async (e) => {
   });
 
   const filteredHistoryData = historyData.filter(item => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -365,22 +362,20 @@ const handleSubmit = async (e) => {
           <div className="flex space-x-4">
             <button
               onClick={() => setActiveTab("pending")}
-              className={`px-4 py-2 text-sm font-medium rounded-t-md ${
-                activeTab === "pending"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-t-md ${activeTab === "pending"
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-200 text-gray-700"
+                }`}
             >
               Pending ({filteredPendingData.length})
             </button>
 
             <button
               onClick={() => setActiveTab("history")}
-              className={`px-4 py-2 text-sm font-medium rounded-t-md ${
-                activeTab === "history"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-t-md ${activeTab === "history"
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-200 text-gray-700"
+                }`}
             >
               History ({filteredHistoryData.length})
             </button>
@@ -393,7 +388,7 @@ const handleSubmit = async (e) => {
               setFilterName("");
               setSearchTerm("");
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <X size={16} />
             Clear Filters
@@ -401,20 +396,20 @@ const handleSubmit = async (e) => {
         </div>
       </div>
 
-      
+
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-white">
-              <thead className="bg-gray-100">
+              <thead className="bg-gray-100 text-center text-nowrap">
                 <tr>
-                 {activeTab === "pending" && (
-  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-    Action
-  </th>
-)}
+                  {activeTab === "pending" && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Action
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Of Joining</th>
@@ -438,7 +433,7 @@ const handleSubmit = async (e) => {
                   <tr>
                     <td colSpan="7" className="px-6 py-12 text-center">
                       <p className="text-red-500">Error: {error}</p>
-                      <button 
+                      <button
                         onClick={fetchLeavingData}
                         className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                       >
@@ -447,29 +442,29 @@ const handleSubmit = async (e) => {
                     </td>
                   </tr>
                 ) : displayData.length > 0 ? (
-                 displayData.map((item, index) => (
+                  displayData.map((item, index) => (
                     <tr key={index} className="hover:bg-white">
-                     {activeTab === "pending" && (
-  <td className="px-6 py-4 whitespace-nowrap">
-    <button
-      onClick={() => handleAfterLeavingClick(item)}
-      className="px-3 py-1 text-white bg-indigo-700 rounded-md text-sm"
-    >
-      Process
-    </button>
-  </td>
-)}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeId}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.name}</td>
+                      {activeTab === "pending" && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleAfterLeavingClick(item)}
+                            className="px-3 py-1 text-white bg-indigo-700 rounded-md text-sm"
+                          >
+                            Process
+                          </button>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{renderField(item.employeeId)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{renderField(item.name)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.dateOfJoining ? new Date(item.dateOfJoining).toLocaleDateString() : '-'}
+                        {renderField(item.dateOfJoining ? new Date(item.dateOfJoining).toLocaleDateString() : '')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.dateOfLeaving ? new Date(item.dateOfLeaving).toLocaleDateString() : '-'}
+                        {renderField(item.dateOfLeaving ? new Date(item.dateOfLeaving).toLocaleDateString() : '')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.reasonOfLeaving}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{renderField(item.designation)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{renderField(item.department)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{renderField(item.reasonOfLeaving)}</td>
                     </tr>
                   ))
                 ) : (
@@ -519,7 +514,7 @@ const handleSubmit = async (e) => {
 
               <div className="space-y-3">
                 <h4 className="text-md font-medium text-gray-700">Checklist Items (चेकलिस्ट आइटम)</h4>
-                
+
                 {[
                   { key: 'resignationLetterReceived', label: 'Resignation Letter Received (त्याग पत्र प्राप्त हुआ)' },
                   { key: 'resignationAcceptance', label: 'Resignation Acceptance (इस्तीफा स्वीकार)' },
@@ -563,17 +558,16 @@ const handleSubmit = async (e) => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 min-h-[42px] flex items-center justify-center ${
-                    submitting ? 'opacity-75 cursor-not-allowed' : ''
-                  }`}
+                  className={`px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
+                    }`}
                   disabled={submitting}
                 >
                   {submitting ? (
                     <div className="flex items-center">
-                      <svg 
-                        className="animate-spin h-4 w-4 text-white mr-2" 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        fill="none" 
+                      <svg
+                        className="animate-spin h-4 w-4 text-white mr-2"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
                         viewBox="0 0 24 24"
                       >
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

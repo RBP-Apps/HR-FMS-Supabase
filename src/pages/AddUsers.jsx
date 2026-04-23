@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X , XCircle} from "lucide-react";
 import supabase from "../utils/supabase";
 
 export default function UserRegistration() {
@@ -17,6 +17,20 @@ export default function UserRegistration() {
   const [filterIndentNo, setFilterIndentNo] = useState("");
   const [filterPost, setFilterPost] = useState("");
   const [filterName, setFilterName] = useState("");
+
+  const renderField = (value) => {
+  if (value) {
+    return <span>{value}</span>;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+      <XCircle size={14} />
+      Missing
+    </span>
+  );
+};
+
 
   // ========== PAGE OPTIONS को masterData से dynamic बनाएं ==========
   const [pageOptions, setPageOptions] = useState([]);

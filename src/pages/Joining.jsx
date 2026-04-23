@@ -6,6 +6,7 @@ import {
   Eye,
   X,
   UserPlus,
+  XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import supabase from "../utils/supabase";
@@ -48,8 +49,92 @@ const Joining = () => {
   const [showEditJoiningModal, setShowEditJoiningModal] = useState(false);
   const [editJoiningFormData, setEditJoiningFormData] = useState({});
 
+// Progress column ke liye helper functions
+const getCompletionStats = (rowData, visibleColumns, joiningRecord = null) => {
+  const columnsToCheck = visibleColumns.filter(col => 
+    col !== 'Action' && col !== 'Status'
+  );
+  
+  const total = columnsToCheck.length;
+  let filled = 0;
+  
+  columnsToCheck.forEach(column => {
+    let value;
+    switch(column) {
+      case 'Indent No.': 
+      case 'Indent Number': value = rowData.indentNo; break;
+      case 'Candidate Enquiry No.': value = rowData.candidateEnquiryNo; break;
+      case 'Applying For Post': value = rowData.applyingForPost; break;
+      case 'Designation': value = joiningRecord ? joiningRecord.designation : rowData.applyingForPost; break;
+      case 'Department': value = joiningRecord ? joiningRecord.department : rowData.department; break;
+      case 'Candidate Name': value = rowData.candidateName; break;
+      case 'Name': value = joiningRecord ? joiningRecord.name_as_per_aadhar : rowData.candidateName; break;
+      case 'Phone': value = rowData.candidatePhone; break;
+      case 'Mobile Number': value = joiningRecord ? joiningRecord.mobile_number : rowData.candidatePhone; break;
+      case 'Email': value = rowData.candidateEmail; break;
+      case 'Personal Email': value = joiningRecord ? joiningRecord.personal_email : rowData.candidateEmail; break;
+      case 'Photo': value = rowData.candidatePhoto; break;
+      case 'Resume': value = rowData.candidateResume; break;
+      
+      // History Specific
+      case 'Father Name': value = joiningRecord?.father_name; break;
+      case 'Date of Joining': value = joiningRecord?.date_of_joining; break;
+      case 'Salary': value = joiningRecord?.salary; break;
+      case 'Aadhar Address': value = joiningRecord?.aadhar_address; break;
+      case 'Current Address': value = joiningRecord?.current_address; break;
+      case 'Bank Account': value = joiningRecord?.bank_account_number; break;
+      case 'IFSC Code': value = joiningRecord?.ifsc_code; break;
+      case 'PF ID': value = joiningRecord?.past_pf_id; break;
+      case 'ESIC No': value = joiningRecord?.past_esic_number; break;
+      case 'Company PF': value = joiningRecord?.company_pf_provided; break;
+      case 'Company ESIC': value = joiningRecord?.company_esic_provided; break;
+      case 'Attendance Type': value = joiningRecord?.attendance_type; break;
+      case 'Aadhar Front': value = joiningRecord?.aadhar_front_photo; break;
+      case 'Aadhar Back': value = joiningRecord?.aadhar_back_photo; break;
+      case 'PAN Card': value = joiningRecord?.pan_card; break;
+      default: value = rowData[column.toLowerCase().replace(/ /g, '')];
+    }
+    
+    if (value !== null && value !== undefined && String(value).trim() !== '') {
+      filled++;
+    }
+  });
+  
+  const unfilled = total - filled;
+  const percent = total > 0 ? Math.round((filled / total) * 100) : 0;
+  return { total, filled, unfilled, percent };
+};
 
+const getProgressColor = (percent) => {
+  if (percent < 40) return "bg-red-500";
+  if (percent <= 70) return "bg-yellow-500";
+  return "bg-green-500";
+};
 
+const visibleColumnsPending = [
+  'Indent No.', 'Candidate Enquiry No.', 'Applying For Post', 
+  'Department', 'Candidate Name', 'Phone', 'Email', 'Photo', 'Resume'
+];
+
+const visibleColumnsHistory = [
+  'Indent Number', 'Name', 'Father Name', 'Date of Joining', 'Designation', 
+  'Department', 'Salary', 'Mobile Number', 'Personal Email', 'Aadhar Address', 
+  'Current Address', 'Bank Account', 'IFSC Code', 'PF ID', 'ESIC No', 'Company PF', 
+  'Company ESIC', 'Attendance Type', 'Aadhar Front', 'Aadhar Back', 'PAN Card'
+];
+
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
+  };
 
   // Add these functions
   const handleEditClick = async (item, record) => {
@@ -200,7 +285,6 @@ const Joining = () => {
   };
 
 
-
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -337,7 +421,6 @@ const Joining = () => {
   };
 
 
-
   const [joiningFormData, setJoiningFormData] = useState({
     joiningId: "",
     firmName: "",
@@ -379,7 +462,7 @@ const Joining = () => {
     esicRegistration: false,
     department: "",
     equipment: "",
-     isNewEmployee: false, 
+    isNewEmployee: false,
   });
 
 
@@ -493,7 +576,6 @@ const Joining = () => {
   };
 
 
-
   const handleShareSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -524,7 +606,6 @@ const Joining = () => {
       [name]: value,
     }));
   };
-
 
 
   const fetchJoiningData = async () => {
@@ -681,7 +762,7 @@ const Joining = () => {
 
   const handleJoiningClick = (item) => {
     setSelectedItem(item);
-      const isNewEmployee = !item.id || !item.candidateEnquiryNo;
+    const isNewEmployee = !item.id || !item.candidateEnquiryNo;
 
 
     setJoiningFormData({
@@ -694,7 +775,7 @@ const Joining = () => {
       dateOfJoining: "",
       workLocation: "",
       // designation: item.designation || "",
-       designation: isNewEmployee ? "" : (item.designation || ""),
+      designation: isNewEmployee ? "" : (item.designation || ""),
       salary: "",
       aadharFrontPhoto: null,
       aadharBackPhoto: null,
@@ -717,7 +798,7 @@ const Joining = () => {
       branchName: "",
       bankPassbookPhoto: null,
       // personalEmail: item.candidateEmail || "",
-       personalEmail: isNewEmployee ? "" : (item.candidateEmail || ""),
+      personalEmail: isNewEmployee ? "" : (item.candidateEmail || ""),
       companyProvidesPf: "",
       companyProvidesEsic: "",
       companyProvidesEmail: "",
@@ -1121,7 +1202,7 @@ const Joining = () => {
 
   const uniqueIndents = Array.from(new Set([...joiningData, ...historyJoiningData].map(i => i.indentNo).filter(Boolean)));
   const uniquePosts = Array.from(new Set([...joiningData, ...historyJoiningData].map(i => i.applyingForPost).filter(Boolean)));
-  
+
   const uniqueNames = Array.from(new Set([...joiningData, ...historyJoiningData].map(i => {
     const record = joiningRecords.find(r => r.mobile_number === i.candidatePhone);
     return record?.name_as_per_aadhar || i.candidateName;
@@ -1131,7 +1212,7 @@ const Joining = () => {
     const record = joiningRecords.find(r => r.mobile_number === item.candidatePhone);
     const itemAadhaarName = record?.name_as_per_aadhar || item.candidateName || "";
 
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1149,7 +1230,7 @@ const Joining = () => {
     const record = joiningRecords.find(r => r.mobile_number === item.candidatePhone);
     const itemAadhaarName = record?.name_as_per_aadhar || item.candidateName || "";
 
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.candidatePhone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1168,25 +1249,6 @@ const Joining = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Joining Management</h1>
       </div>
-
-      {/* Filter and Search */}
-      {/* <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search by name, post or phone number..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-600"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-            />
-          </div>
-        </div>
-      </div> */}
 
       {/* Dynamic Filters Section */}
       <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
@@ -1279,7 +1341,7 @@ const Joining = () => {
               setFilterName("");
               setSearchTerm("");
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <X size={16} />
             Clear Filters
@@ -1320,8 +1382,8 @@ const Joining = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
             >
@@ -1330,8 +1392,8 @@ const Joining = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
             >
@@ -1346,44 +1408,47 @@ const Joining = () => {
           {activeTab === "pending" && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 text-nowrap">
+                <thead className="bg-gray-50 sticky text-center top-0 z-10 text-nowrap">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="sticky left-0 z-30 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px] border-r">
+                      Progress
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Indent No.
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Candidate Enquiry No.
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Applying For Post
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Department
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Candidate Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Phone
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Photo
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Resume
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-200 text-center">
                   {tableLoading ? (
                     <tr>
                       <td colSpan="10" className="px-6 py-12 text-center">
@@ -1418,6 +1483,26 @@ const Joining = () => {
                   ) : (
                     filteredJoiningData.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
+                          {(() => {
+                            const stats = getCompletionStats(item, visibleColumnsPending);
+                            return (
+                              <div className="flex flex-col items-center">
+                                <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                  {stats.filled}/{stats.total} ({stats.percent}%)
+                                </div>
+                                <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                  <div className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${stats.percent}%` }}></div>
+                                </div>
+                                <div className="text-[10px] mt-1 space-x-1">
+                                  <span className="text-gray-600 font-medium">{stats.filled} Filled</span>
+                                  <span className="text-gray-300">|</span>
+                                  <span className="text-gray-500 font-medium">{stats.unfilled} Missing</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <button
                             onClick={() => handleJoiningClick(item)}
@@ -1427,28 +1512,28 @@ const Joining = () => {
                           </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.indentNo || "-"}
+                          {renderField(item.indentNo || "")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEnquiryNo || "-"}
+                          {renderField(item.candidateEnquiryNo || "")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.applyingForPost || "-"}
+                          {renderField(item.applyingForPost || "")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.department || "-"}
+                          {renderField(item.department || "")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateName || "-"}
+                          {renderField(item.candidateName || "")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhone || "-"}
+                          {renderField(item.candidatePhone || "")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateEmail || "-"}
+                          {renderField(item.candidateEmail || "")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidatePhoto ? (
+                          {renderField(item.candidatePhoto ? (
                             <a
                               href={item.candidatePhoto}
                               target="_blank"
@@ -1458,11 +1543,11 @@ const Joining = () => {
                               View
                             </a>
                           ) : (
-                            "-"
-                          )}
+                            ""
+                          ))}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.candidateResume ? (
+                          {renderField(item.candidateResume ? (
                             <a
                               href={item.candidateResume}
                               target="_blank"
@@ -1472,8 +1557,8 @@ const Joining = () => {
                               View
                             </a>
                           ) : (
-                            "-"
-                          )}
+                            ""
+                          ))}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
@@ -1492,80 +1577,83 @@ const Joining = () => {
           {activeTab === "history" && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 text-nowrap">
+                <thead className="bg-gray-50 sticky text-center top-0 z-10 text-nowrap">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="sticky left-0 z-30 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px] border-r">
+                      Progress
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Indent Number
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Father Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date of Joining
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Designation
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Department
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Salary
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Mobile Number
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Personal Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Aadhar Address
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Current Address
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Bank Account
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       IFSC Code
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       PF ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       ESIC No
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Company PF
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Company ESIC
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Attendance Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Aadhar Front
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Aadhar Back
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       PAN Card
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-200 text-center">
                   {tableLoading ? (
                     <tr>
                       <td colSpan="23" className="px-6 py-12 text-center">
@@ -1607,6 +1695,26 @@ const Joining = () => {
 
                       return (
                         <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm border-r">
+                            {(() => {
+                              const stats = getCompletionStats(item, visibleColumnsHistory, joiningRecord);
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                    {stats.filled}/{stats.total} ({stats.percent}%)
+                                  </div>
+                                  <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                    <div className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${stats.percent}%` }}></div>
+                                  </div>
+                                  <div className="text-[10px] mt-1 space-x-1">
+                                    <span className="text-gray-600 font-medium">{stats.filled} Filled</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-gray-500 font-medium">{stats.unfilled} Missing</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <button
                               onClick={() => handleEditClick(item, joiningRecord)}
@@ -1615,61 +1723,58 @@ const Joining = () => {
                               Edit
                             </button>
                           </td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-  {item.indentNo || "-"}
-</td> */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.rbp_joining_id || "-"}
+                            {renderField(joiningRecord?.rbp_joining_id || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.name_as_per_aadhar || item.candidateName || "-"}
+                            {renderField(joiningRecord?.name_as_per_aadhar || item.candidateName || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.father_name || "-"}
+                            {renderField(joiningRecord?.father_name || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.date_of_joining ? formatDate(joiningRecord.date_of_joining) : "-"}
+                            {renderField(joiningRecord?.date_of_joining ? formatDate(joiningRecord.date_of_joining) : "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.designation || item.applyingForPost || "-"}
+                            {renderField(joiningRecord?.designation || item.applyingForPost || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.department || item.department || "-"}
+                            {renderField(joiningRecord?.department || item.department || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.salary || "-"}
+                            {renderField(joiningRecord?.salary || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.mobile_number || item.candidatePhone || "-"}
+                            {renderField(joiningRecord?.mobile_number || item.candidatePhone || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.personal_email || item.candidateEmail || "-"}
+                            {renderField(joiningRecord?.personal_email || item.candidateEmail || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.aadhar_address ? (
+                            {renderField(joiningRecord?.aadhar_address ? (
                               <div className="max-w-[150px] truncate" title={joiningRecord.aadhar_address}>
                                 {joiningRecord.aadhar_address}
                               </div>
-                            ) : "-"}
+                            ) : "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.current_address ? (
+                            {renderField(joiningRecord?.current_address ? (
                               <div className="max-w-[150px] truncate" title={joiningRecord.current_address}>
                                 {joiningRecord.current_address}
                               </div>
-                            ) : "-"}
+                            ) : "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.bank_account_number || "-"}
+                            {renderField(joiningRecord?.bank_account_number || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.ifsc_code || "-"}
+                            {renderField(joiningRecord?.ifsc_code || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.past_pf_id || "-"}
+                            {renderField(joiningRecord?.past_pf_id || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.past_esic_number || "-"}
+                            {renderField(joiningRecord?.past_esic_number || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span className={`px-2 py-1 text-xs rounded-full ${joiningRecord?.company_pf_provided ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -1682,28 +1787,28 @@ const Joining = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.attendance_type || "-"}
+                            {renderField(joiningRecord?.attendance_type || "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.aadhar_front_photo ? (
+                            {renderField(joiningRecord?.aadhar_front_photo ? (
                               <a href={joiningRecord.aadhar_front_photo} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
                                 View
                               </a>
-                            ) : "-"}
+                            ) : "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.aadhar_back_photo ? (
+                            {renderField(joiningRecord?.aadhar_back_photo ? (
                               <a href={joiningRecord.aadhar_back_photo} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
                                 View
                               </a>
-                            ) : "-"}
+                            ) : "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {joiningRecord?.pan_card ? (
+                            {renderField(joiningRecord?.pan_card ? (
                               <a href={joiningRecord.pan_card} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
                                 View
                               </a>
-                            ) : "-"}
+                            ) : "")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
@@ -1792,19 +1897,19 @@ const Joining = () => {
                         />
                       </div> */}
                       <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Name As Per Aadhar (नाम आधार के अनुसार)
-  </label>
-  <input
-    type="text"
-    name="nameAsPerAadhar"
-    value={editJoiningFormData.nameAsPerAadhar || ""}  // ✅ editJoiningFormData use करें
-    onChange={handleEditJoiningInputChange}  // ✅ handleEditJoiningInputChange use करें
-    disabled={false}  // Edit modal में हमेशा enabled रहेगा (क्योंकि यह edit mode है)
-    placeholder="Enter name as per Aadhar card"
-    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
-  />
-</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Name As Per Aadhar (नाम आधार के अनुसार)
+                        </label>
+                        <input
+                          type="text"
+                          name="nameAsPerAadhar"
+                          value={editJoiningFormData.nameAsPerAadhar || ""}  // ✅ editJoiningFormData use करें
+                          onChange={handleEditJoiningInputChange}  // ✅ handleEditJoiningInputChange use करें
+                          disabled={false}  // Edit modal में हमेशा enabled रहेगा (क्योंकि यह edit mode है)
+                          placeholder="Enter name as per Aadhar card"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                        />
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Blood Group (ब्लड ग्रुप)
@@ -1953,7 +2058,7 @@ const Joining = () => {
                       Family & Address (परिवार और पता)
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
+                      {/* <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Relationship with Family Person (परिवार के सदस्य से संबंध)
                         </label>
@@ -1970,7 +2075,7 @@ const Joining = () => {
                             </option>
                           ))}
                         </select>
-                      </div>
+                      </div> */}
 
                       {/* NEW FIELD: Family Person Name */}
                       <div>
@@ -2469,23 +2574,22 @@ const Joining = () => {
                       />
                     </div> */}
                     <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Name As Per Aadhar (नाम आधार के अनुसार)
-  </label>
-  <input
-    type="text"
-    name="nameAsPerAadhar"
-    value={joiningFormData.nameAsPerAadhar}
-    onChange={handleJoiningInputChange}
-    disabled={!joiningFormData.isNewEmployee}  // 👈 ये condition
-    placeholder="Enter name as per Aadhar card"
-    className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-      !joiningFormData.isNewEmployee 
-        ? "bg-gray-100 text-gray-500 cursor-not-allowed" 
-        : "bg-white text-gray-700"
-    }`}
-  />
-</div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name As Per Aadhar (नाम आधार के अनुसार)
+                      </label>
+                      <input
+                        type="text"
+                        name="nameAsPerAadhar"
+                        value={joiningFormData.nameAsPerAadhar}
+                        onChange={handleJoiningInputChange}
+                        disabled={!joiningFormData.isNewEmployee}  // 👈 ये condition
+                        placeholder="Enter name as per Aadhar card"
+                        className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${!joiningFormData.isNewEmployee
+                          ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                          : "bg-white text-gray-700"
+                          }`}
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Blood Group (ब्लड ग्रुप)
@@ -2625,7 +2729,7 @@ const Joining = () => {
                     Family & Address (परिवार और पता)
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Relationship with Family Person (परिवार के सदस्य से
                         संबंध)
@@ -2643,7 +2747,7 @@ const Joining = () => {
                           </option>
                         ))}
                       </select>
-                    </div>
+                    </div> */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Current Address (वर्तमान पता)
@@ -2904,6 +3008,13 @@ const Joining = () => {
                         ))}
                       </select>
                     </div>
+
+
+
+
+
+
+                    
                   </div>
                 </div>
 
