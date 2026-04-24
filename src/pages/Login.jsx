@@ -20,84 +20,87 @@ const Login = () => {
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setSubmitting(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
 
-  try {
-    // 🔹 1. Fetch user from Supabase
-    const { data: users, error } = await supabase
-      .from("users_hr")
-      .select("*")
-      .eq("username", username)
-      .eq("password", password)
-      .single();
+    try {
+      // 🔹 1. Fetch user from Supabase
+      const { data: users, error } = await supabase
+        .from("users_hr")
+        .select("*")
+        .eq("username", username)
+        .eq("password", password)
+        .single();
 
-    if (error || !users) {
-      toast.error("Invalid credentials");
+      if (error || !users) {
+        toast.error("Invalid credentials");
+        setSubmitting(false);
+        return;
+      }
+
+      // 🔹 2. Check access (instead of leaving sheet logic)
+      if (users.access === false) {
+        toast.error("Employee access has been deactivated");
+        setSubmitting(false);
+        return;
+      }
+
+      // 🔹 3. Success login
+      toast.success("Login successful!");
+      localStorage.setItem("user", JSON.stringify(users));
+      login(users);
+
+      // 🔹 4. Role based navigation (same logic)
+      const role = users.role ? users.role.toLowerCase() : "user";
+
+      if (role === "admin") {
+        navigate("/", { replace: true });
+      } else {
+        navigate("/my-profile", { replace: true });
+      }
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Network error");
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    // 🔹 2. Check access (instead of leaving sheet logic)
-    if (users.access === false) {
-      toast.error("Employee access has been deactivated");
-      setSubmitting(false);
-      return;
-    }
-
-    // 🔹 3. Success login
-    toast.success("Login successful!");
-    localStorage.setItem("user", JSON.stringify(users));
-    login(users);
-
-    // 🔹 4. Role based navigation (same logic)
-    const role = users.role ? users.role.toLowerCase() : "user";
-
-    if (role === "admin") {
-      navigate("/", { replace: true });
-    } else {
-      navigate("/my-profile", { replace: true });
-    }
-
-  } catch (err) {
-    console.error(err);
-    toast.error("Network error");
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-100 via-purple-100 to-white">
       <div className="max-w-md w-full p-8 rounded-2xl shadow-xl border border-white/20 bg-white/60 backdrop-blur-lg space-y-8 transition-transform hover:scale-[1.01] duration-200">
-        
+
         {/* Logo Section */}
         <div className="text-center">
-          <div className="flex justify-center mb-6">
-            <div className="h-16 w-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-              {/* <FileText className="h-8 w-8 text-white" /> */}
-              <FontAwesomeIcon icon={faUsers} className="text-white h-8 w-8" />
-            </div>
-          </div>
-          <h2 
-  className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight" 
-  style={{ fontFamily: 'Poppins, sans-serif' }}
->
-  HR FMS
-</h2>
-<p 
-  className="text-sm text-black" 
-  style={{ fontFamily: 'Poppins, sans-serif' }}
->
-  Human Resource & File Management System
-</p>
+         <div className="flex justify-center mb-4">
+  <div className="h-16 w-40 flex items-center justify-center">
+    <img 
+      src="/Logo.PNG" 
+      alt="" 
+      className="h-16 w-auto object-contain" 
+    />
+  </div>
+</div>
+          {/* <h2
+            className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight"
+            style={{ fontFamily: 'Poppins, sans-serif' }}
+          >
+            HR FMS
+          </h2> */}
+          <p
+            className="text-sm text-black"
+            style={{ fontFamily: 'Poppins, sans-serif' }}
+          >
+            Human Resource (HR) & File Management System
+          </p>
 
         </div>
-        
+
         {/* Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-5">
-            
+
             {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-semibold text-blue-700 mb-2">
@@ -119,7 +122,7 @@ const Login = () => {
                 />
               </div>
             </div>
-            
+
             {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-semibold text-blue-700 mb-2">
@@ -147,17 +150,16 @@ const Login = () => {
           <div>
             <button
               type="submit"
-              className={`w-full flex justify-center py-3 px-4 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-md hover:shadow-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
-                submitting ? 'opacity-75 cursor-not-allowed' : ''
-              }`}
+              className={`w-full flex justify-center py-3 px-4 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-md hover:shadow-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${submitting ? 'opacity-75 cursor-not-allowed' : ''
+                }`}
               disabled={submitting}
             >
               {submitting ? (
                 <div className="flex items-center">
-                  <svg 
-                    className="animate-spin h-4 w-4 text-white mr-2" 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    fill="none" 
+                  <svg
+                    className="animate-spin h-4 w-4 text-white mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
                     viewBox="0 0 24 24"
                   >
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

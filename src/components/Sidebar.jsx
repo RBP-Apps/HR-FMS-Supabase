@@ -186,7 +186,7 @@ const Sidebar = ({ onClose }) => {
           <h1 className="text-xl font-bold flex items-center gap-2 text-white">
             <div className="w-14 h-14 overflow-hidden rounded">
               <img
-                src="/RBP.jpg"
+                src="/Logo.PNG"
                 alt="RBP Logo"
                 className="w-full h-full object-contain"
               />
