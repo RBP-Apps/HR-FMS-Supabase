@@ -1,0 +1,1619 @@
+import React, { useState, useEffect } from "react";
+import { Search, Clock, CheckCircle, X, Upload, XCircle } from "lucide-react";
+import toast from "react-hot-toast";
+import supabase from "../utils/supabase";
+
+const FindEnquiry = () => {
+  const [activeTab, setActiveTab] = useState("pending");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [indentData, setIndentData] = useState([]);
+  const [enquiryData, setEnquiryData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [generatedCandidateNo, setGeneratedCandidateNo] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
+
+  const [editMode, setEditMode] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+
+
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
+
+
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
+  };
+
+  const handleEditClick = (item) => {
+    setSelectedItem(item);
+    setEditFormData({
+      applyingForPost: item.applyingForPost || "",
+      candidateName: item.candidateName || "",
+      candidateDOB: item.candidateDOB || "",
+      candidatePhone: item.candidatePhone || "",
+      candidateEmail: item.candidateEmail || "",
+      previousCompany: item.previousCompany || "",
+      jobExperience: item.jobExperience || "",
+      department: item.department || "",
+      previousPosition: item.previousPosition || "",
+      maritalStatus: item.maritalStatus || "",
+      presentAddress: item.presentAddress || "",
+      aadharNo: item.aadharNo || "",
+      status: item.status || "NeedMore",
+    });
+    setShowEditModal(true);
+  };
+
+  // Add this function to handle edit input changes
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Add this function to save edited data
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from("enquiry")
+        .update({
+          applying_post: editFormData.applyingForPost,
+          candidate_name: editFormData.candidateName,
+          dob: editFormData.candidateDOB,
+          candidate_phone: editFormData.candidatePhone,
+          candidate_email: editFormData.candidateEmail,
+          previous_company_name: editFormData.previousCompany,
+          job_experience: editFormData.jobExperience,
+          department: editFormData.department,
+          previous_position: editFormData.previousPosition,
+          marital_status: editFormData.maritalStatus,
+          present_address: editFormData.presentAddress,
+          aadhar_number: editFormData.aadharNo,
+          tracker_status: editFormData.status,
+          company_name: selectedItem.companyName,
+        })
+        .eq("timestamp", selectedItem.id);
+
+      if (error) throw error;
+
+      const updatedData = enquiryData.map((item) =>
+        item.id === selectedItem.id ? { ...item, ...editFormData } : item,
+      );
+
+      setEnquiryData(updatedData);
+      setShowEditModal(false);
+      setSelectedItem(null);
+
+      toast.success("Enquiry updated successfully!");
+
+      await fetchAllData();
+    } catch (error) {
+      console.error("Error updating enquiry:", error);
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const [formData, setFormData] = useState({
+    candidateName: "",
+    candidateDOB: "",
+    candidatePhone: "",
+    candidateEmail: "",
+    previousCompany: "",
+    jobExperience: "",
+    department: "", // Add this line
+    previousPosition: "",
+    maritalStatus: "",
+    candidatePhoto: null,
+    candidateResume: null,
+    presentAddress: "",
+    aadharNo: "",
+  });
+
+
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    setTableLoading(true);
+    setError(null);
+
+    try {
+      // ===== FETCH INDENT DATA =====
+      const { data: indentRows, error: indentError } = await supabase
+        .from("indent")
+        .select("*");
+
+      if (indentError) throw indentError;
+
+      const processedIndent = indentRows
+        .filter((row) => row.status === "NeedMore")
+        .map((row) => ({
+          id: row.id,
+          indentNo: row.indent_number,
+          post: row.post,
+          companyName: row.company_name,
+          department: row.department,
+          gender: row.gender,
+          prefer: row.prefer,
+          numberOfPost: row.number_of_posts,
+          competitionDate: row.completion_date,
+          socialSite: row.social_site,
+          status: row.status,
+          plannedDate: row.planned_2,
+          actual: row.actual_2,
+          experience: row.experience,
+        }));
+
+      // ===== FETCH ENQUIRY DATA =====
+      const { data: enquiryRows, error: enquiryError } = await supabase
+        .from("enquiry")
+        .select("*");
+
+      if (enquiryError) throw enquiryError;
+
+      const processedEnquiry = enquiryRows.map((row) => ({
+        id: row.timestamp,
+        indentNo: row.indent_number,
+        candidateEnquiryNo: row.candidate_enquiry_number,
+        applyingForPost: row.applying_post,
+        department: row.department,
+        candidateName: row.candidate_name,
+        candidateDOB: row.dob,
+        candidatePhone: row.candidate_phone,
+        candidateEmail: row.candidate_email,
+        previousCompany: row.previous_company_name,
+        jobExperience: row.job_experience,
+        previousPosition: row.previous_position,
+        reasonForLeaving: row.reason_of_leaving,
+        maritalStatus: row.marital_status,
+        lastEmployerMobile: row.last_employer_mobile,
+        candidatePhoto: row.candidate_photo,
+        candidateResume: row.resume_copy,
+        referenceBy: row.reference_by,
+        presentAddress: row.present_address,
+        aadharNo: row.aadhar_number,
+        status: row.tracker_status,
+        planned_1: row.planned_1, // Add this field
+        actual_1: row.actual_1,   // Add this field
+      }));
+
+      // ===== RECRUITMENT COUNT LOGIC =====
+      const indentRecruitmentCount = {};
+
+      processedEnquiry.forEach((row) => {
+        const indentNo = row.indentNo;
+        if (indentNo) {
+          if (!indentRecruitmentCount[indentNo]) {
+            indentRecruitmentCount[indentNo] = 0;
+          }
+          indentRecruitmentCount[indentNo]++;
+        }
+      });
+
+
+      const pendingTasks = processedIndent.filter((task) => {
+        const requiredPosts = parseInt(task.numberOfPost) || 0;
+        // Count only COMPLETED enquiries (where status is "Complete")
+        const completed = processedEnquiry.filter(
+          (enquiry) => enquiry.indentNo === task.indentNo && enquiry.status === "Complete"
+        ).length;
+        return completed < requiredPosts;
+      });
+
+      setIndentData(pendingTasks);
+      setEnquiryData(processedEnquiry);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError(error.message);
+      toast.error("Failed to fetch data");
+    } finally {
+      setLoading(false);
+      setTableLoading(false);
+    }
+  };
+
+
+  const generateNextAAPIndentNumber = () => {
+    // Extract all indent numbers from both indentData and enquiryData
+    const allIndentNumbers = [
+      ...indentData.map((item) => item.indentNo),
+      ...enquiryData.map((item) => item.indentNo),
+    ].filter(Boolean); // Remove empty/null values
+
+    // Find the highest AAP number
+    let maxAAPNumber = 0;
+
+    allIndentNumbers.forEach((indentNo) => {
+      const match = indentNo.match(/^AAP-(\d+)$/i);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (num > maxAAPNumber) {
+          maxAAPNumber = num;
+        }
+      }
+    });
+
+    // Return the next AAP number
+    const nextNumber = maxAAPNumber + 1;
+    return `AAP-${String(nextNumber).padStart(2, "0")}`;
+  };
+
+  // Generate candidate number based on existing enquiries
+  const generateCandidateNumber = () => {
+    if (enquiryData.length === 0) {
+      return "ENQ-01";
+    }
+
+    // Find the highest existing candidate number
+    const lastNumber = enquiryData.reduce((max, enquiry) => {
+      if (!enquiry.candidateEnquiryNo) return max;
+
+      const match = enquiry.candidateEnquiryNo.match(/ENQ-(\d+)/i);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        return num > max ? num : max;
+      }
+      return max;
+    }, 0);
+
+    const nextNumber = lastNumber + 1;
+    return `ENQ-${String(nextNumber).padStart(2, "0")}`;
+  };
+
+
+  // Upload file to Google Drive
+  const uploadFileToSupabase = async (file, type) => {
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${generatedCandidateNo}_${type}_${Date.now()}.${fileExt}`;
+      const filePath = `candidates/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("candidate-files")
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data } = supabase.storage
+        .from("candidate-files")
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const historyData = enquiryData.filter(
+    (item) => item.planned_1 !== null &&
+      item.actual_1 !== null &&
+      item.planned_1 !== undefined &&
+      item.actual_1 !== undefined &&
+      item.planned_1 !== "" &&
+      item.actual_1 !== ""
+  );
+
+  const handleEnquiryClick = (item = null) => {
+    let indentNo = "";
+    let isNewAAP = false;
+
+    if (item) {
+      setSelectedItem(item);
+      indentNo = item.indentNo;
+    } else {
+      // Generate a new AAP indent number for new enquiries
+      indentNo = generateNextAAPIndentNumber();
+      isNewAAP = true;
+
+      // Create a default empty item for new enquiry
+      setSelectedItem({
+        indentNo: indentNo,
+        post: "",
+        companyName: "",
+        gender: "",
+        prefer: "",
+        numberOfPost: "",
+        competitionDate: "",
+        socialSite: "",
+        status: "NeedMore",
+        plannedDate: "",
+        actual: "",
+        experience: "",
+      });
+    }
+
+    const candidateNo = generateCandidateNumber();
+    setGeneratedCandidateNo(candidateNo);
+    setFormData({
+      candidateName: "",
+      candidateDOB: "",
+      candidatePhone: "",
+      candidateEmail: "",
+      previousCompany: "",
+      jobExperience: "",
+      department: item ? item.department : "",
+      lastSalary: "",
+      previousPosition: "",
+      reasonForLeaving: "",
+      maritalStatus: "",
+      lastEmployerMobile: "",
+      candidatePhoto: null,
+      candidateResume: null,
+      referenceBy: "",
+      presentAddress: "",
+      aadharNo: "",
+      status: "NeedMore",
+    });
+    setShowModal(true);
+  };
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      let photoUrl = "";
+      let resumeUrl = "";
+
+      if (formData.candidatePhoto) {
+        setUploadingPhoto(true);
+        photoUrl = await uploadFileToSupabase(formData.candidatePhoto, "photo");
+        setUploadingPhoto(false);
+      }
+
+      if (formData.candidateResume) {
+        setUploadingResume(true);
+        resumeUrl = await uploadFileToSupabase(
+          formData.candidateResume,
+          "resume",
+        );
+        setUploadingResume(false);
+      }
+
+      const now = new Date();
+
+      const { error } = await supabase.from("enquiry").insert([
+        {
+          timestamp: now,
+          indent_number: selectedItem.indentNo,
+          candidate_enquiry_number: generatedCandidateNo,
+          applying_post: selectedItem.post,
+          candidate_name: formData.candidateName,
+          dob: formData.candidateDOB || null,
+          candidate_phone: formData.candidatePhone,
+          candidate_email: formData.candidateEmail,
+          previous_company_name: formData.previousCompany,
+          job_experience: formData.jobExperience,
+          department: formData.department,
+          previous_position: formData.previousPosition,
+          marital_status: formData.maritalStatus,
+          candidate_photo: photoUrl,
+          present_address: formData.presentAddress,
+          aadhar_number: formData.aadharNo,
+          resume_copy: resumeUrl,
+          tracker_status: formData.status || "NeedMore",
+          company_name: selectedItem.companyName,
+        },
+      ]);
+
+      if (error) throw error;
+
+      toast.success("Enquiry submitted successfully");
+
+      setShowModal(false);
+      fetchAllData();
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+      setUploadingPhoto(false);
+      setUploadingResume(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const getCompletionStats = (columns) => {
+    const total = columns.length;
+    const filled = columns.filter((value) =>
+      value !== null && value !== undefined && String(value).trim() !== ""
+    ).length;
+    const unfilled = total - filled;
+    const percent = total > 0 ? Math.round((filled / total) * 100) : 0;
+
+    return { total, filled, unfilled, percent };
+  };
+
+  const getProgressColor = (percent) => {
+    if (percent < 40) return "bg-red-500";
+    if (percent <= 70) return "bg-yellow-500";
+    return "bg-green-500";
+  };
+
+  const handleFileChange = (e, field) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        return;
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        [field]: file,
+      }));
+    }
+  };
+
+  const uniqueIndents = Array.from(new Set([...indentData.map(i => i.indentNo), ...historyData.map(i => i.indentNo)].filter(Boolean)));
+  const uniquePosts = Array.from(new Set([...indentData.map(i => i.post), ...historyData.map(i => i.applyingForPost)].filter(Boolean)));
+  const uniqueNames = Array.from(new Set(historyData.map(i => i.candidateName).filter(Boolean)));
+
+  const filteredPendingData = indentData.filter((item) => {
+    const matchesSearch = searchTerm === "" ||
+      item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.post === filterPost;
+    const matchesName = filterName === ""; // Indents don't have candidate names
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
+  });
+
+  const filteredHistoryData = historyData.filter((item) => {
+    const matchesSearch = searchTerm === "" ||
+      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.candidateEnquiryNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.applyingForPost?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || item.indentNo === filterIndentNo;
+    const matchesPost = filterPost === "" || item.applyingForPost === filterPost;
+    const matchesName = filterName === "" || item.candidateName === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center space-y-2 justify-between w-full">
+        <div>
+          <h1 className="text-2xl font-bold text-indigo-600">
+            Find Enquiry
+          </h1>
+        </div>
+
+        <div>
+          <button
+            onClick={() => handleEnquiryClick()}
+            className="px-4 py-2 text-white bg-green-600 rounded-md hover:bg-opacity-90 text-sm flex items-center"
+          >
+            New Enquiry
+          </button>
+        </div>
+      </div>
+
+
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="enqIndentList"
+                placeholder="Select/Search Indent"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="enqIndentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Post Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="enqPostList"
+                placeholder="Select/Search Post"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="enqPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Name As Per Aadhaar</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="enqNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="enqNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Actions Button */}
+        <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="border-b border-gray-300 border-opacity-20">
+          <nav className="flex -mb-px">
+            <button
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              onClick={() => setActiveTab("pending")}
+            >
+              <Clock size={16} className="inline mr-2" />
+              Pending ({filteredPendingData.length})
+            </button>
+            <button
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              onClick={() => setActiveTab("history")}
+            >
+              <CheckCircle size={16} className="inline mr-2" />
+              History ({filteredHistoryData.length})
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6 ">
+          {activeTab === "pending" && (
+            <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+              <table className="min-w-full divide-y divide-gray-200 text-nowrap ">
+                <thead className="bg-indigo-600 text-center text-nowrap sticky top-0 z-40 ">
+                  <tr>
+                    <th className="sticky left-0 z-30 bg-indigo-600 px-6 py-3 text-xs font-medium text-white uppercase tracking-wider min-w-[160px] ">
+                      Progress
+                    </th>
+                    <th className="sticky left-[160px] z-30 bg-indigo-600 text-white px-6 py-3  text-xs font-medium   uppercase tracking-wider min-w-[100px] ">
+                      Action
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  text-white uppercase tracking-wider">
+                      Indent No.
+                    </th>
+                    <th className="px-6 py-3 text-xs font-medium text-white uppercase tracking-wider">
+                      Company Name
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  text-white uppercase tracking-wider">
+                      Post
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  text-white uppercase tracking-wider">
+                      Department
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  text-white uppercase tracking-wider">
+                      Gender
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  text-white uppercase tracking-wider">
+                      Prefer
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  text-white uppercase tracking-wider">
+                      Number Of Post
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  text-white uppercase tracking-wider">
+                      Competition Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200 text-center">
+                  {tableLoading ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-12 text-center">
+                        <div className="flex justify-center flex-col items-center">
+                          <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                          <span className="text-gray-600 text-sm">
+                            Loading pending enquiries...
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredPendingData.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-12 text-center">
+                        <p className="text-gray-500">
+                          No pending enquiries found.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPendingData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50 group">
+                        <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm">
+                          {(() => {
+                            const stats = getCompletionStats([
+                              item.post,
+                              item.companyName,
+                              item.department,
+                              item.gender,
+                              item.prefer || item.experience ? `${item.prefer || ""} ${item.experience || ""}` : "",
+                              item.numberOfPost,
+                              item.competitionDate
+                            ]);
+                            return (
+                              <div className="flex flex-col items-center">
+                                <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                  {stats.filled}/{stats.total} ({stats.percent}%)
+                                </div>
+                                <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                  <div
+                                    className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`}
+                                    style={{ width: `${stats.percent}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-[10px] mt-1 space-x-1">
+                                  <span className="text-gray-600 font-medium">{stats.filled}Filled</span>
+                                  <span className="text-gray-300">|</span>
+                                  <span className="text-gray-500 font-medium">{stats.unfilled}Missing</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td className="sticky left-[160px] z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleEnquiryClick(item)}
+                            className="px-3 py-1 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 text-sm"
+                          >
+                            Enquiry
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.indentNo)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.companyName)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.post)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.department)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.gender)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.prefer || item.experience ? `${item.prefer || ""} ${item.experience || ""}` : "")}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.numberOfPost)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.competitionDate ? new Date(item.competitionDate).toLocaleDateString() : "")}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === "history" && (
+            <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-indigo-600 text-nowrap text-center text-white sticky top-0 z-40 ">
+                  <tr>
+                    <th className="sticky left-0 z-30 bg-indigo-600 px-6 py-3 text-xs font-medium text-white uppercase tracking-wider min-w-[160px] ">
+                      Progress
+                    </th>
+                    <th className="sticky left-[160px] z-30 bg-indigo-600 px-6 py-3  text-xs font-medium text-white uppercase tracking-wider min-w-[100px] ">
+                      Action
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Indent No.
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Enquiry No.
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Post
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Department
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Candidate Name
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      DOB
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Prev. Company
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Experience
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Prev. Position
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Marital Status
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Address
+                    </th>
+
+
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Resume
+                    </th>
+                    <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200 text-center">
+                  {tableLoading ? (
+                    <tr>
+                      <td colSpan="18" className="px-6 py-12 text-center">
+                        <div className="flex justify-center flex-col items-center">
+                          <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+                          <span className="text-gray-600 text-sm">
+                            Loading enquiry history...
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredHistoryData.length === 0 ? (
+                    <tr>
+                      <td colSpan="18" className="px-6 py-12 text-center">
+                        <p className="text-gray-500">
+                          No enquiry history found.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredHistoryData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50 group">
+                        <td className="sticky left-0 z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm ">
+                          {(() => {
+                            const stats = getCompletionStats([
+                              item.applyingForPost,
+                              item.department,
+                              item.companyName,
+                              item.candidateName,
+                              item.candidateDOB,
+                              item.candidatePhone,
+                              item.candidateEmail,
+                              item.previousCompany,
+                              item.jobExperience,
+                              item.previousPosition,
+                              item.maritalStatus,
+                              item.presentAddress,
+                              item.aadharNo,
+                              item.candidatePhoto,
+                              item.candidateResume,
+                              item.status
+                            ]);
+
+                            return (
+                              <div className="flex flex-col items-center">
+                                {/* Percentage */}
+                                <div className="text-[10px] font-semibold text-gray-700 mb-1">
+                                  {stats.filled}/{stats.total} ({stats.percent}%)
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                                  <div
+                                    className={`${getProgressColor(stats.percent)} h-1.5 rounded-full transition-all duration-300`}
+                                    style={{ width: `${stats.percent}%` }}
+                                  ></div>
+                                </div>
+
+                                {/* Filled / Missing */}
+                                <div className="text-[10px] mt-1 space-x-1">
+                                  <span className="text-green-600 font-medium">{stats.filled}Filled</span>
+                                  <span className="text-gray-300">|</span>
+                                  <span className="text-red-500 font-medium">{stats.unfilled}Missing</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
+
+
+                        <td className="sticky left-[160px] z-20 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => handleEditClick(item)}
+                            disabled={submitting}
+                            className="px-3 py-1 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 text-xs"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.indentNo}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidateEnquiryNo}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.applyingForPost}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.department}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.candidateName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.candidateDOB ? new Date(item.candidateDOB).toLocaleDateString() : "")}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.candidatePhone)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.candidateEmail)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.previousCompany)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.jobExperience)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.previousPosition)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.maritalStatus)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {renderField(item.presentAddress ? (
+                            <div className="max-w-xs truncate" title={item.presentAddress}>
+                              {item.presentAddress}
+                            </div>
+                          ) : "")}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {renderField(item.candidateResume ? (
+                            <a
+                              href={item.candidateResume}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 font-bold hover:text-indigo-800"
+                            >
+                              View
+                            </a>
+                          ) : "")}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.status === "Complete"
+                              ? "bg-green-100 text-green-800"
+                              : item.status === "NeedMore"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-800"
+                              }`}
+                          >
+                            {item.status === "NeedMore"
+                              ? "Need More"
+                              : item.status || "-"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        {/* Edit Modal */}
+        {showEditModal && selectedItem && (
+          <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="p-6 space-y-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-red-500">Edit Enquiry</h2>
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setSelectedItem(null);
+                    }}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEdit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Indent No. (इंडेंट नंबर)
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedItem.indentNo}
+                        disabled
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-gray-100 text-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Company Name (कंपनी नाम)
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedItem.companyName || ""}
+                        disabled
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-white bg-opacity-5 text-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Enquiry No. (उम्मीदवार इन्क्वायरी संख्या)
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedItem.candidateEnquiryNo}
+                        disabled
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-gray-100 text-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Applying For Post (पद के लिए आवेदन)
+                      </label>
+                      <input
+                        type="text"
+                        name="applyingForPost"
+                        value={editFormData.applyingForPost}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Department (विभाग)
+                      </label>
+                      <input
+                        type="text"
+                        name="department"
+                        value={editFormData.department}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Name (उम्मीदवार का नाम) *
+                      </label>
+                      <input
+                        type="text"
+                        name="candidateName"
+                        value={editFormData.candidateName}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate DOB (उम्मीदवार की जन्मतिथि)
+                      </label>
+                      <input
+                        type="date"
+                        name="candidateDOB"
+                        value={editFormData.candidateDOB}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Phone (उम्मीदवार का फ़ोन) *
+                      </label>
+                      <input
+                        type="tel"
+                        name="candidatePhone"
+                        value={editFormData.candidatePhone}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Email (उम्मीदवार ईमेल)
+                      </label>
+                      <input
+                        type="email"
+                        name="candidateEmail"
+                        value={editFormData.candidateEmail}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Previous Company (पिछली कंपनी)
+                      </label>
+                      <input
+                        type="text"
+                        name="previousCompany"
+                        value={editFormData.previousCompany}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Job Experience (काम का अनुभव)
+                      </label>
+                      <input
+                        type="text"
+                        name="jobExperience"
+                        value={editFormData.jobExperience}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Previous Position (पिछला पद)
+                      </label>
+                      <input
+                        type="text"
+                        name="previousPosition"
+                        value={editFormData.previousPosition}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Marital Status (वैवाहिक स्थिति)
+                      </label>
+                      <select
+                        name="maritalStatus"
+                        value={editFormData.maritalStatus}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                      >
+                        <option value="">Select Status</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Current Address (वर्त्तमान पता)
+                    </label>
+                    <textarea
+                      name="presentAddress"
+                      value={editFormData.presentAddress}
+                      onChange={handleEditInputChange}
+                      rows={3}
+                      className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Status (स्थिति) *
+                      </label>
+                      <select
+                        name="status"
+                        value={editFormData.status}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                        required
+                      >
+                        <option value="NeedMore">Need More</option>
+                        <option value="Complete">Complete</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEditModal(false);
+                        setSelectedItem(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 border-opacity-30 rounded-md text-gray-500 hover:bg-gray-100"
+                      disabled={submitting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 flex items-center justify-center min-w-[100px]"
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <>
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Updating...
+                        </>
+                      ) : (
+                        "Update"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showModal && selectedItem && (
+        <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h1 className="text-2xl font-semibold text-indigo-600">
+                  Enquiry Details
+                </h1>
+
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="
+      w-10 h-10
+      flex items-center justify-center
+      rounded-full
+      bg-red-100
+      text-red-600
+      hover:bg-red-600
+      hover:text-white
+      transition-all duration-300
+      shadow-md hover:shadow-lg
+      hover:scale-110
+    "
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Indent No. (इंडेंट नंबर)
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedItem.indentNo}
+                    disabled
+                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Company Name (कंपनी नाम)
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedItem.companyName || ""}
+                     onChange={(e) => {
+    setSelectedItem((prev) => ({
+      ...prev,
+      companyName: e.target.value,
+    }));
+  }}
+                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Candidate Enquiry No. (उम्मीदवार इन्क्वायरी संख्या)
+                  </label>
+                  <input
+                    type="text"
+                    value={generatedCandidateNo}
+                    disabled
+                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Applying For Post (पद के लिए आवेदन)
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedItem.post}
+                    onChange={(e) => {
+                      setSelectedItem((prev) => ({
+                        ...prev,
+                        post: e.target.value,
+                      }));
+                    }}
+                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Department (विभाग)
+                  </label>
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Candidate Name (उम्मीदवार का नाम) *
+                  </label>
+                  <input
+                    type="text"
+                    name="candidateName"
+                    value={formData.candidateName}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Candidate DOB (उम्मीदवार की जन्मतिथि)
+                  </label>
+                  <input
+                    type="date"
+                    name="candidateDOB"
+                    value={formData.candidateDOB}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                  />
+                </div>
+
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Candidate Phone (उम्मीदवार का फ़ोन) *
+                  </label>
+                  <input
+                    type="tel"
+                    name="candidatePhone"
+                    value={formData.candidatePhone}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        candidatePhone: value,
+                      }));
+                    }}
+                    maxLength={10}
+                    placeholder="Enter 10 digit mobile number"
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                  />
+                </div>
+
+
+
+
+
+
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Candidate Email (उम्मीदवार ईमेल)
+                  </label>
+                  <input
+                    type="email"
+                    name="candidateEmail"
+                    value={formData.candidateEmail}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Previous Company (पिछली कंपनी)
+                  </label>
+                  <input
+                    type="text"
+                    name="previousCompany"
+                    value={formData.previousCompany}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Job Experience (काम का अनुभव)
+                  </label>
+                  <input
+                    type="text"
+                    name="jobExperience"
+                    value={formData.jobExperience}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Previous Position (पिछला पद)
+                  </label>
+                  <input
+                    type="text"
+                    name="previousPosition"
+                    value={formData.previousPosition}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Marital Status (वैवाहिक स्थिति)
+                  </label>
+                  <select
+                    name="maritalStatus"
+                    value={formData.maritalStatus}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                  >
+                    <option value="">Select Status</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">
+                  Current Address (वर्त्तमान पता)
+                </label>
+                <textarea
+                  name="presentAddress"
+                  value={formData.presentAddress}
+                  onChange={handleInputChange}
+                  rows={3}
+                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Candidate Resume (उम्मीदवार का बायोडाटा)
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => handleFileChange(e, "candidateResume")}
+                      className="hidden"
+                      id="resume-upload"
+                    />
+                    <label
+                      htmlFor="resume-upload"
+                      className="flex items-center px-4 py-2 border border-gray-300 border-opacity-30 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 text-gray-500"
+                    >
+                      <Upload size={16} className="mr-2" />
+                      {uploadingResume ? "Uploading..." : "Upload File"}
+                    </label>
+                    {formData.candidateResume && !uploadingResume && (
+                      <span className="text-sm text-gray-500 opacity-80">
+                        {formData.candidateResume.name}
+                      </span>
+                    )}
+                    {uploadingResume && (
+                      <div className="flex items-center">
+                        <div className="w-4 h-4 border-2 border-indigo-500 border-dashed rounded-full animate-spin mr-2"></div>
+                        <span className="text-sm text-gray-500">
+                          Uploading resume...
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Max 10MB. Supports: PDF, DOC, DOCX, JPG, JPEG, PNG
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Status (स्थिति) *
+                  </label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+
+                  >
+                    <option value="NeedMore">Need More </option>
+                    <option value="Complete">Complete</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 border-opacity-30 rounded-md text-gray-500 hover:bg-white hover:bg-opacity-10"
+                  disabled={submitting || uploadingPhoto || uploadingResume}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 flex items-center justify-center"
+                  disabled={submitting || uploadingPhoto || uploadingResume}
+                >
+                  {submitting ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default FindEnquiry;

@@ -1,0 +1,1299 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Search, X, XCircle } from "lucide-react";
+import supabase from "../utils/supabase";
+
+export default function UserRegistration() {
+  const [users, setUsers] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [editUserId, setEditUserId] = useState(null);
+  const [masterData, setMasterData] = useState([]);
+  const [masterForm, setMasterForm] = useState({
+    department: "",
+    given_by: "",
+  });
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterIndentNo, setFilterIndentNo] = useState("");
+  const [filterPost, setFilterPost] = useState("");
+  const [filterName, setFilterName] = useState("");
+
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
+  };
+
+
+  // ========== PAGE OPTIONS को masterData से dynamic बनाएं ==========
+  const [pageOptions, setPageOptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [pageAccess, setPageAccess] = useState([]);
+  const [openPageBox, setOpenPageBox] = useState(false);
+
+  const togglePage = (page) => {
+    setPageAccess((prev) =>
+      prev.includes(page) ? prev.filter((p) => p !== page) : [...prev, page],
+    );
+  };
+
+  // ========== ALL PAGES TOGGLE UPDATE ==========
+  const toggleAllPages = () => {
+    if (pageAccess.length === pageOptions.length) {
+      setPageAccess([]);
+    } else {
+      setPageAccess([...pageOptions]);
+    }
+  };
+
+  const [formData, setFormData] = useState({
+    department: "",
+    given_by: "",
+    doer_name: "",
+    email_id: "",
+    wa_number: "",
+    password: "",
+    role: "USER",
+    page: "",
+  });
+
+  const [editData, setEditData] = useState(formData);
+
+  // ================= FETCH USERS =================
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("users_hr")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  // ================= FETCH MASTER DATA =================
+  const fetchMasterData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("master_hr")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setMasterData(data || []);
+      setLoading(false);
+
+      // Master data से unique departments निकालें
+      const departments = [...new Set(data.map((item) => item.department))];
+      setPageOptions(departments.sort());
+    } catch (error) {
+      console.error("Error fetching master data:", error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchMasterData();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // WhatsApp number special handling
+    if (name === "wa_number") {
+      const digitsOnly = value.replace(/\D/g, "");
+      if (digitsOnly.length <= 10) {
+        setFormData((prev) => ({
+          ...prev,
+          wa_number: digitsOnly,
+        }));
+      }
+      return;
+    }
+
+    // Normal fields
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleEditChange = (e) => {
+    setEditData({ ...editData, [e.target.name]: e.target.value });
+  };
+
+  const handleEdit = (user) => {
+    setEditUserId(user.id);
+    setEditData(user);
+  };
+
+  // ========== HANDLE SUBMIT UPDATE ==========
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      username: formData.doer_name, // Note: username field in users_hr
+      password: formData.password,
+      name: formData.doer_name,
+      department: formData.department,
+      given_by: formData.given_by,
+      email_id: formData.email_id,
+      wa_number: formData.wa_number,
+      role: formData.role,
+      page:
+        pageAccess.length === pageOptions.length ? "ALL" : pageAccess.join(","),
+      access: true,
+    };
+
+    try {
+      const { error } = await supabase.from("users_hr").insert([payload]);
+
+      if (error) throw error;
+
+      setOpen(false);
+      setFormData({
+        department: "",
+        given_by: "",
+        doer_name: "",
+        email_id: "",
+        wa_number: "",
+        password: "",
+        role: "USER",
+        page: "",
+      });
+
+      setPageAccess([]);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error adding user:", error);
+
+      if (error.code === "23505") {
+        alert("⚠️ Username already exists! Please use a different username.");
+      } else {
+        alert(error.message || "Something went wrong!");
+      }
+    }
+  };
+
+  const handleUpdate = async (id) => {
+    const payload = {};
+
+    Object.keys(editData).forEach((key) => {
+      if (editData[key] !== "" && editData[key] !== undefined) {
+        // Map the field names if needed
+        if (key === "doer_name") {
+          payload.username = editData[key];
+          payload.name = editData[key];
+        } else {
+          payload[key] = editData[key];
+        }
+      }
+    });
+
+    try {
+      const { error } = await supabase
+        .from("users_hr")
+        .update(payload)
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setEditUserId(null);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating user:", error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this user?")) return;
+
+    try {
+      const { error } = await supabase.from("users_hr").delete().eq("id", id);
+
+      if (error) throw error;
+
+      fetchUsers();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    }
+  };
+
+  const handleMasterSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase.from("master_hr").insert([masterForm]);
+
+      if (error) throw error;
+
+      setMasterForm({ department: "", given_by: "" });
+      fetchMasterData(); // Refresh the list
+    } catch (error) {
+      console.error("Error adding master data:", error);
+    }
+  };
+
+  const handleMasterChange = (e) => {
+    setMasterForm({ ...masterForm, [e.target.name]: e.target.value });
+  };
+
+  const handleDeleteMaster = async (id) => {
+    if (!confirm("Delete this entry?")) return;
+
+    try {
+      const { error } = await supabase.from("master_hr").delete().eq("id", id);
+
+      if (error) throw error;
+
+      fetchMasterData(); // Refresh the list
+    } catch (error) {
+      console.error("Error deleting master data:", error);
+    }
+  };
+
+  const uniqueIndents = Array.from(new Set(users.map(u => u.id).filter(Boolean)));
+  const uniquePosts = Array.from(new Set(users.map(u => u.role).filter(Boolean)));
+  // const uniqueNames = Array.from(new Set(users.map(u => u.doer_name).filter(Boolean)));
+  const uniqueNames = Array.from(
+  new Set(users.map(u => u.username).filter(Boolean))
+);
+
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch = searchTerm === "" ||
+u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.id?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.role?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesIndent = filterIndentNo === "" || u.id?.toString() === filterIndentNo?.toString();
+    const matchesPost = filterPost === "" || u.role === filterPost;
+    const matchesName = filterName === "" || u.username === filterName;
+
+    return matchesSearch && matchesIndent && matchesPost && matchesName;
+  });
+
+  // ================= UI =================
+  return (
+    <div className="p-2 md:p-4 lg:p-6 space-y-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-indigo-600">
+            Add User
+          </h1>
+        </div>
+
+        <div className="flex gap-3">
+          {/* Add Settings Button here */}
+
+          <button
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-5 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Add New User
+          </button>
+        </div>
+      </div>
+
+      {/* STATS CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-gray-500 text-sm">Total Users</p>
+              <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+            </div>
+            <div className="p-3 rounded-full bg-purple-50">
+              <svg
+                xmlns="http://www.w3.org2000/svg"
+                className="h-6 w-6 text-purple-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0c-.553 0-1 .447-1 1s.447 1 1 1 1-.447 1-1-.447-1-1-1z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-gray-500 text-sm">Admin</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {users.filter((u) => u.role === "ADMIN").length}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-blue-50">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-gray-500 text-sm"> Users</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {users.filter((u) => u.role === "USER").length}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-green-50">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-green-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-gray-500 text-sm">Active Today</p>
+              <p className="text-2xl font-bold text-gray-900">-</p>
+            </div>
+            <div className="p-3 rounded-full bg-yellow-50">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-yellow-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dynamic Filters Section */}
+      <div className="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col space-y-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Indent Number Filter (Mapped to User ID) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number (ID)</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="auIndentList"
+                placeholder="Select/Search ID"
+                value={filterIndentNo}
+                onChange={(e) => setFilterIndentNo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="auIndentList">
+                {uniqueIndents.map(indent => (
+                  <option key={indent} value={indent} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Post Filter (Mapped to Role) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Post (Role)</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="auPostList"
+                placeholder="Select/Search Role"
+                value={filterPost}
+                onChange={(e) => setFilterPost(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="auPostList">
+                {uniquePosts.map(post => (
+                  <option key={post} value={post} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Name As Per Aadhaar Filter (Mapped to doer_name) */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Name</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="auNameList"
+                placeholder="Select/Search Name"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+              />
+              <datalist id="auNameList">
+                {uniqueNames.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Global Search */}
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <div className="relative h-full flex items-center">
+              <input
+                type="text"
+                placeholder="Search all fields..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        <div className="flex justify-end pt-2 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setFilterIndentNo("");
+              setFilterPost("");
+              setFilterName("");
+              setSearchTerm("");
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      {/* ================= DESKTOP TABLE ================= */}
+      <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-800">
+              User Details
+            </h2>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-600">Sort by:</span>
+              <select className="border-0 bg-transparent text-purple-700 font-medium focus:outline-none">
+                <option>Date Added</option>
+                <option>Name</option>
+                <option>Role</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto max-h-[400px]">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-30">
+              <tr className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+                <th className="px-4 py-3 text-center font-medium rounded-tl-xl">
+                  User
+                </th>
+                <th className="px-4 py-3 text-center font-medium">Contact</th>
+                <th className="px-4 py-3 text-center font-medium">Details</th>
+                <th className="px-4 py-3 text-center font-medium">Role</th>
+                <th className="px-4 py-3 text-center font-medium">Access</th>
+                <th className="px-4 py-3 text-center font-medium rounded-tr-xl">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredUsers.map((u) => (
+                <tr
+                  key={u.id}
+                  className="border-b border-gray-100 hover:bg-purple-50 transition-all duration-150"
+                >
+                  {/* USER INFO COLUMN */}
+                  <td className="px-4 py-4">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 flex items-center justify-center mr-3">
+                        <span className="font-bold text-purple-700">
+                         {u.username
+  ? u.username.charAt(0).toUpperCase()
+  : "U"}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">
+                         {u.username}
+                        </div>
+                        <div className="text-gray-500 text-xs">ID: {u.id}</div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* CONTACT COLUMN */}
+                  <td className="px-4 py-4 text-center">
+                    <div className="space-y-1">
+                      <div className="flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-gray-400 mr-2"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                          />
+                        </svg>
+                        {editUserId === u.id ? (
+                          <input
+                            name="email_id"
+                            value={editData.email_id}
+                            onChange={handleEditChange}
+                            className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        ) : (
+                          <span className="text-sm">{u.email_id}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-gray-400 mr-2"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                          />
+                        </svg>
+                        {editUserId === u.id ? (
+                          <input
+                            name="wa_number"
+                            value={editData.wa_number}
+                            onChange={handleEditChange}
+                            className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        ) : (
+                          <span className="text-sm">{u.wa_number}</span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* DETAILS COLUMN */}
+                  <td className="px-4 py-4 text-center align-middle">
+                    <div className="space-y-2 text-sm">
+                      {/* Password */}
+                      <div className="flex justify-center items-center gap-2">
+                        <span className="text-gray-500">Password:</span>
+                        {editUserId === u.id ? (
+                          <input
+                            name="password"
+                            value={editData.password}
+                            onChange={handleEditChange}
+                            className="border border-gray-300 rounded px-2 py-1 w-40 text-center focus:ring-2 focus:ring-purple-500"
+                          />
+                        ) : (
+                          <span className="font-mono bg-gray-50 px-2 py-1 rounded">
+                            {u.password}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dept */}
+                      <div className="flex justify-center items-center gap-2">
+                        <span className="text-gray-500">Dept:</span>
+                        {editUserId === u.id ? (
+                          <input
+                            name="department"
+                            value={editData.department}
+                            onChange={handleEditChange}
+                            className="border border-gray-300 rounded px-2 py-1 w-40 text-center focus:ring-2 focus:ring-purple-500"
+                          />
+                        ) : (
+                          <span>{u.department}</span>
+                        )}
+                      </div>
+
+                      {/* Given By */}
+                      <div className="flex justify-center items-center gap-2">
+                        <span className="text-gray-500">Given By:</span>
+                        {editUserId === u.id ? (
+                          <input
+                            name="given_by"
+                            value={editData.given_by}
+                            onChange={handleEditChange}
+                            className="border border-gray-300 rounded px-2 py-1 w-40 text-center focus:ring-2 focus:ring-purple-500"
+                          />
+                        ) : (
+                          <span>{u.given_by}</span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* ROLE COLUMN */}
+                  <td className="px-4 py-4 text-center">
+                    {editUserId === u.id ? (
+                      <select
+                        name="role"
+                        value={editData.role}
+                        onChange={handleEditChange}
+                        className="border border-gray-300 rounded px-3 py-2 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="USER">USER</option>
+                        <option value="ADMIN">ADMIN</option>
+                      </select>
+                    ) : (
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${u.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}
+                      >
+                        {u.role}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* PAGE ACCESS COLUMN */}
+                  <td className="px-4 py-4 text-center">
+                    {editUserId === u.id ? (
+                      <input
+                        name="page"
+                        value={editData.page}
+                        onChange={handleEditChange}
+                        className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    ) : u.page ? (
+                      <div className="text-sm bg-gray-50 px-3 py-1 rounded truncate max-w-[150px]">
+                        {u.page}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Not set</span>
+                    )}
+                  </td>
+
+                  {/* ACTIONS COLUMN */}
+                  <td className="px-4 py-4 text-center">
+                    {editUserId === u.id ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdate(u.id)}
+                          className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditUserId(null)}
+                          className="flex items-center gap-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(u)}
+                          className="flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(u.id)}
+                          className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 text-sm text-gray-500">
+          Showing {filteredUsers.length} of {users.length} users
+        </div>
+      </div>
+
+      {/* ================= MOBILE CARD VIEW ================= */}
+      <div className="md:hidden space-y-4">
+        <div className="bg-white rounded-xl shadow-lg p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">
+              User Details
+            </h2>
+            <span className="bg-purple-100 text-purple-800 text-xs font-medium px-3 py-1 rounded-full">
+              {filteredUsers.length} users
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {filteredUsers.map((u) => (
+              <div
+                key={u.id}
+                className="border border-gray-200 rounded-xl p-4 hover:border-purple-300 transition-all duration-200"
+              >
+                {/* USER HEADER */}
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center">
+                    <div className="h-12 w-12 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 flex items-center justify-center mr-3">
+                      <span className="font-bold text-lg text-purple-700">
+                       {u.username
+  ? u.username.charAt(0).toUpperCase()
+  : "U"}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+{u.username}
+                      </h3>
+                      <div className="flex items-center mt-1">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}
+                        >
+                          {u.role}
+                        </span>
+                        <span className="text-gray-500 text-xs ml-2">
+                          ID: {u.id}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ACTIONS */}
+                  {editUserId === u.id ? (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleUpdate(u.id)}
+                        className="p-2 bg-green-100 text-green-600 rounded-lg"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setEditUserId(null)}
+                        className="p-2 bg-gray-100 text-gray-600 rounded-lg"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleEdit(u)}
+                        className="p-2 bg-purple-100 text-purple-600 rounded-lg"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        className="p-2 bg-red-50 text-red-600 rounded-lg"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* USER DETAILS */}
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Email</p>
+                    {editUserId === u.id ? (
+                      <input
+                        name="email_id"
+                        value={editData.email_id}
+                        onChange={handleEditChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium">{u.email_id}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">WhatsApp</p>
+                    {editUserId === u.id ? (
+                      <input
+                        name="wa_number"
+                        value={editData.wa_number}
+                        onChange={handleEditChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium">{u.wa_number}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Password</p>
+                    {editUserId === u.id ? (
+                      <input
+                        name="password"
+                        value={editData.password}
+                        onChange={handleEditChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm font-mono bg-gray-50 px-2 py-1 rounded">
+                        {u.password}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Department</p>
+                    {editUserId === u.id ? (
+                      <input
+                        name="department"
+                        value={editData.department}
+                        onChange={handleEditChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium">
+                        {u.department || "-"}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Given By</p>
+                    {editUserId === u.id ? (
+                      <input
+                        name="given_by"
+                        value={editData.given_by}
+                        onChange={handleEditChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium">{u.given_by || "-"}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Page Access</p>
+                    {editUserId === u.id ? (
+                      <input
+                        name="page"
+                        value={editData.page}
+                        onChange={handleEditChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium truncate">
+                        {u.page || "Not set"}
+                      </p>
+                    )}
+                  </div>
+
+                  {editUserId === u.id && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-gray-500 mb-1">Role</p>
+                      <select
+                        name="role"
+                        value={editData.role}
+                        onChange={handleEditChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="USER">USER</option>
+                        <option value="ADMIN">ADMIN</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ================= ADD USER MODAL ================= */}
+      {open && (
+        // <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
+        //   <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md h-[90vh] flex flex-col">
+
+
+
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Add New User</h2>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="text-white hover:text-gray-200"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-purple-100 text-sm mt-1">
+                Fill in the user details below
+              </p>
+            </div>
+
+            {/* <form onSubmit={handleSubmit} className="p-6 space-y-4"> */}
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Username
+                </label>
+                <input
+                  className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                  name="doer_name"
+                  placeholder="Enter username"
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
+                <input
+                  className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                  name="email_id"
+                  type="email"
+                  placeholder="user@example.com"
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    name="wa_number"
+                    placeholder="10 digit WhatsApp number"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    inputMode="numeric"
+                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <input
+                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    name="password"
+                    placeholder="Enter password"
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Department Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Department
+                  </label>
+                  <select
+                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    name="department"
+                    onChange={handleChange}
+                    value={formData.department}
+                  >
+                    <option value="">Select Department</option>
+                    {Array.from(
+                      new Set(masterData.map((item) => item.department)),
+                    ).map((dept, index) => (
+                      <option key={index} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Given By Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Given By
+                  </label>
+                  <select
+                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    name="given_by"
+                    onChange={handleChange}
+                    value={formData.given_by}
+                  >
+                    <option value="">Select Given By</option>
+                    {Array.from(
+                      new Set(masterData.map((item) => item.given_by)),
+                    ).map((given, index) => (
+                      <option key={index} value={given}>
+                        {given}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Page Access (Departments)
+                </label>
+
+                {/* Select box */}
+                <div
+                  onClick={() => setOpenPageBox(!openPageBox)}
+                  className="border border-gray-300 rounded-lg px-4 py-3 w-full cursor-pointer bg-white flex justify-between items-center"
+                >
+                  <span className="text-gray-600">
+                    {pageAccess.length === 0
+                      ? "Select departments"
+                      : `${pageAccess.length} selected`}
+                  </span>
+                  <span>▾</span>
+                </div>
+
+                {/* Dropdown */}
+                {openPageBox && (
+                  <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto border bg-white rounded-lg shadow-lg p-3 space-y-2">
+                    {loading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                        <p className="text-gray-500 mt-2">
+                          Loading departments...
+                        </p>
+                      </div>
+                    ) : pageOptions.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">
+                        No departments found
+                      </p>
+                    ) : (
+                      <>
+                        {/* All Departments */}
+                        <label className="flex items-center gap-2 font-medium text-green-600">
+                          <input
+                            type="checkbox"
+                            checked={pageAccess.length === pageOptions.length}
+                            onChange={toggleAllPages}
+                          />
+                          All Departments
+                        </label>
+
+                        <hr />
+
+                        {pageOptions.map((page) => (
+                          <label key={page} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={pageAccess.includes(page)}
+                              onChange={() => togglePage(page)}
+                            />
+                            {page}
+                          </label>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  User Role
+                </label>
+                <select
+                  className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                  name="role"
+                  onChange={handleChange}
+                >
+                  <option value="USER">Regular User</option>
+                  <option value="ADMIN">Administrator</option>
+                </select>
+              </div>
+
+              {/* <div className="flex gap-3 justify-end pt-4 border-t border-gray-100"> */}
+              <div className="flex gap-3 justify-end p-4 border-t border-gray-100 sticky bottom-0 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-5 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
+                >
+                  Create User Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
