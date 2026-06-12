@@ -23,6 +23,7 @@ const Employee = () => {
 
   const [editingRow, setEditingRow] = useState(null);
   const [editData, setEditData] = useState({});
+  const [lightboxImage, setLightboxImage] = useState(null);
 
   const [filterEmployeeCategory, setFilterEmployeeCategory] = useState("");
   const [filterPost, setFilterPost] = useState("");
@@ -202,6 +203,74 @@ const Employee = () => {
         <XCircle size={14} />
         Missing
       </span>
+    );
+  };
+
+  const getDirectImageUrl = (url) => {
+    if (!url) return "";
+    if (typeof url !== "string") return url;
+    
+    // Check if it's a Google Drive URL
+    if (url.includes("drive.google.com")) {
+      let fileId = "";
+      
+      if (url.includes("open?id=")) {
+        const match = url.match(/open\?id=([^&]+)/);
+        if (match) fileId = match[1];
+      } else if (url.includes("/file/d/")) {
+        const match = url.match(/\/file\/d\/([^/]+)/);
+        if (match) fileId = match[1];
+      } else if (url.includes("id=")) {
+        const match = url.match(/id=([^&]+)/);
+        if (match) fileId = match[1];
+      }
+      
+      if (fileId) {
+        return `https://drive.google.com/uc?export=view&id=${fileId}`;
+      }
+    }
+    
+    return url;
+  };
+
+  const renderImageThumbnail = (url, altText) => {
+    if (!url) return "";
+    const isPdf = url.toLowerCase().split('?')[0].endsWith('.pdf');
+    if (isPdf) {
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center p-2 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 w-14 h-14"
+        >
+          <span className="text-[10px] font-bold text-indigo-600">PDF</span>
+        </a>
+      );
+    }
+    const imageUrl = getDirectImageUrl(url);
+    return (
+      <button
+        type="button"
+        onClick={() => setLightboxImage(url)}
+        className="inline-block p-1 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 focus:outline-none"
+      >
+        <img
+          src={imageUrl}
+          alt={altText}
+          className="w-12 h-12 object-cover rounded-md"
+          onError={(e) => {
+            e.target.style.display = 'none';
+            const parent = e.target.parentElement;
+            if (parent) {
+              const iconDiv = document.createElement('div');
+              iconDiv.className = "flex items-center justify-center w-12 h-12 bg-gray-100 text-gray-500 rounded-md";
+              iconDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+              parent.appendChild(iconDiv);
+            }
+          }}
+        />
+      </button>
     );
   };
 
@@ -844,46 +913,13 @@ const Employee = () => {
                             {renderField(item.salary)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {renderField(item.aadharFrontPhoto ? (
-                              <a
-                                href={item.aadharFrontPhoto}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-800"
-                              >
-                                <ImageIcon size={20} />
-                              </a>
-                            ) : (
-                              ""
-                            ))}
+                            {item.aadharFrontPhoto ? renderImageThumbnail(item.aadharFrontPhoto, "Aadhaar Front") : renderField("")}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {renderField(item.aadharBackPhoto ? (
-                              <a
-                                href={item.aadharBackPhoto}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-800"
-                              >
-                                <ImageIcon size={20} />
-                              </a>
-                            ) : (
-                              ""
-                            ))}
+                            {item.aadharBackPhoto ? renderImageThumbnail(item.aadharBackPhoto, "Aadhaar Back") : renderField("")}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-                            {renderField(item.panCard ? (
-                              <a
-                                href={item.panCard}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-800"
-                              >
-                                <ImageIcon size={20} />
-                              </a>
-                            ) : (
-                              ""
-                            ))}
+                            {item.panCard ? renderImageThumbnail(item.panCard, "PAN Card") : renderField("")}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {renderField(item.relationshipWithFamily)}
@@ -1179,11 +1215,24 @@ const Employee = () => {
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
             <div className="bg-white p-6 rounded-lg w-[800px] max-h-[85vh] overflow-y-auto">
-              <h2 className="text-xl text-indigo-600 font-semibold mb-4">
-                {modalType === "joining"
-                  ? "Edit Joining Employee"
-                  : "Edit Leaving Employee"}
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl text-indigo-600 font-semibold">
+                  {modalType === "joining"
+                    ? "Edit Joining Employee"
+                    : "Edit Leaving Employee"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    handleCancel();
+                    handleLeavingCancel();
+                  }}
+                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
               {/* ================= JOINING FORM ================= */}
               {modalType === "joining" && (
@@ -1254,26 +1303,45 @@ const Employee = () => {
                           Aadhaar Frontside Photo (आधार कार्ड फ्रंट फोटो)
                         </label>
                         <input
+                          key={editData.aadharFrontPhoto ? "front-present" : "front-empty"}
                           type="file"
                           accept="image/*"
                           onChange={(e) => handleFileChange("aadharFrontPhoto", e.target.files[0])}
                           className="border p-2 rounded w-full text-sm mt-1 bg-white"
                         />
                         {editData.aadharFrontPhoto && (
-                          <div className="mt-1">
+                          <div className="mt-1 flex items-center justify-between bg-indigo-50 p-1.5 rounded border border-indigo-100">
                             {editData.aadharFrontPhoto instanceof File ? (
-                              <span className="text-xs text-indigo-600 font-medium">
-                                Selected: {editData.aadharFrontPhoto.name}
-                              </span>
+                              <>
+                                <span className="text-xs text-indigo-700 font-medium truncate max-w-[75%]">
+                                  Selected: {editData.aadharFrontPhoto.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFileChange("aadharFrontPhoto", null)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </>
                             ) : (
-                              <a
-                                href={editData.aadharFrontPhoto}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
-                              >
-                                <ImageIcon size={14} /> View Existing Aadhaar Frontside
-                              </a>
+                              <>
+                                <a
+                                  href={editData.aadharFrontPhoto}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-indigo-700 hover:underline flex items-center gap-1 truncate max-w-[75%]"
+                                >
+                                  <ImageIcon size={14} /> View Existing Aadhaar Frontside
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFileChange("aadharFrontPhoto", null)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </>
                             )}
                           </div>
                         )}
@@ -1285,26 +1353,45 @@ const Employee = () => {
                           Aadhaar Backside Photo (आधार कार्ड बैक फोटो)
                         </label>
                         <input
+                          key={editData.aadharBackPhoto ? "back-present" : "back-empty"}
                           type="file"
                           accept="image/*"
                           onChange={(e) => handleFileChange("aadharBackPhoto", e.target.files[0])}
                           className="border p-2 rounded w-full text-sm mt-1 bg-white"
                         />
                         {editData.aadharBackPhoto && (
-                          <div className="mt-1">
+                          <div className="mt-1 flex items-center justify-between bg-indigo-50 p-1.5 rounded border border-indigo-100">
                             {editData.aadharBackPhoto instanceof File ? (
-                              <span className="text-xs text-indigo-600 font-medium">
-                                Selected: {editData.aadharBackPhoto.name}
-                              </span>
+                              <>
+                                <span className="text-xs text-indigo-700 font-medium truncate max-w-[75%]">
+                                  Selected: {editData.aadharBackPhoto.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFileChange("aadharBackPhoto", null)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </>
                             ) : (
-                              <a
-                                href={editData.aadharBackPhoto}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
-                              >
-                                <ImageIcon size={14} /> View Existing Aadhaar Backside
-                              </a>
+                              <>
+                                <a
+                                  href={editData.aadharBackPhoto}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-indigo-700 hover:underline flex items-center gap-1 truncate max-w-[75%]"
+                                >
+                                  <ImageIcon size={14} /> View Existing Aadhaar Backside
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFileChange("aadharBackPhoto", null)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </>
                             )}
                           </div>
                         )}
@@ -1316,26 +1403,45 @@ const Employee = () => {
                           PAN Card (पैन कार्ड)
                         </label>
                         <input
+                          key={editData.panCard ? "pan-present" : "pan-empty"}
                           type="file"
                           accept="image/*"
                           onChange={(e) => handleFileChange("panCard", e.target.files[0])}
                           className="border p-2 rounded w-full text-sm mt-1 bg-white"
                         />
                         {editData.panCard && (
-                          <div className="mt-1">
+                          <div className="mt-1 flex items-center justify-between bg-indigo-50 p-1.5 rounded border border-indigo-100">
                             {editData.panCard instanceof File ? (
-                              <span className="text-xs text-indigo-600 font-medium">
-                                Selected: {editData.panCard.name}
-                              </span>
+                              <>
+                                <span className="text-xs text-indigo-700 font-medium truncate max-w-[75%]">
+                                  Selected: {editData.panCard.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFileChange("panCard", null)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </>
                             ) : (
-                              <a
-                                href={editData.panCard}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
-                              >
-                                <ImageIcon size={14} /> View Existing PAN Card
-                              </a>
+                              <>
+                                <a
+                                  href={editData.panCard}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-indigo-700 hover:underline flex items-center gap-1 truncate max-w-[75%]"
+                                >
+                                  <ImageIcon size={14} /> View Existing PAN Card
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFileChange("panCard", null)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </>
                             )}
                           </div>
                         )}
@@ -1408,6 +1514,37 @@ const Employee = () => {
                   Save
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {lightboxImage && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-85 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+            onClick={() => setLightboxImage(null)}
+          >
+            <div className="relative max-w-3xl max-h-[90vh] flex flex-col items-center">
+              <button
+                onClick={() => setLightboxImage(null)}
+                className="absolute -top-12 right-0 text-white hover:text-gray-300 focus:outline-none bg-white bg-opacity-10 p-2 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+              <img
+                src={getDirectImageUrl(lightboxImage)}
+                alt="Enlarged view"
+                className="max-w-full max-h-[75vh] rounded-lg shadow-2xl object-contain border border-white border-opacity-10"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <a 
+                href={lightboxImage}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow transition-colors flex items-center gap-1.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Open Original File / Link
+              </a>
             </div>
           </div>
         )}

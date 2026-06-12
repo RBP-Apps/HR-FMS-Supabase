@@ -1,6 +1,15 @@
 import React from "react";
 
 const OfferLetterPreview = ({ formData }) => {
+  const formatDate = (dateString) => {
+  if (!dateString) return "";
+
+  const [year, month, day] = dateString.split("-");
+  return `${day}-${month}-${year}`;
+};
+
+
+
   return (
     <div id="offer-letter-preview" className="bg-[#d9d9d9] min-h-screen p-10 overflow-auto">
       {/* ================= PAGE 1 ================= */}
@@ -32,7 +41,7 @@ const OfferLetterPreview = ({ formData }) => {
         </div>
 
         {/* DATE */}
-        <div className="flex justify-between mt-4">
+        {/* <div className="flex justify-between mt-4">
           <div>
 
           </div>
@@ -45,7 +54,20 @@ const OfferLetterPreview = ({ formData }) => {
           >
             Date: {formData.offerDate || formData.joiningDate || ""}
           </div>
-        </div>
+        </div> */}
+
+        <div className="flex justify-between mt-4">
+  <div></div>
+
+  <div
+    style={{
+      fontSize: "13px",
+      fontWeight: 700,
+    }}
+  >
+    Date: {formatDate(formData.offerDate || formData.joiningDate)}
+  </div>
+</div>
 
         {/* TITLE */}
         <div className="mt-8 text-center">
@@ -147,8 +169,8 @@ const OfferLetterPreview = ({ formData }) => {
             <p className="mt-2 text-justify">
               You will be on a probation period of{" "}
               <b>{formData.probationPeriod || formData.probation_period || "Six (6) months"}</b> from your date of
-              joining, i.e., from <b>{formData.joiningDate || formData.joining_date}</b> to{" "}
-              <b>{formData.probationEndDate || "-"}</b>. During this period, your performance will be evaluated
+              joining, i.e., from <b>{formatDate(formData.joiningDate || formData.joining_date)}</b> to{" "}
+              <b>{formatDate(formData.probationEndDate || "-")}</b>. During this period, your performance will be evaluated
               regularly.
             </p>
 
@@ -205,7 +227,7 @@ const OfferLetterPreview = ({ formData }) => {
               <li>You will be designated as {formData.designation || "-"}.</li>
 
               <li className="mt-1">
-                Your date of commencement of employment is {formData.joiningDate || formData.joining_date || "-"}.
+                Your date of commencement of employment is {formatDate(formData.joiningDate || formData.joining_date || "-")}.
               </li>
 
               <li className="mt-1">
