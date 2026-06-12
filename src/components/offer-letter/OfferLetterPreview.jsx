@@ -187,9 +187,7 @@ const OfferLetterPreview = ({ formData }) => {
               </li>
 
               <li>
-                All HR benefits and facilities — including Provident Fund (PF), Employee State Insurance (ESI),
-                gratuity eligibility, paid leaves and any other company-provided perquisites — shall be applicable
-                only upon confirmation as a Full-Time Employee after completion of the probation period.
+              You will be eligible for all HR benefits and facilities provided by the Company, including Provident Fund (PF), Employee State Insurance (ESI), paid leaves, and any other company-provided benefits and perquisites, in accordance with Company policies and statutory regulations.
               </li>
 
               <li>
@@ -351,7 +349,7 @@ const OfferLetterPreview = ({ formData }) => {
 
               <p className="mt-1">f) Two recent passport-size photographs</p>
 
-              <p className="mt-1">g) One cancelled cheque for bank account verification / security purpose</p>
+              <p className="mt-1">g)  Copy of Bank Passbook / Cancelled Cheque for bank account details</p>
 
               <p className="mt-1">h) Aadhar Card and PAN Card (original and photocopy)</p>
 
