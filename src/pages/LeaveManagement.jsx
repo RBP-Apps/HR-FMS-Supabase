@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, X, Check, Clock, Calendar, Plus, Paperclip, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import supabase from '../utils/supabase';
-
+import { Select } from "antd";
 
 const LeaveManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -698,27 +698,28 @@ const LeaveManagement = () => {
               {/* Employee Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                {/* Employee Name */}
+
                 <div>
                   <label className="block text-xs font-extrabold uppercase tracking-wide text-blue-600 mb-2">
                     Employee Name *
                   </label>
 
-                  <select
+                  <input
+                    type="text"
+                    list="employee-list"
                     name="employeeName"
                     value={formData.employeeName}
                     onChange={handleInputChange}
                     required
+                    placeholder="Search Employee"
                     className="w-full rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-cyan-50 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  >
-                    <option value="">Select Employee</option>
+                  />
 
+                  <datalist id="employee-list">
                     {employees.map((employee) => (
-                      <option key={employee.id} value={employee.name}>
-                        {employee.name}
-                      </option>
+                      <option key={employee.id} value={employee.name} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
 
                 {/* Employee ID */}

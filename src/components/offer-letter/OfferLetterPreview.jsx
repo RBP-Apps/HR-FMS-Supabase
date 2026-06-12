@@ -113,7 +113,7 @@ const OfferLetterPreview = ({ formData }) => {
 
           <p className="mt-2 text-justify">
             We are pleased to offer you the position of <b>{formData.designation}</b> at {formData.companyName}{" "}
-            (India) Pvt. Ltd. This offer is extended based on the outcome of your interview discussions and the
+            This offer is extended based on the outcome of your interview discussions and the
             credentials submitted by you. The terms and conditions governing this offer are detailed below.
           </p>
 
@@ -136,7 +136,7 @@ const OfferLetterPreview = ({ formData }) => {
               </p>
 
               <p>
-                <b>Date of Joining:</b> {formData.joiningDate || formData.joining_date || "-"}
+                <b>Date of Joining:</b> {formatDate(formData.joiningDate || formData.joining_date)}
               </p>
 
               <p>
@@ -183,7 +183,7 @@ const OfferLetterPreview = ({ formData }) => {
             >
               <li>
                 Upon successful completion of the probation period and satisfactory performance review, you will be
-                confirmed as a Permanent / Full-Time Employee of Raisoni Energy (India) Pvt. Ltd.
+                confirmed as a Permanent / Full-Time Employee of {formData.companyName}{" "}
               </li>
 
               <li>
@@ -312,8 +312,7 @@ const OfferLetterPreview = ({ formData }) => {
             }}
           >
             <li>
-              You will be required to abide by all service rules, regulations, and policies of Raisoni Energy (India)
-              Pvt. Ltd. as amended from time to time.
+              You will be required to abide by all service rules, regulations, and policies of {formData.companyName}{" "} as amended from time to time.
             </li>
           </ol>
 
@@ -364,8 +363,7 @@ const OfferLetterPreview = ({ formData }) => {
           <div className="mt-10 text-justify">
             <p>
               Kindly sign and return a copy of this letter as a token of your acceptance of the above terms and
-              conditions. We look forward to welcoming you to our team and wish you a rewarding career at Raisoni
-              Energy (India) Pvt. Ltd.
+              conditions. We look forward to welcoming you to our team and wish you a rewarding career at {formData.companyName}{" "}
             </p>
           </div>
 
