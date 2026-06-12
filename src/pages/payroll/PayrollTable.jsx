@@ -2,22 +2,29 @@ import React from 'react';
 import { Eye, Edit2, Download, Printer, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fmt } from './payrollConstants';
 
-const TH = ({ children, sticky, className = '' }) => (
+const TH = ({ children, sticky, stickyLeft, leftOffset = 0, className = '' }) => (
   <th
+    style={stickyLeft ? { left: leftOffset } : {}}
     className={`px-3 py-3 text-center text-[10px] font-bold text-white uppercase tracking-wide whitespace-nowrap
     ${sticky ? 'sticky right-0 bg-indigo-600 z-20 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.3)]' : ''}
+    ${stickyLeft ? 'sticky left-0 z-20 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.3)]' : ''}
     ${className}`}
   >
     {children}
   </th>
 );
 
-const TD = ({ children, className = '', sticky, even }) => (
-  <td className={`px-3 py-2.5 whitespace-nowrap text-center text-sm
+const TD = ({ children, className = '', sticky, stickyLeft, leftOffset = 0, even }) => (
+  <td
+    style={stickyLeft ? { left: leftOffset } : {}}
+    className={`px-3 py-2.5 whitespace-nowrap text-center text-sm
     ${sticky ? 'sticky right-0 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)]' : ''}
+    ${stickyLeft ? 'sticky left-0 z-10 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.06)]' : ''}
     ${even ? 'bg-slate-50/80' : 'bg-white'}
     ${sticky ? (even ? '!bg-slate-50/80' : '!bg-white') : ''}
-    ${className}`}>
+    ${stickyLeft ? (even ? '!bg-slate-50/80' : '!bg-white') : ''}
+    ${className}`}
+  >
     {children}
   </td>
 );
@@ -73,104 +80,85 @@ const SkeletonRow = () => (
 );
 
 export default function PayrollTable({
-  records, loading, currentPage, rowsPerPage, totalCount,
-  onPageChange, onRowsChange, onView, onEdit, onDownloadPayslip, onPrint, onViewEmployee
+  records, loading, onView, onEdit, onDownloadPayslip, onPrint, onViewEmployee
 }) {
-  const totalPages = Math.ceil(totalCount / rowsPerPage);
-  const startIdx = (currentPage - 1) * rowsPerPage;
-
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* Table scroll wrapper */}
-      <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#c7d2fe #f1f5f9' }}>
+      {/* Table scroll wrapper with fixed max height of 600px */}
+      <div className="overflow-y-auto max-h-[600px] overflow-x-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#c7d2fe #f1f5f9' }}>
         <table className="w-full text-sm border-collapse">
           {/* Gradient sticky header */}
           <thead>
-            <tr className="bg-gradient-to-r from-indigo-600 via-blue-600 to-violet-600 sticky top-0 z-10">
-              <TH>#</TH>
-              <TH>EMP CODE</TH>
-              <TH>UAN</TH>
-              <TH>ESIC</TH>
-              <TH>NAME</TH>
-              <TH>DESIGNATION</TH>
-              <TH>IN HAND</TH>
-              <TH>PRESENT</TH>
-              <TH>WORKING DAY</TH>
+            <tr className="bg-gradient-to-r from-indigo-600 via-blue-600 to-violet-600 sticky top-0 z-20">
+              <TH stickyLeft leftOffset={0} className="w-[48px] min-w-[48px] max-w-[48px] !bg-indigo-600 z-30">#</TH>
+              <TH stickyLeft leftOffset={48} className="w-[180px] min-w-[180px] max-w-[180px] text-left !bg-indigo-600 z-30">NAME</TH>
+              <TH className="!bg-indigo-600">EMP CODE</TH>
+              <TH className="!bg-indigo-600">UAN</TH>
+              <TH className="!bg-indigo-600">ESIC</TH>
+              <TH className="!bg-indigo-600">DESIGNATION</TH>
+              <TH className="!bg-indigo-600">IN HAND</TH>
+              <TH className="!bg-indigo-600">PRESENT</TH>
+              <TH className="!bg-indigo-600">WORKING DAY</TH>
               {/* Real salary columns */}
-              <TH>BASIC+DA (Real)</TH>
-              <TH>HRA (Real)</TH>
-              <TH>CONV (Real)</TH>
-              <TH>MEDICAL (Real)</TH>
-              <TH>SPECIAL (Real)</TH>
-              <TH>GROSS (Real)</TH>
-              {/* Earned columns */}
+              <TH className="!bg-indigo-600">BASIC+DA (Real)</TH>
+              <TH className="!bg-indigo-600">HRA (Real)</TH>
+              <TH className="!bg-indigo-600">CONV (Real)</TH>
+              <TH className="!bg-indigo-600">MEDICAL (Real)</TH>
+              <TH className="!bg-indigo-600">SPECIAL (Real)</TH>
+              <TH className="!bg-indigo-600">GROSS (Real)</TH>
               {/* Earned columns */}
               <TH className="!bg-pink-200 !text-pink-900 border-x border-pink-300">
                 BASIC+DA
               </TH>
-
               <TH className="!bg-pink-200 !text-pink-900 border-x border-pink-300">
                 HRA
               </TH>
-
               <TH className="!bg-pink-200 !text-pink-900 border-x border-pink-300">
                 CONVEYANCE
               </TH>
-
               <TH className="!bg-pink-200 !text-pink-900 border-x border-pink-300">
                 MEDICAL
               </TH>
-
               <TH className="!bg-pink-200 !text-pink-900 border-x border-pink-300">
                 SPECIAL
               </TH>
-
               <TH className="!bg-pink-300 !text-pink-950 border-x border-pink-400 shadow-inner">
                 GROSS SALARY
               </TH>
               {/* Deductions */}
-              <TH>OT</TH>
-
+              <TH className="!bg-indigo-600">OT</TH>
               <TH className="!bg-yellow-200 !text-yellow-900 border-x border-yellow-300">
                 EPF 12%
               </TH>
-
               <TH className="!bg-yellow-200 !text-yellow-900 border-x border-yellow-300">
                 ESIC 0.75%
               </TH>
-
               <TH className="!bg-yellow-200 !text-yellow-900 border-x border-yellow-300">
                 ADVANCE
               </TH>
-
               <TH className="!bg-yellow-200 !text-yellow-900 border-x border-yellow-300">
                 SECURITY DEP.
               </TH>
-
               <TH className="!bg-yellow-200 !text-yellow-900 border-x border-yellow-300">
                 OTHER DED.
               </TH>
-
               <TH className="!bg-yellow-300 !text-yellow-950 border-x border-yellow-400 shadow-inner">
                 TOTAL DED.
               </TH>
               {/* Net */}
-              <TH>REIMBURSEMENT</TH>
-              <TH>SALARY ARREARS</TH>
-              <TH>NET SALARY</TH>
-              <TH>TA DA</TH>
-              <TH>TOTAL PAYABLE</TH>
-              <TH>REMARK</TH>
+              <TH className="!bg-indigo-600">REIMBURSEMENT</TH>
+              <TH className="!bg-indigo-600">SALARY ARREARS</TH>
+              <TH className="!bg-indigo-600">NET SALARY</TH>
+              <TH className="!bg-indigo-600">TA DA</TH>
+              <TH className="!bg-indigo-600">TOTAL PAYABLE</TH>
+              <TH className="!bg-indigo-600">REMARK</TH>
               {/* Employer */}
-              {/* EMPLOYER */}
               <TH className="!bg-green-200 !text-green-900 border-x border-green-300">
                 EMP EPF 13%
               </TH>
-
               <TH className="!bg-green-200 !text-green-900 border-x border-green-300">
                 EMP ESIC 3.25%
               </TH>
-
               <TH className="!bg-green-700 !text-white border-x border-green-800 shadow-inner">
                 CTC
               </TH>
@@ -200,20 +188,33 @@ export default function PayrollTable({
                   const emp = record.employee;
                   const att = record.attendance;
                   const c = record.calc || {};
-                  const rowNum = startIdx + idx + 1;
+                  const rowNum = idx + 1;
 
                   return (
                     <tr
-                      key={record.id}
+                      key={record.id || idx}
                       className={`group transition-colors duration-150 hover:!bg-indigo-50/60 ${even ? 'bg-slate-50/80' : 'bg-white'}`}
                     >
                       {/* SL */}
-                      <TD even={even}>
+                      <TD even={even} stickyLeft leftOffset={0} className="w-[48px] min-w-[48px] max-w-[48px] z-10">
                         <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold
                           inline-flex items-center justify-center">
                           {rowNum}
                         </span>
                       </TD>
+
+                      {/* NAME */}
+                      {/* <TD even={even} stickyLeft leftOffset={48} className=" font-semibold text-gray-800 w-[180px] min-w-[180px] max-w-[180px] z-10 truncate" title={emp?.employee_name || ''}>
+                        {emp?.employee_name || '—'}
+                      </TD> */}
+                      <TD
+  even={even}
+  stickyLeft
+  leftOffset={48}
+  className="font-extrabold text-red-500 text-[14px] tracking-wide bg-indigo-50 w-[220px] min-w-[220px] max-w-[220px] z-10"
+>
+  {emp?.employee_name || '—'}
+</TD>
 
                       {/* EMP CODE */}
                       <TD even={even}>
@@ -230,11 +231,6 @@ export default function PayrollTable({
                       {/* ESIC */}
                       <TD even={even}>
                         <span className="text-xs text-gray-600">{emp?.esic_number || '—'}</span>
-                      </TD>
-
-                      {/* NAME */}
-                      <TD even={even} className="!text-left font-semibold text-gray-800 min-w-[150px]">
-                        {emp?.employee_name || '—'}
                       </TD>
 
                       {/* DESIGNATION */}
@@ -268,24 +264,24 @@ export default function PayrollTable({
                       <TD even={even} className="text-gray-700">{fmt(c.specialReal)}</TD>
                       <TD even={even} className="font-semibold text-gray-800">{fmt(c.grossReal)}</TD>
 
-                      {/* EARNED COLUMNS */}
-                      <TD even={even}>{fmt(c.basicEarned)}</TD>
-                      <TD even={even}>{fmt(c.hraEarned)}</TD>
-                      <TD even={even}>{fmt(c.convEarned)}</TD>
-                      <TD even={even}>{fmt(c.medEarned)}</TD>
-                      <TD even={even}>{fmt(c.specialEarned)}</TD>
-                      <TD even={even} className="font-semibold text-blue-700">{fmt(c.grossEarned)}</TD>
+                      {/* EARNED COLUMNS (Pink Category) */}
+                      <TD even={even} className="!bg-pink-50/50 text-pink-900 font-semibold">{fmt(c.basicEarned)}</TD>
+                      <TD even={even} className="!bg-pink-50/50 text-pink-900 font-semibold">{fmt(c.hraEarned)}</TD>
+                      <TD even={even} className="!bg-pink-50/50 text-pink-900 font-semibold">{fmt(c.convEarned)}</TD>
+                      <TD even={even} className="!bg-pink-50/50 text-pink-900 font-semibold">{fmt(c.medEarned)}</TD>
+                      <TD even={even} className="!bg-pink-50/50 text-pink-900 font-semibold">{fmt(c.specialEarned)}</TD>
+                      <TD even={even} className="font-semibold text-blue-700 !bg-pink-100/50">{fmt(c.grossEarned)}</TD>
 
                       {/* OT */}
                       <TD even={even}>{fmt(c.otAmount)}</TD>
 
-                      {/* DEDUCTIONS */}
-                      <TD even={even} className="text-red-500">{fmt(c.epfDed)}</TD>
-                      <TD even={even} className="text-red-500">{fmt(c.esicDed)}</TD>
-                      <TD even={even} className="text-red-500">{fmt(c.advance)}</TD>
-                      <TD even={even} className="text-red-500">{fmt(c.securityDep)}</TD>
-                      <TD even={even} className="text-red-500">{fmt(c.otherDed)}</TD>
-                      <TD even={even} className="font-bold text-red-600">{fmt(c.totalDed)}</TD>
+                      {/* DEDUCTIONS (Yellow Category) */}
+                      <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.epfDed)}</TD>
+                      <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.esicDed)}</TD>
+                      <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.advance)}</TD>
+                      <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.securityDep)}</TD>
+                      <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.otherDed)}</TD>
+                      <TD even={even} className="font-bold text-red-600 !bg-yellow-100/50">{fmt(c.totalDed)}</TD>
 
                       {/* NET */}
                       <TD even={even} className="text-blue-600">{fmt(c.reimbursement)}</TD>
@@ -302,10 +298,10 @@ export default function PayrollTable({
                         </span>
                       </TD>
 
-                      {/* EMPLOYER */}
-                      <TD even={even} className="text-purple-600">{fmt(c.employerEPF)}</TD>
-                      <TD even={even} className="text-purple-600">{fmt(c.employerESIC)}</TD>
-                      <TD even={even} className="font-bold text-purple-700">{fmt(c.ctc)}</TD>
+                      {/* EMPLOYER (Green Category) */}
+                      <TD even={even} className="text-green-900 font-semibold !bg-green-50/50">{fmt(c.employerEPF)}</TD>
+                      <TD even={even} className="text-green-900 font-semibold !bg-green-50/50">{fmt(c.employerESIC)}</TD>
+                      <TD even={even} className="font-bold text-purple-700 !bg-green-100/50">{fmt(c.ctc)}</TD>
 
                       {/* ACTIONS */}
                       <TD even={even} sticky className="!bg-white group-hover:!bg-indigo-50/60">
@@ -324,66 +320,6 @@ export default function PayrollTable({
           </tbody>
         </table>
       </div>
-
-      {/* Pagination */}
-      {!loading && totalCount > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50/60">
-          <div className="text-sm text-gray-500">
-            Showing <span className="font-semibold text-gray-700">{startIdx + 1}</span>
-            {' '}–{' '}
-            <span className="font-semibold text-gray-700">{Math.min(startIdx + rowsPerPage, totalCount)}</span>
-            {' '}of{' '}
-            <span className="font-semibold text-gray-700">{totalCount}</span> employees
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="p-2 border border-gray-200 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-40 transition-all duration-200"
-            >
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              let page;
-              if (totalPages <= 7) page = i + 1;
-              else if (currentPage <= 4) page = i + 1;
-              else if (currentPage >= totalPages - 3) page = totalPages - 6 + i;
-              else page = currentPage - 3 + i;
-              return (
-                <button
-                  key={page}
-                  onClick={() => onPageChange(page)}
-                  className={`w-8 h-8 rounded-xl text-sm font-semibold transition-all duration-200
-                    ${currentPage === page
-                      ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-300/40'
-                      : 'border border-gray-200 text-gray-600 hover:bg-white hover:shadow-sm'
-                    }`}
-                >
-                  {page}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="p-2 border border-gray-200 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-40 transition-all duration-200"
-            >
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
-
-            <select
-              value={rowsPerPage}
-              onChange={(e) => { onRowsChange(parseInt(e.target.value)); onPageChange(1); }}
-              className="border border-gray-200 rounded-xl px-2 py-1.5 text-sm text-gray-600 bg-white hover:border-indigo-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {[10, 20, 50, 100].map(r => <option key={r} value={r}>{r} / page</option>)}
-            </select>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -16,17 +16,13 @@ import CallTracker from "./pages/CallTracker";
 import AfterJoiningWork from "./pages/AfterJoiningWork";
 import AfterResignatyionWork from "./pages/AfterResignationWork";
 import Employee from "./pages/Employee";
-import MyProfile from "./pages/MyProfile";
 import MySalary from "./pages/MySalary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LeaveManagement from "./pages/LeaveManagement";
 import Attendancedaily from "./pages/Attendancedaily";
 import Report from "./pages/Report";
 import Payroll from "./pages/Payroll";
-import MisReport from "./pages/MisReport";
 import Joining from "./pages/Joining";
-import GatePass from "./pages/GatePass";
-import GatePassRequest from "./pages/GatePassRequest";
 import ResignationApproval from "./pages/ResignationApproval";
 import AddUsers from "./pages/AddUsers";
 import Master from "./pages/Master";
@@ -64,15 +60,11 @@ function App() {
             <Route path="after-joining-work" element={<AfterJoiningWork />} />
             <Route path="after-resignation-work" element={<AfterResignatyionWork />} />
             <Route path="employee" element={<Employee />} />
-            <Route path="my-profile" element={<MyProfile />} />
             <Route path="my-salary" element={<MySalary />} />
             <Route path="leave-management" element={<LeaveManagement />} />
-            <Route path="gate-pass" element={<GatePass />} />
-            <Route path="gate-pass-request" element={<GatePassRequest />} />
             <Route path="attendancedaily" element={<Attendancedaily />} />
             <Route path="report" element={<Report />} />
             <Route path="payroll" element={<Payroll />} />
-            <Route path="misreport" element={<MisReport />} />
             <Route path="resignation_approval" element={<ResignationApproval />} />
             <Route path="add_users" element={<AddUsers />} />
             <Route path="master_hr" element={<Master />} />

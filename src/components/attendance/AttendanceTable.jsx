@@ -6,6 +6,10 @@ const STATUS_STYLE = {
   CL: { bg: "bg-violet-100 text-violet-700 border-violet-200", label: "CL" },
   HD: { bg: "bg-orange-100 text-orange-700 border-orange-200", label: "HD" },
   WO: { bg: "bg-slate-100 text-slate-500 border-slate-200", label: "WO" },
+  EL: { bg: "bg-teal-100 text-teal-700 border-teal-200", label: "EL" },
+  LWP: { bg: "bg-rose-100 text-rose-700 border-rose-200", label: "LWP" },
+  H: { bg: "bg-indigo-100 text-indigo-700 border-indigo-200", label: "H" },
+  PM: { bg: "bg-yellow-100 text-yellow-700 border-yellow-200", label: "PM" },
 };
 
 const AVATAR_COLORS = [
@@ -28,7 +32,7 @@ function Avatar({ initials, idx, size = "w-8 h-8" }) {
 }
 
 function StatBadge({ status }) {
-  const s = STATUS_STYLE[status] || STATUS_STYLE.P;
+  const s = STATUS_STYLE[status] || { bg: "bg-slate-50 text-slate-400 border-slate-100", label: status || "-" };
   return (
     <span className={`inline-flex items-center justify-center w-7 h-6 rounded text-[10px] font-bold border ${s.bg} leading-none`}>
       {s.label}
@@ -91,6 +95,10 @@ export default function AttendanceTable({
             { key: "CL", label: "Casual Leave", cls: "bg-violet-100 text-violet-700" },
             { key: "HD", label: "Half Day", cls: "bg-orange-100 text-orange-700" },
             { key: "WO", label: "Week Off", cls: "bg-slate-100 text-slate-500" },
+            { key: "EL", label: "Earned Leave", cls: "bg-teal-100 text-teal-700" },
+            { key: "LWP", label: "LWP", cls: "bg-rose-100 text-rose-700" },
+            { key: "H", label: "Holiday", cls: "bg-indigo-100 text-indigo-700" },
+            { key: "PM", label: "Punch Missing", cls: "bg-yellow-100 text-yellow-700" },
           ].map(({ key, label, cls }) => (
             <span key={key} className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${cls}`}>
               <span className="font-black">{key}</span> {label}

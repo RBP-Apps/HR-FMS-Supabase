@@ -69,8 +69,8 @@ export default function EditAttendanceModal({
                 const status = attendanceArray[i];
 
                 return (
-                  <option key={dateStr} value={dateStr} disabled={isFuture || status === "WO" || status === "CL"}>
-                    {dateStr} - Current: {status === "P" ? "Present" : status === "A" ? "Absent" : status} {isFuture ? "(Future Date - Cannot Edit)" : (status === "WO" ? "(Week Off)" : status === "CL" ? "(Leave)" : "")}
+                  <option key={dateStr} value={dateStr} disabled={isFuture}>
+                    {dateStr} - Current: {status} {isFuture ? "(Future Date - Cannot Edit)" : ""}
                   </option>
                 );
               })}
@@ -91,15 +91,23 @@ export default function EditAttendanceModal({
           )}
 
           {/* New Status Selection */}
-          {editModalData.date && editModalData.currentStatus !== "WO" && editModalData.currentStatus !== "CL" && (
+          {editModalData.date && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Change To</label>
               <select
                 id="newStatusSelect"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                defaultValue={editModalData.currentStatus || "P"}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
               >
-                <option value="P">Present</option>
-                <option value="A">Absent</option>
+                <option value="P">P (Present)</option>
+                <option value="A">A (Absent)</option>
+                <option value="HD">HD (Half Day)</option>
+                <option value="CL">CL (Casual Leave)</option>
+                <option value="EL">EL (Earned Leave)</option>
+                <option value="LWP">LWP (Leave Without Pay)</option>
+                <option value="WO">WO (Weekly Off)</option>
+                <option value="H">H (Holiday)</option>
+                <option value="PM">PM (Punch Missing)</option>
               </select>
             </div>
           )}

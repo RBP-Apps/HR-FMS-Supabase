@@ -48,34 +48,59 @@ const DEFAULT_FILTERS = {
 };
 
 export default function PayrollPage() {
-  // ─── Core data ────────────────────────────────────────────────────
+  // ─── Main navigation tab ──────────────────────────────────────────
+  const [mainTab, setMainTab] = useState('processing'); // 'processing' | 'history'
+
+  // ─── Core processing data ─────────────────────────────────────────
   const [employees, setEmployees] = useState([]);
   const [attendances, setAttendances] = useState([]);
-  // edits: { [recordId]: { advance, security_deposit, other_deduction, reimbursement, salary_arrears, ta_da, ot, remark } }
   const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
+  const [isFinalized, setIsFinalized] = useState(false);
 
-  // ─── Filters ──────────────────────────────────────────────────────
+  // ─── Filters & Tab selections ──────────────────────────────────────
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [cardFilter, setCardFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
   const searchTimer = useRef(null);
 
-  // ─── Pagination ───────────────────────────────────────────────────
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
-
   // ─── Modals ───────────────────────────────────────────────────────
   const [editRecord, setEditRecord] = useState(null);
   const [payslipRecord, setPayslipRecord] = useState(null);
 
-  // ─── Toast ────────────────────────────────────────────────────────
+  // ─── History-specific states ──────────────────────────────────────
+  const [historyLogs, setHistoryLogs] = useState([]);
+  const [selectedHistoryLog, setSelectedHistoryLog] = useState(null);
+  const [historyRecords, setHistoryRecords] = useState([]);
+  const [historySearch, setHistorySearch] = useState('');
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // ─── Toast notifications ──────────────────────────────────────────
   const [toasts, setToasts] = useState([]);
   const addToast = useCallback((message, type = 'success') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }, []);
+
+  // ─── Check finalization status ────────────────────────────────────
+  const checkIfFinalized = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payroll_finalization_log')
+        .select('*')
+        .eq('month', Number(filters.month) + 1)
+        .eq('year', Number(filters.year));
+      
+      if (error) {
+        setIsFinalized(false);
+        return;
+      }
+      setIsFinalized(data && data.length > 0);
+    } catch (err) {
+      setIsFinalized(false);
+    }
+  }, [filters.month, filters.year]);
 
   // ─── Fetch employees ──────────────────────────────────────────────
   const fetchEmployees = useCallback(async () => {
@@ -105,7 +130,7 @@ export default function PayrollPage() {
     }));
   }, [addToast]);
 
-  // ─── Fetch attendances ────────────────────────────────────────────
+  // ─── Fetch attendances (optimized O(1) lookups) ────────────────────
   const fetchAttendances = useCallback(async (empList, month, year) => {
     const mVal = Number(month);
     const yVal = Number(year);
@@ -124,44 +149,65 @@ export default function PayrollPage() {
         .lte('date', `${prefix}-${daysInMonth}`),
     ]);
 
+    // Create O(1) indexes
+    const bioMap = {};
+    (bioLogs || []).forEach(b => {
+      const codeKey = b.employee_id ? `${b.employee_id.trim().toLowerCase()}_${b.attendance_date}` : null;
+      const nameKey = b.employee_name ? `${b.employee_name.trim().toLowerCase()}_${b.attendance_date}` : null;
+      const hasPunch = b.in_time || b.out_time;
+      if (hasPunch) {
+        if (codeKey) bioMap[codeKey] = true;
+        if (nameKey) bioMap[nameKey] = true;
+      }
+    });
+
+    const manualMap = {};
+    const leaveMap = {};
+    const fieldMap = {};
+    (attLogs || []).forEach(a => {
+      const nameKey = a.person_name ? `${a.person_name.trim().toLowerCase()}_${a.date}` : null;
+      const codeKey = a.employee_code ? `${a.employee_code.trim().toLowerCase()}_${a.date}` : null;
+      
+      if (a.approved_status === 'corrected') {
+        const isPresent = a.status === 'P' || a.status === 'IN';
+        if (nameKey) manualMap[nameKey] = isPresent ? 'P' : 'A';
+        if (codeKey) manualMap[codeKey] = isPresent ? 'P' : 'A';
+      } else if (a.status === 'CL') {
+        if (nameKey) leaveMap[nameKey] = 'CL';
+        if (codeKey) leaveMap[codeKey] = 'CL';
+      } else {
+        if (nameKey) fieldMap[nameKey] = true;
+        if (codeKey) fieldMap[codeKey] = true;
+      }
+    });
+
     return empList.map(emp => {
+      const empNameClean = emp.employee_name?.trim().toLowerCase();
+      const empCodeClean = emp.rbp_joining_id?.trim().toLowerCase();
+
       let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         const dayStr = `${prefix}-${String(d).padStart(2, '0')}`;
         const isSunday = new Date(yVal, mVal, d).getDay() === 0;
         let status = isSunday ? 'WO' : 'A';
 
-        const manual = (attLogs || []).find(a =>
-          (a.person_name?.toLowerCase() === emp.employee_name?.toLowerCase() ||
-           a.employee_code === emp.rbp_joining_id) &&
-          a.date === dayStr && a.approved_status === 'corrected'
-        );
-        if (manual) {
-          status = (manual.status === 'P' || manual.status === 'IN') ? 'P' : 'A';
+        const nameKey = empNameClean ? `${empNameClean}_${dayStr}` : '';
+        const codeKey = empCodeClean ? `${empCodeClean}_${dayStr}` : '';
+
+        const manualStatus = (nameKey && manualMap[nameKey]) || (codeKey && manualMap[codeKey]);
+        if (manualStatus) {
+          status = manualStatus;
         } else {
-          const leave = (attLogs || []).find(a =>
-            (a.person_name?.toLowerCase() === emp.employee_name?.toLowerCase() ||
-             a.employee_code === emp.rbp_joining_id) &&
-            a.date === dayStr && a.status === 'CL'
-          );
-          if (leave) {
+          const leaveStatus = (nameKey && leaveMap[nameKey]) || (codeKey && leaveMap[codeKey]);
+          if (leaveStatus) {
             status = 'CL';
           } else {
-            const bio = (bioLogs || []).some(b =>
-              (b.employee_id === emp.rbp_joining_id ||
-               b.employee_name?.trim().toLowerCase() === emp.employee_name?.trim().toLowerCase()) &&
-              b.attendance_date === dayStr &&
-              (b.in_time || b.out_time)
-            );
-            if (bio) {
+            const hasBio = (codeKey && bioMap[codeKey]) || (nameKey && bioMap[nameKey]);
+            if (hasBio) {
               status = 'P';
             } else {
-              const field = (attLogs || []).some(a =>
-                (a.person_name?.toLowerCase() === emp.employee_name?.toLowerCase() ||
-                  a.employee_code === emp.rbp_joining_id) &&
-                a.date === dayStr && a.status !== 'CL'
-              );
-              if (field) status = 'P';
+              const hasField = (nameKey && fieldMap[nameKey]) || (codeKey && fieldMap[codeKey]);
+              if (hasField) status = 'P';
             }
           }
         }
@@ -183,7 +229,7 @@ export default function PayrollPage() {
     });
   }, []);
 
-  // ─── Load data ────────────────────────────────────────────────────
+  // ─── Load live processing data ────────────────────────────────────
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -193,14 +239,19 @@ export default function PayrollPage() {
         const atts = await fetchAttendances(emps, filters.month, filters.year);
         setAttendances(atts);
       }
+      await checkIfFinalized();
     } catch (err) {
       addToast('Failed to load payroll data', 'error');
     } finally {
       setLoading(false);
     }
-  }, [fetchEmployees, fetchAttendances, filters.month, filters.year, addToast]);
+  }, [fetchEmployees, fetchAttendances, filters.month, filters.year, checkIfFinalized, addToast]);
 
-  useEffect(() => { loadData(); }, [filters.month, filters.year]);
+  useEffect(() => {
+    if (mainTab === 'processing') {
+      loadData();
+    }
+  }, [filters.month, filters.year, mainTab]);
 
   // ─── Build enriched records ───────────────────────────────────────
   const allRecords = useMemo(() => {
@@ -222,19 +273,15 @@ export default function PayrollPage() {
     });
   }, [employees, attendances, edits, filters.month, filters.year]);
 
-  // ─── Filtered records ─────────────────────────────────────────────
+  // ─── Filtered live records ────────────────────────────────────────
   const filteredRecords = useMemo(() => {
     let list = [...allRecords];
 
     // Tab filter
     if (activeTab === 'biometric') {
-      list = list.filter(r => 
-        r.employee.employee_category === 'Office Staff'
-      );
+      list = list.filter(r => r.employee.employee_category === 'Office Staff');
     } else if (activeTab === 'field') {
-      list = list.filter(r => 
-        r.employee.employee_category === 'Field Staff'
-      );
+      list = list.filter(r => r.employee.employee_category === 'Field Staff');
     }
 
     // Card filter
@@ -289,16 +336,9 @@ export default function PayrollPage() {
     payrollStatus: 'Processed',
   }), [filteredRecords, filters.month, filters.year]);
 
-  // ─── Paginated records ────────────────────────────────────────────
-  const paginatedRecords = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return filteredRecords.slice(start, start + rowsPerPage);
-  }, [filteredRecords, currentPage, rowsPerPage]);
-
   // ─── Card click handler ───────────────────────────────────────────
   const handleCardClick = (filterKey) => {
     setCardFilter(prev => prev === filterKey ? 'all' : filterKey);
-    setCurrentPage(1);
   };
 
   // ─── Filter change with debounced search ──────────────────────────
@@ -307,29 +347,105 @@ export default function PayrollPage() {
       clearTimeout(searchTimer.current);
       searchTimer.current = setTimeout(() => {
         setFilters(prev => ({ ...prev, search: value }));
-        setCurrentPage(1);
       }, 300);
       return;
     }
     setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1);
   };
 
   const handleFilterReset = () => {
     setFilters(DEFAULT_FILTERS);
     setCardFilter('all');
-    setCurrentPage(1);
     addToast('All filters cleared');
   };
 
-  // ─── Save edits ───────────────────────────────────────────────────
+  // ─── Save live edits ──────────────────────────────────────────────
   const handleSaveEdit = (recordId, newEdits) => {
     setEdits(prev => ({ ...prev, [recordId]: newEdits }));
     setEditRecord(null);
     addToast('Payroll record updated successfully');
   };
 
-  // ─── Export to Excel ──────────────────────────────────────────────
+  // ─── Submit & Finalize Month ──────────────────────────────────────
+  const handleFinalizePayroll = async () => {
+    const monthName = MONTHS[filters.month];
+    const yearVal = filters.year;
+
+    const confirmFinalize = window.confirm(
+      `Are you sure you want to finalize and lock the payroll for ${monthName} ${yearVal}? This will save all current calculations to the payroll history.`
+    );
+    if (!confirmFinalize) return;
+
+    try {
+      // 1. Fetch current user
+      const { data: { user } } = await supabase.auth.getUser();
+      const userName = user?.email || 'HR Admin';
+
+      // 2. Insert log row
+      const { error: logError } = await supabase
+        .from('payroll_finalization_log')
+        .insert({
+          month: Number(filters.month) + 1,
+          year: Number(filters.year),
+          company: 'RBP FMS',
+          finalized_by: userName
+        });
+
+      if (logError) {
+        if (logError.message.includes('relation') || logError.code === '42P01') {
+          addToast('Database tables not found. Please create the required SQL tables first!', 'error');
+          return;
+        }
+        throw logError;
+      }
+
+      // 3. Write rows to payroll_history
+      const historyRows = filteredRecords.map(r => ({
+        employee_id: r.employee.id,
+        employee_name: r.employee.employee_name,
+        employee_code: r.employee.rbp_joining_id,
+        month: Number(filters.month) + 1,
+        year: Number(filters.year),
+        gross_salary: r.employee.gross_salary,
+        basic_earned: r.calc.basicEarned,
+        hra_earned: r.calc.hraEarned,
+        conv_earned: r.calc.convEarned,
+        med_earned: r.calc.medEarned,
+        special_earned: r.calc.specialEarned,
+        gross_earned: r.calc.grossEarned,
+        ot_amount: r.calc.otAmount,
+        epf_ded: r.calc.epfDed,
+        esic_ded: r.calc.esicDed,
+        advance: r.calc.advance,
+        security_dep: r.calc.securityDep,
+        other_ded: r.calc.otherDed,
+        total_ded: r.calc.totalDed,
+        reimbursement: r.calc.reimbursement,
+        salary_arrears: r.calc.salaryArrears,
+        net_salary: r.calc.netSalary,
+        ta_da: r.calc.taDA,
+        total_payable: r.calc.totalPayable,
+        employer_epf: r.calc.employerEPF,
+        employer_esic: r.calc.employerESIC,
+        ctc: r.calc.ctc,
+        remark: r.calc.remark || ''
+      }));
+
+      const { error: historyError } = await supabase
+        .from('payroll_history')
+        .upsert(historyRows, { onConflict: 'employee_id,month,year' });
+
+      if (historyError) throw historyError;
+
+      addToast(`Payroll for ${monthName} ${yearVal} finalized and locked successfully!`, 'success');
+      await checkIfFinalized();
+    } catch (err) {
+      console.error(err);
+      addToast('Error saving payroll to history: ' + err.message, 'error');
+    }
+  };
+
+  // ─── Export live table to Excel ──────────────────────────────────
   const handleExcelExport = () => {
     const data = filteredRecords.map((r, i) => ({
       'SL': i + 1,
@@ -367,82 +483,376 @@ export default function PayrollPage() {
     addToast('Exported to Excel successfully');
   };
 
-  const handlePdfExport = () => addToast('PDF export coming soon', 'warning');
-  const handleDownloadPayslips = () => addToast('Bulk payslip download coming soon', 'warning');
+  // ─── Export History Month to Excel ───────────────────────────────
+  const handleHistoryExcelExport = () => {
+    if (!selectedHistoryLog) return;
+    const data = filteredHistoryRecords.map((r, i) => ({
+      'SL': i + 1,
+      'EMP CODE': r.employee.rbp_joining_id,
+      'NAME': r.employee.employee_name,
+      'GROSS': r.calc.grossReal,
+      'BASIC EARNED': r.calc.basicEarned,
+      'HRA EARNED': r.calc.hraEarned,
+      'CONVEYANCE EARNED': r.calc.convEarned,
+      'MEDICAL EARNED': r.calc.medEarned,
+      'SPECIAL EARNED': r.calc.specialEarned,
+      'GROSS EARNED': r.calc.grossEarned,
+      'OT': r.calc.otAmount,
+      'EPF 12%': r.calc.epfDed,
+      'ESIC 0.75%': r.calc.esicDed,
+      'ADVANCE': r.calc.advance,
+      'SECURITY DEP': r.calc.securityDep,
+      'OTHER DED': r.calc.otherDed,
+      'TOTAL DED': r.calc.totalDed,
+      'REIMBURSEMENT': r.calc.reimbursement,
+      'SALARY ARREARS': r.calc.salaryArrears,
+      'NET SALARY': r.calc.netSalary,
+      'TA DA': r.calc.taDA,
+      'TOTAL PAYABLE': r.calc.totalPayable,
+      'EMPLOYER EPF 13%': r.calc.employerEPF,
+      'EMPLOYER ESIC 3.25%': r.calc.employerESIC,
+      'CTC': r.calc.ctc,
+      'REMARK': r.calc.remark,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Finalized_${MONTHS[selectedHistoryLog.month - 1]}_${selectedHistoryLog.year}`);
+    XLSX.writeFile(wb, `finalized_payroll_${selectedHistoryLog.year}_${selectedHistoryLog.month}.xlsx`);
+    addToast('History exported to Excel successfully');
+  };
 
-  // ─── Render ───────────────────────────────────────────────────────
+  // ─── Fetch history entries list ───────────────────────────────────
+  const fetchHistoryLogs = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('payroll_finalization_log')
+        .select('*')
+        .order('year', { ascending: false })
+        .order('month', { ascending: false });
+      
+      if (error) {
+        if (error.code === '42P01') {
+          // Table doesn't exist yet
+          setHistoryLogs([]);
+          return;
+        }
+        throw error;
+      }
+      setHistoryLogs(data || []);
+    } catch (err) {
+      console.error(err);
+      addToast('Failed to load history logs: ' + err.message, 'error');
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [addToast]);
+
+  // ─── Load history month records ───────────────────────────────────
+  const loadHistoryMonth = async (log) => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('payroll_history')
+        .select('*')
+        .eq('month', log.month)
+        .eq('year', log.year);
+      if (error) throw error;
+
+      const mapped = (data || []).map((row, idx) => ({
+        id: row.id,
+        employee: {
+          id: row.employee_id,
+          rbp_joining_id: row.employee_code,
+          employee_name: row.employee_name,
+          gross_salary: Number(row.gross_salary),
+          department: 'N/A',
+          designation: 'N/A'
+        },
+        attendance: {
+          present_days: 0,
+          working_days: 0,
+        },
+        calc: {
+          basicReal: 0, hraReal: 0, convReal: 0, medReal: 0, specialReal: 0, grossReal: row.gross_salary,
+          basicEarned: Number(row.basic_earned),
+          hraEarned: Number(row.hra_earned),
+          convEarned: Number(row.conv_earned),
+          medEarned: Number(row.med_earned),
+          specialEarned: Number(row.special_earned),
+          grossEarned: Number(row.gross_earned),
+          otAmount: Number(row.ot_amount),
+          epfDed: Number(row.epf_ded),
+          esicDed: Number(row.esic_ded),
+          advance: Number(row.advance),
+          securityDep: Number(row.security_dep),
+          otherDed: Number(row.other_ded),
+          totalDed: Number(row.total_ded),
+          reimbursement: Number(row.reimbursement),
+          salaryArrears: Number(row.salary_arrears),
+          netSalary: Number(row.net_salary),
+          taDA: Number(row.ta_da),
+          totalPayable: Number(row.total_payable),
+          employerEPF: Number(row.employer_epf),
+          employerESIC: Number(row.employer_esic),
+          ctc: Number(row.ctc),
+          remark: row.remark || ''
+        }
+      }));
+      setHistoryRecords(mapped);
+      setSelectedHistoryLog(log);
+    } catch (err) {
+      addToast('Failed to load history month records: ' + err.message, 'error');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mainTab === 'history') {
+      fetchHistoryLogs();
+    }
+  }, [mainTab, fetchHistoryLogs]);
+
+  // ─── Filtered history rows list ───────────────────────────────────
+  const filteredHistoryRecords = useMemo(() => {
+    if (!historySearch) return historyRecords;
+    const q = historySearch.toLowerCase();
+    return historyRecords.filter(r => 
+      r.employee.employee_name?.toLowerCase().includes(q) ||
+      r.employee.rbp_joining_id?.toLowerCase().includes(q)
+    );
+  }, [historyRecords, historySearch]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50">
       <Toast toasts={toasts} />
 
       <div className="p-4 md:p-6 space-y-6 max-w-[1920px] mx-auto">
-
-        {/* ── Page Header ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-700 to-blue-600 bg-clip-text text-transparent tracking-tight">
-              Payroll Processing
-            </h1>
-            <p className="text-gray-500 text-sm mt-0.5">
-              {MONTHS[filters.month]} {filters.year} &nbsp;·&nbsp; {filteredRecords.length} employees
-            </p>
-          </div>
-        </div>
-
-        {/* ── Tabs ── */}
-        <div className="flex items-center gap-3 py-1">
-          {[
-            { id: 'all', label: 'All Payroll', icon: '📋' },
-            { id: 'biometric', label: 'Biometric Payroll', icon: '👆' },
-            { id: 'field', label: 'Filed Payroll', icon: '📍' }
-          ].map(tab => (
+        {/* ── Main Top Tab Bar ── */}
+        <div className="flex justify-between items-center bg-white/80 backdrop-blur border border-white/60 p-2.5 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2">
             <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${
-                activeTab === tab.id
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-2 ring-indigo-600 ring-offset-2 ring-offset-slate-50'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200'
+              onClick={() => { setMainTab('processing'); setSelectedHistoryLog(null); }}
+              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+                mainTab === 'processing'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
-              <span className="text-base leading-none">{tab.icon}</span>
-              {tab.label}
+              ⚙️ Process Current Payroll
             </button>
-          ))}
+            <button
+              onClick={() => setMainTab('history')}
+              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+                mainTab === 'history'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              📅 Finalized Payroll History
+            </button>
+          </div>
+
+          {mainTab === 'processing' && (
+            <div className="flex items-center gap-3">
+              {isFinalized ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Finalized & Locked
+                </span>
+              ) : (
+                <button
+                  onClick={handleFinalizePayroll}
+                  disabled={loading || filteredRecords.length === 0}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-xs font-bold shadow-md hover:from-emerald-700 hover:to-green-700 transition-all duration-150 disabled:opacity-50"
+                >
+                  🔒 Lock & Finalize Month
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* ── Dashboard Cards ── */}
-        <PayrollCards
-          summary={summary}
-          activeCardFilter={cardFilter}
-          onCardClick={handleCardClick}
-        />
+        {mainTab === 'processing' ? (
+          /* ── PROCESSING VIEW ── */
+          <>
+            {/* Header info */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-700 to-blue-600 bg-clip-text text-transparent tracking-tight">
+                  Payroll Processing
+                </h1>
+                <p className="text-gray-500 text-sm mt-0.5">
+                  {MONTHS[filters.month]} {filters.year} &nbsp;·&nbsp; {filteredRecords.length} Employees
+                </p>
+              </div>
+            </div>
 
-        {/* ── Filters ── */}
-        <PayrollFilters
-          filters={filters}
-          onChange={handleFilterChange}
-          onReset={handleFilterReset}
-          onExcelExport={handleExcelExport}
-          onPdfExport={handlePdfExport}
-          onDownloadPayslip={handleDownloadPayslips}
-        />
+            {/* Category tabs */}
+            <div className="flex items-center gap-3 py-1">
+              {[
+                { id: 'all', label: 'All Payroll', icon: '📋' },
+                { id: 'biometric', label: 'Biometric Payroll', icon: '👆' },
+                { id: 'field', label: 'Field Payroll', icon: '📍' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${
+                    activeTab === tab.id
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-base leading-none">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-        {/* ── Table ── */}
-        <PayrollTable
-          records={paginatedRecords}
-          loading={loading}
-          currentPage={currentPage}
-          rowsPerPage={rowsPerPage}
-          totalCount={filteredRecords.length}
-          onPageChange={setCurrentPage}
-          onRowsChange={setRowsPerPage}
-          onView={(r) => setPayslipRecord(r)}
-          onEdit={(r) => setEditRecord(r)}
-          onDownloadPayslip={(r) => { setPayslipRecord(r); addToast('Opening payslip...'); }}
-          onPrint={(r) => { setPayslipRecord(r); setTimeout(() => window.print(), 300); }}
-          onViewEmployee={(r) => addToast(`Viewing ${r.employee?.employee_name}`, 'success')}
-        />
+            {/* Dashboard Cards */}
+            <PayrollCards
+              summary={summary}
+              activeCardFilter={cardFilter}
+              onCardClick={handleCardClick}
+            />
+
+            {/* Filters bar */}
+            <PayrollFilters
+              filters={filters}
+              onChange={handleFilterChange}
+              onReset={handleFilterReset}
+              onExcelExport={handleExcelExport}
+            />
+
+            {/* Main Table */}
+            <PayrollTable
+              records={filteredRecords}
+              loading={loading}
+              onView={(r) => setPayslipRecord(r)}
+              onEdit={isFinalized ? null : (r) => setEditRecord(r)}
+              onDownloadPayslip={(r) => { setPayslipRecord(r); addToast('Opening payslip...'); }}
+              onPrint={(r) => { setPayslipRecord(r); setTimeout(() => window.print(), 300); }}
+              onViewEmployee={(r) => addToast(`Employee ID: ${r.employee?.rbp_joining_id}`, 'success')}
+            />
+          </>
+        ) : (
+          /* ── HISTORY VIEW ── */
+          <>
+            {selectedHistoryLog === null ? (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-gray-800">Finalized Payroll History Log</h2>
+                  <p className="text-gray-500 text-sm">Select any previously finalized month to view records and generate sheets.</p>
+                </div>
+
+                {loadingHistory ? (
+                  <div className="py-20 text-center text-gray-500 font-semibold">Loading finalized log entries...</div>
+                ) : historyLogs.length === 0 ? (
+                  <div className="py-20 text-center border border-dashed border-gray-200 rounded-2xl">
+                    <p className="text-gray-400 text-sm">No payroll months have been finalized yet.</p>
+                    <p className="text-gray-400 text-xs mt-1">Please finalize a month in the "Process Current Payroll" tab to record it here.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse text-left">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-gray-100">
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">SL</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Month</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Year</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Company/Scope</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Finalized By</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Submitted At</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historyLogs.map((log, idx) => (
+                          <tr key={log.id || idx} className="border-b border-gray-50 hover:bg-slate-50/50">
+                            <td className="px-4 py-3 font-semibold text-gray-700">{idx + 1}</td>
+                            <td className="px-4 py-3 font-bold text-indigo-700">{MONTHS[log.month - 1]}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-800">{log.year}</td>
+                            <td className="px-4 py-3 text-gray-600">{log.company}</td>
+                            <td className="px-4 py-3 text-gray-600">{log.finalized_by || 'HR Admin'}</td>
+                            <td className="px-4 py-3 text-gray-500 text-xs">
+                              {log.submitted_at ? new Date(log.submitted_at).toLocaleString('en-IN') : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => loadHistoryMonth(log)}
+                                className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold rounded-lg transition-colors"
+                              >
+                                View Records 🔍
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Selected History Month Records Grid */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => { setSelectedHistoryLog(null); setHistoryRecords([]); }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
+                    >
+                      ⬅️ Back to Logs
+                    </button>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-800">
+                        Finalized Payroll: {MONTHS[selectedHistoryLog.month - 1]} {selectedHistoryLog.year}
+                      </h2>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Locked & Archived · {filteredHistoryRecords.length} records found
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleHistoryExcelExport}
+                      className="px-3.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold rounded-xl shadow-sm transition-colors"
+                    >
+                      📥 Export Month Excel
+                    </button>
+                  </div>
+                </div>
+
+                {/* Local search bar for history records */}
+                <div className="bg-white border border-gray-100 p-3 rounded-2xl shadow-sm max-w-sm">
+                  <input
+                    type="text"
+                    placeholder="Search by Employee Name or Code..."
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {loadingHistory ? (
+                  <div className="py-20 text-center text-gray-500 font-semibold">Loading finalized records...</div>
+                ) : (
+                  <PayrollTable
+                    records={filteredHistoryRecords}
+                    loading={false}
+                    onView={(r) => setPayslipRecord(r)}
+                    onEdit={null} // Read-only history
+                    onDownloadPayslip={(r) => { setPayslipRecord(r); addToast('Opening payslip...'); }}
+                    onPrint={(r) => { setPayslipRecord(r); setTimeout(() => window.print(), 300); }}
+                    onViewEmployee={(r) => addToast(`Employee ID: ${r.employee?.rbp_joining_id}`, 'success')}
+                  />
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* ── Edit Modal ── */}
@@ -458,11 +868,12 @@ export default function PayrollPage() {
       {payslipRecord && (
         <PayslipModal
           record={payslipRecord}
-          selectedMonth={filters.month}
-          selectedYear={filters.year}
+          selectedMonth={selectedHistoryLog ? selectedHistoryLog.month - 1 : filters.month}
+          selectedYear={selectedHistoryLog ? selectedHistoryLog.year : filters.year}
           onClose={() => setPayslipRecord(null)}
         />
       )}
     </div>
   );
 }
+

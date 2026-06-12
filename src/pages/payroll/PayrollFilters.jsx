@@ -26,6 +26,17 @@ const SelectField = ({ label, value, onChange, children }) => (
 
 export default function PayrollFilters({ filters, onChange, onReset, onExcelExport, onPdfExport, onDownloadPayslip }) {
   const set = (key) => (e) => onChange(key, e.target.value);
+  const [localSearch, setLocalSearch] = React.useState(filters.search || '');
+
+  React.useEffect(() => {
+    setLocalSearch(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setLocalSearch(val);
+    onChange('search', val);
+  };
 
   return (
     <div className="bg-white/80 backdrop-blur border border-white/60 rounded-2xl shadow-sm p-4 space-y-4">
@@ -80,8 +91,8 @@ export default function PayrollFilters({ filters, onChange, onReset, onExcelExpo
             <input
               type="text"
               placeholder="Name, Code, UAN, ESIC..."
-              value={filters.search}
-              onChange={set('search')}
+              value={localSearch}
+              onChange={handleSearchChange}
               className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-700 shadow-sm
                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                 hover:border-blue-400 transition-all duration-200"
@@ -147,24 +158,6 @@ export default function PayrollFilters({ filters, onChange, onReset, onExcelExpo
         >
           <FileSpreadsheet className="w-4 h-4" />
           Export Excel
-        </button>
-
-        <button
-          onClick={onPdfExport}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-semibold
-            shadow-md shadow-red-300/50 hover:shadow-lg hover:scale-105 transition-all duration-200"
-        >
-          <FileText className="w-4 h-4" />
-          Export PDF
-        </button>
-
-        <button
-          onClick={onDownloadPayslip}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold
-            shadow-md shadow-blue-300/50 hover:shadow-lg hover:scale-105 transition-all duration-200"
-        >
-          <Download className="w-4 h-4" />
-          Download Payslips
         </button>
       </div>
     </div>
