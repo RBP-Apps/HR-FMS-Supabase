@@ -273,7 +273,7 @@ const ListView = ({
                     )}
                     {activeTab !== "history" && (
                       <td className="px-6 py-4">
-                        {activeTab === "pending" && (offer.status === "Draft" || offer.status === "Pending") && (
+                        {/* {activeTab === "pending" && (offer.status === "Draft" || offer.status === "Pending") && (
                           <button
                             onClick={() => onSendOfferEmail && onSendOfferEmail(offer)}
                             className="inline-flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"
@@ -290,7 +290,7 @@ const ListView = ({
                             <Plus size={12} />
                             Create Conf
                           </button>
-                        )}
+                        )} */}
                       </td>
                     )}
                   </tr>

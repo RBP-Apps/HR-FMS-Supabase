@@ -125,10 +125,10 @@ export default function AttendanceTable({
         <table className="w-full border-collapse text-[11px]" style={{ minWidth: 1200 }}>
           <thead>
             <tr className="text-white">
-              <th className="sticky left-0 top-0 z-30 bg-indigo-600 text-center px-2 py-2 font-semibold whitespace-nowrap w-10 border-b border-indigo-700">
+              <th className="sticky left-0 top-0 z-30 bg-indigo-600 text-center px-2 py-2 font-semibold whitespace-nowrap w-10 min-w-[40px] max-w-[40px] border-b border-indigo-700">
                 S.No.
               </th>
-              <th className="sticky left-10 top-0 z-30 bg-indigo-600 text-left px-3 py-2 font-semibold whitespace-nowrap w-40 border-b border-indigo-700">
+              <th className="sticky left-10 top-0 z-30 bg-indigo-600 text-left px-3 py-2 font-semibold whitespace-nowrap w-40 min-w-[160px] max-w-[160px] border-b border-indigo-700">
                 Employee
               </th>
               {daysOfWeek.map((day, i) => (
@@ -152,20 +152,20 @@ export default function AttendanceTable({
               return (
                 <React.Fragment key={emp.id}>
                   <tr
-                    className={`border-b border-slate-100 hover:bg-violet-50/30 transition-colors cursor-pointer ${isExpanded ? "bg-violet-50/40" : ri % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}
+                    className={`group border-b border-slate-100 hover:bg-violet-50/30 transition-colors cursor-pointer ${isExpanded ? "bg-violet-50/40" : ri % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
                     onClick={() => { setExpandedRow(isExpanded ? null : emp.id); setSelectedEmp(employees.findIndex(e => e.id === emp.id)); }}
                   >
-                    <td className={`sticky left-0 z-10 px-2 py-2 text-center text-slate-500 font-medium w-10 ${isExpanded ? "bg-violet-50/40" : ri % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
+                    <td className={`sticky left-0 z-10 px-2 py-2 text-center text-slate-500 font-medium w-10 min-w-[40px] max-w-[40px] transition-colors ${isExpanded ? "bg-[#f0edff]" : ri % 2 === 0 ? "bg-white group-hover:bg-[#f5f3ff]" : "bg-slate-50 group-hover:bg-[#f5f3ff]"}`}>
                       {(currentPage - 1) * ROWS_PER_PAGE + ri + 1}
                     </td>
-                    <td className={`sticky left-10 z-10 px-3 py-2 ${isExpanded ? "bg-violet-50/40" : ri % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
+                    <td className={`sticky left-10 z-10 px-3 py-2 w-40 min-w-[160px] max-w-[160px] transition-colors ${isExpanded ? "bg-[#f0edff]" : ri % 2 === 0 ? "bg-white group-hover:bg-[#f5f3ff]" : "bg-slate-50 group-hover:bg-[#f5f3ff]"}`}>
                       <div className="flex items-center gap-2">
                         <Avatar initials={emp.avatar} idx={ri} size="w-7 h-7" />
-                        <div>
-                          <div className="font-semibold text-slate-700 leading-tight">{emp.name}</div>
-                          <div className="text-slate-400 text-[9px]">{emp.code} · {emp.dept}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-slate-700 leading-tight truncate" title={emp.name}>{emp.name}</div>
+                          <div className="text-slate-400 text-[9px] truncate">{emp.code} · {emp.dept}</div>
                           {emp.company !== "N/A" && (
-                            <div className="text-[8px] text-indigo-500">{emp.company}</div>
+                            <div className="text-[8px] text-indigo-500 truncate">{emp.company}</div>
                           )}
                         </div>
                       </div>
@@ -178,10 +178,10 @@ export default function AttendanceTable({
                       return (
                         <td
                           key={di}
-                          className={`px-0.5 py-2 text-center ${weekendCols.has(di) ? "bg-slate-50" : ""} ${futureDate ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-violet-100"}`}
-
+                          className={`px-0.5 py-2 text-center transition-colors ${
+                            weekendCols.has(di) ? "bg-slate-50/60 group-hover:bg-violet-100/50" : "group-hover:bg-violet-50/30"
+                          } ${futureDate ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                         >
-
                           <StatBadge status={status} />
                         </td>
                       );

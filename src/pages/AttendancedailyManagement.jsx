@@ -199,33 +199,26 @@ export default function HRMSAttendanceDashboard() {
     return `${hours}:${minutes} ${ampm}`;
   };
 
-  // Fetch biometric attendance from offline_biometric_punch
-  const fetchBiometricAttendance = async () => {
+
+  // Fetch biometric attendance from offline_biometric_punch (optimized)
+  const fetchBiometricAttendance = async (year = selectedYear, month = selectedMonth) => {
     try {
-      let allData = [];
-      let page = 0;
-      const pageSize = 1000;
-      let hasMore = true;
+      const monthNum = getMonthNumber(month) + 1;
+      const yearVal = parseInt(year);
+      const daysInMonth = new Date(yearVal, monthNum, 0).getDate();
+      const startDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-01`;
+      const endDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
-      while (hasMore) {
-        const { data, error: err } = await supabase
-          .from("offline_biometric_punch")
-          .select("*")
-          .order("attendance_date", { ascending: false })
-          .range(page * pageSize, (page + 1) * pageSize - 1);
+      const { data, error: err } = await supabase
+        .from("offline_biometric_punch")
+        .select("*")
+        .gte("attendance_date", startDate)
+        .lte("attendance_date", endDate)
+        .order("attendance_date", { ascending: false });
 
-        if (err) throw err;
+      if (err) throw err;
 
-        if (data && data.length > 0) {
-          allData = [...allData, ...data];
-          page++;
-          hasMore = data.length === pageSize;
-        } else {
-          hasMore = false;
-        }
-      }
-
-      const formatted = allData.map(record => {
+      const formatted = (data || []).map(record => {
         const isPresent = record.in_time || record.out_time;
         return {
           employeeCode: record.employee_id,
@@ -246,12 +239,20 @@ export default function HRMSAttendanceDashboard() {
     }
   };
 
-  // Fetch field attendance from attendance table
-  const fetchFieldAttendance = async () => {
+  // Fetch field attendance from attendance table (optimized)
+  const fetchFieldAttendance = async (year = selectedYear, month = selectedMonth) => {
     try {
+      const monthNum = getMonthNumber(month) + 1;
+      const yearVal = parseInt(year);
+      const daysInMonth = new Date(yearVal, monthNum, 0).getDate();
+      const startDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-01`;
+      const endDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+
       const { data, error: err } = await supabase
         .from("attendance")
         .select("*")
+        .gte("date", startDate)
+        .lte("date", endDate)
         .order("date", { ascending: false });
 
       if (err) throw err;
@@ -1299,7 +1300,7 @@ export default function HRMSAttendanceDashboard() {
   const pageRows = filtered.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
   const selEmp = employees[selectedEmp];
   const daysOfWeek = getDaysOfWeek(selectedYear, selectedMonth);
-  const weekendCols = new Set(daysOfWeek.map((d, i) => (d === "Sat" || d === "Sun") ? i : -1).filter(i => i >= 0));
+  const weekendCols = new Set(daysOfWeek.map((d, i) => (d === "Sun") ? i : -1).filter(i => i >= 0));
 
   if (loading) {
     return (
