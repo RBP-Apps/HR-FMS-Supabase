@@ -386,11 +386,11 @@ const OfferLetterPreview = ({ formData }) => {
 
               <p>Authorised Signatory</p>
 
-              <p>Name: __________________</p>
+              <p>Name: RUSHALI SAHU</p>
 
-              <p>Designation: __________________</p>
+              <p>Designation: HR EXECUTIVE</p>
 
-              <p>Date: __________________</p>
+              {/* <p>Date: __________________</p> */}
             </div>
           </div>
 
@@ -417,10 +417,10 @@ const OfferLetterPreview = ({ formData }) => {
                   marginBottom: "5px",
                 }}
               ></div>
-
+              
               <p>Signature of Candidate</p>
 
-              <p>Date: __________________</p>
+              {/* <p>Date: __________________</p> */}
             </div>
           </div>
         </div>
