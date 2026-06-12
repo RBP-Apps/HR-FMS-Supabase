@@ -4,12 +4,8 @@ import supabase from "../utils/supabase";
 import {
   Users,
   UserCheck,
-  UserX,
-  Clock,
   UserPlus,
-  TrendingUp,
   FileText,
-  Calendar,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -698,57 +694,89 @@ const Dashboard = () => {
       </div>
 
       {/* Summary Stats - CORRECTED */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Total Indent */}
-        <div className="flex items-start p-6 bg-white rounded-xl border shadow-lg">
-          <div className="p-3 mr-4 bg-blue-100 rounded-full">
-            <FileText size={24} className="text-blue-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-600">Total Indent</p>
-            <h3 className="text-2xl font-bold text-gray-800">
-              {totalEmployee}
-            </h3>
-          </div>
-        </div>
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
 
-        {/* Total Enquiry */}
-        <div className="flex items-start p-6 bg-white rounded-xl border shadow-lg">
-          <div className="p-3 mr-4 bg-green-100 rounded-full">
-            <UserCheck size={24} className="text-green-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-600">Total Enquiry</p>
-            <h3 className="text-2xl font-bold text-gray-800">
-              {activeEmployee}
-            </h3>
-          </div>
-        </div>
+  {/* Total Indent */}
+  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
 
-        {/* Total Joining */}
-        <div className="flex items-start p-6 bg-white rounded-xl border shadow-lg">
-          <div className="p-3 mr-4 bg-amber-100 rounded-full">
-            <UserPlus size={24} className="text-amber-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-600">Total Joining</p>
-            <h3 className="text-2xl font-bold text-gray-800">{leftEmployee}</h3>
-          </div>
-        </div>
-
-        {/* Live Employee */}
-        <div className="flex items-start p-6 bg-white rounded-xl border shadow-lg">
-          <div className="p-3 mr-4 bg-red-100 rounded-full">
-            <Users size={24} className="text-red-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-600">Live Employee</p>
-            <h3 className="text-2xl font-bold text-gray-800">
-              {leaveThisMonth}
-            </h3>
-          </div>
-        </div>
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-blue-100">
+          Total Indent
+        </p>
+        <h3 className="mt-2 text-4xl font-bold">
+          {totalEmployee}
+        </h3>
       </div>
+
+      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+        <FileText size={28} />
+      </div>
+    </div>
+  </div>
+
+  {/* Total Enquiry */}
+  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
+
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-green-100">
+          Total Enquiry
+        </p>
+        <h3 className="mt-2 text-4xl font-bold">
+          {activeEmployee}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+        <UserCheck size={28} />
+      </div>
+    </div>
+  </div>
+
+  {/* Total Joining */}
+  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
+
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-amber-100">
+          Total Joining
+        </p>
+        <h3 className="mt-2 text-4xl font-bold">
+          {leftEmployee}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+        <UserPlus size={28} />
+      </div>
+    </div>
+  </div>
+
+  {/* Live Employee */}
+  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
+
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-pink-100">
+          Live Employee
+        </p>
+        <h3 className="mt-2 text-4xl font-bold">
+          {leaveThisMonth}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+        <Users size={28} />
+      </div>
+    </div>
+  </div>
+
+</div>
 
       {/* Tables Section */}
       <div className="space-y-6">

@@ -21,6 +21,7 @@ const FindEnquiry = () => {
   const [editMode, setEditMode] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editFormData, setEditFormData] = useState({});
+  const [companyOptions, setCompanyOptions] = useState([]);
 
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -46,6 +47,7 @@ const FindEnquiry = () => {
   const handleEditClick = (item) => {
     setSelectedItem(item);
     setEditFormData({
+      companyName: item.companyName || "",
       applyingForPost: item.applyingForPost || "",
       candidateName: item.candidateName || "",
       candidateDOB: item.candidateDOB || "",
@@ -83,7 +85,7 @@ const FindEnquiry = () => {
         .update({
           applying_post: editFormData.applyingForPost,
           candidate_name: editFormData.candidateName,
-          dob: editFormData.candidateDOB,
+          dob: editFormData.candidateDOB || null,
           candidate_phone: editFormData.candidatePhone,
           candidate_email: editFormData.candidateEmail,
           previous_company_name: editFormData.previousCompany,
@@ -94,7 +96,7 @@ const FindEnquiry = () => {
           present_address: editFormData.presentAddress,
           // aadhar_number: editFormData.aadharNo,
           tracker_status: editFormData.status,
-          company_name: selectedItem.companyName,
+          company_name: editFormData.companyName,
         })
         .eq("timestamp", selectedItem.id);
 
@@ -150,6 +152,24 @@ const FindEnquiry = () => {
 
       if (indentError) throw indentError;
 
+      // ===== FETCH ENQUIRY DATA =====
+      const { data: enquiryRows, error: enquiryError } = await supabase
+        .from("enquiry")
+        .select("*");
+
+      if (enquiryError) throw enquiryError;
+
+      // ===== FETCH COMPANY OPTIONS FROM MASTER_HR =====
+      const { data: masterData } = await supabase
+        .from("master_hr")
+        .select("firm_name");
+
+      const masterCompanies = masterData ? masterData.map((item) => item.firm_name).filter(Boolean) : [];
+      const indentCompanies = indentRows ? indentRows.map((item) => item.company_name).filter(Boolean) : [];
+      const enquiryCompanies = enquiryRows ? enquiryRows.map((item) => item.company_name).filter(Boolean) : [];
+      const companiesList = [...new Set([...masterCompanies, ...indentCompanies, ...enquiryCompanies])];
+      setCompanyOptions(companiesList);
+
       const processedIndent = indentRows
         .filter((row) => row.status === "NeedMore")
         .map((row) => ({
@@ -168,13 +188,6 @@ const FindEnquiry = () => {
           actual: row.actual_2,
           experience: row.experience,
         }));
-
-      // ===== FETCH ENQUIRY DATA =====
-      const { data: enquiryRows, error: enquiryError } = await supabase
-        .from("enquiry")
-        .select("*");
-
-      if (enquiryError) throw enquiryError;
 
       const processedEnquiry = enquiryRows.map((row) => ({
         id: row.timestamp,
@@ -200,6 +213,7 @@ const FindEnquiry = () => {
         status: row.tracker_status,
         planned_1: row.planned_1, // Add this field
         actual_1: row.actual_1,   // Add this field
+        companyName: row.company_name || "",
       }));
 
       // ===== RECRUITMENT COUNT LOGIC =====
@@ -1040,19 +1054,26 @@ const FindEnquiry = () => {
                         type="text"
                         value={selectedItem.indentNo}
                         disabled
-                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-gray-100 text-gray-500"
+                        className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm cursor-not-allowed"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">
                         Company Name (कंपनी नाम)
                       </label>
-                      <input
-                        type="text"
-                        value={selectedItem.companyName || ""}
-                        disabled
-                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-white bg-opacity-5 text-gray-500"
-                      />
+                      <select
+                        name="companyName"
+                        value={editFormData.companyName || ""}
+                        onChange={handleEditInputChange}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 bg-white"
+                      >
+                        <option value="">Select Company</option>
+                        {companyOptions.map((co) => (
+                          <option key={co} value={co}>
+                            {co}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">
@@ -1062,7 +1083,7 @@ const FindEnquiry = () => {
                         type="text"
                         value={selectedItem.candidateEnquiryNo}
                         disabled
-                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-gray-100 text-gray-500"
+                        className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm cursor-not-allowed"
                       />
                     </div>
                     <div>
@@ -1207,7 +1228,7 @@ const FindEnquiry = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
+
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">
                         Status (स्थिति) *
@@ -1317,24 +1338,30 @@ const FindEnquiry = () => {
                     type="text"
                     value={selectedItem.indentNo}
                     disabled
-                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                    className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">
                     Company Name (कंपनी नाम)
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={selectedItem.companyName || ""}
-                     onChange={(e) => {
-    setSelectedItem((prev) => ({
-      ...prev,
-      companyName: e.target.value,
-    }));
-  }}
-                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
-                  />
+                    onChange={(e) => {
+                      setSelectedItem((prev) => ({
+                        ...prev,
+                        companyName: e.target.value,
+                      }));
+                    }}
+                    className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Select Company</option>
+                    {companyOptions.map((co) => (
+                      <option key={co} value={co}>
+                        {co}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">
@@ -1344,7 +1371,7 @@ const FindEnquiry = () => {
                     type="text"
                     value={generatedCandidateNo}
                     disabled
-                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                    className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
                   />
                 </div>
                 <div>
@@ -1360,7 +1387,7 @@ const FindEnquiry = () => {
                         post: e.target.value,
                       }));
                     }}
-                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                    className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
                   />
                 </div>
                 <div>
@@ -1372,7 +1399,7 @@ const FindEnquiry = () => {
                     name="department"
                     value={formData.department}
                     onChange={handleInputChange}
-                     className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                    className="w-full border-2 border-indigo-200 rounded-md px-3 py-2 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
                   />
                 </div>
                 <div>
