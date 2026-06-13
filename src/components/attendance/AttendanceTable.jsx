@@ -78,7 +78,9 @@ export default function AttendanceTable({
   filtered,
   ROWS_PER_PAGE,
   paidDays,
-  getMonthNumber
+  getMonthNumber,
+  setShowDayDetailModal,
+  setDayDetailData
 }) {
   return (
     <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
@@ -178,9 +180,19 @@ export default function AttendanceTable({
                       return (
                         <td
                           key={di}
-                          className={`px-0.5 py-2 text-center transition-colors ${
+                          className={`px-0.5 py-2 text-center transition-all duration-150 ${
                             weekendCols.has(di) ? "bg-slate-50/60 group-hover:bg-violet-100/50" : "group-hover:bg-violet-50/30"
-                          } ${futureDate ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                          } ${futureDate ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-indigo-50 hover:scale-110 active:scale-95"}`}
+                          onClick={(e) => {
+                            if (futureDate) return;
+                            e.stopPropagation();
+                            setDayDetailData({
+                              employee: emp,
+                              date: dateStr,
+                              status: status
+                            });
+                            setShowDayDetailModal(true);
+                          }}
                         >
                           <StatBadge status={status} />
                         </td>

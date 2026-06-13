@@ -33,6 +33,10 @@
 export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const workingDays = attendance?.working_days || 26;
   const presentDays = attendance?.present_days || 0;
+  const weekOff = attendance?.week_off || 0;
+  const paidLeave = attendance?.paid_leave || 0;
+  const holidays = attendance?.holidays || 0;
+
   const monthNum = (month ?? new Date().getMonth()) + 1;
   const totalDaysInMonth = new Date(year ?? new Date().getFullYear(), monthNum, 0).getDate();
   const otDays = Number(edits.ot ?? 0);
@@ -45,12 +49,16 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const specialReal    = Math.round(grossSalary * 0.05);
   const grossReal      = grossSalary;
 
-  // --- EARNED (present-day prorated) ---
-  const basicEarned    = workingDays ? Math.round((basicReal   / workingDays) * presentDays) : 0;
-  const hraEarned      = workingDays ? Math.round((hraReal     / workingDays) * presentDays) : 0;
-  const convEarned     = workingDays ? Math.round((convReal    / workingDays) * presentDays) : 0;
-  const medEarned      = workingDays ? Math.round((medReal     / workingDays) * presentDays) : 0;
-  const specialEarned  = workingDays ? Math.round((specialReal / workingDays) * presentDays) : 0;
+  // Total paid days calculation (Present + Week Off + Paid Leave + Holidays)
+  const totalPaidDays = presentDays + weekOff + paidLeave + holidays;
+  const calendarDays = totalDaysInMonth || (workingDays + weekOff + holidays) || 30;
+
+  // --- EARNED (paid-day prorated) ---
+  const basicEarned    = calendarDays ? Math.round((basicReal   / calendarDays) * totalPaidDays) : 0;
+  const hraEarned      = calendarDays ? Math.round((hraReal     / calendarDays) * totalPaidDays) : 0;
+  const convEarned     = calendarDays ? Math.round((convReal    / calendarDays) * totalPaidDays) : 0;
+  const medEarned      = calendarDays ? Math.round((medReal     / calendarDays) * totalPaidDays) : 0;
+  const specialEarned  = calendarDays ? Math.round((specialReal / calendarDays) * totalPaidDays) : 0;
   const grossEarned    = basicEarned + hraEarned + convEarned + medEarned + specialEarned;
 
   // --- OT ---

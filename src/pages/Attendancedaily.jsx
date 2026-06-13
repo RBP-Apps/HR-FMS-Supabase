@@ -396,29 +396,70 @@ const Attendancedaily = () => {
 
 
 const processBiometricAttendance = (data) => {
-  return (data || []).map((item) => ({
-    type: "biometric",
-    employee: item.employee_name,
-    empIdCode: item.employee_id,
-    employeeId: item.employee_id,
-    date: item.attendance_date,
-    year: item.year?.toString(),
-    monthName: item.month_name,
-    day: item.day_name,
-    inTime: item.in_time,
-    outTime: item.out_time,
-    location: "Head Office",
-    records: [],
-    status: item.in_time && item.out_time
-      ? "Present"
-      : item.in_time || item.out_time
-        ? "Half Day"
-        : "Absent",
-    workingHour: item.working_hour,
-    lateCalculation: item.late_calculation,
-    lateCountsMorning: item.late_counts_morning,
-    lateCountsEvening: item.late_counts_evening,
-  }));
+  if (!data) return [];
+  const grouped = {};
+  data.forEach(item => {
+    if (!item.employee_id || !item.attendance_date) return;
+    const key = `${item.employee_id}_${item.attendance_date}`;
+    if (!grouped[key]) {
+      grouped[key] = {
+        item,
+        inTimes: [],
+        outTimes: [],
+        records: []
+      };
+    }
+    grouped[key].records.push(item);
+    if (item.in_time) grouped[key].inTimes.push(item.in_time);
+    if (item.out_time) grouped[key].outTimes.push(item.out_time);
+  });
+
+  return Object.values(grouped).map(({ item, inTimes, outTimes, records }) => {
+    const allTimes = [];
+    inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+    outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+    allTimes.sort((a, b) => a.localeCompare(b));
+
+    let finalIn = null;
+    let finalOut = null;
+
+    if (allTimes.length === 1) {
+      if (inTimes.length > 0) {
+        finalIn = inTimes[0];
+      } else if (outTimes.length > 0) {
+        finalOut = outTimes[0];
+      } else {
+        finalIn = allTimes[0];
+      }
+    } else if (allTimes.length > 1) {
+      finalIn = allTimes[0];
+      finalOut = allTimes[allTimes.length - 1];
+    }
+
+    return {
+      type: "biometric",
+      employee: item.employee_name,
+      empIdCode: item.employee_id,
+      employeeId: item.employee_id,
+      date: item.attendance_date,
+      year: item.year?.toString(),
+      monthName: item.month_name,
+      day: item.day_name,
+      inTime: finalIn,
+      outTime: finalOut,
+      location: "Head Office",
+      records: records,
+      status: finalIn && finalOut
+        ? "Present"
+        : finalIn || finalOut
+          ? "Half Day"
+          : "Absent",
+      workingHour: item.working_hour,
+      lateCalculation: item.late_calculation,
+      lateCountsMorning: item.late_counts_morning,
+      lateCountsEvening: item.late_counts_evening,
+    };
+  });
 };
 
   // Fetch users for stats

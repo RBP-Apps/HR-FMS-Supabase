@@ -138,20 +138,37 @@ export default function PayrollPage() {
     const daysInMonth = new Date(yVal, monthNum, 0).getDate();
     const prefix = `${yVal}-${String(monthNum).padStart(2, '0')}`;
 
-    const [{ data: bioLogs }, { data: attLogs }] = await Promise.all([
-      supabase.from('offline_biometric_punch')
-        .select('employee_id,employee_name,attendance_date,in_time,out_time')
-        .gte('attendance_date', `${prefix}-01`)
-        .lte('attendance_date', `${prefix}-${daysInMonth}`),
-      supabase.from('attendance')
-        .select('person_name,employee_code,date,status,approved_status')
-        .gte('date', `${prefix}-01`)
-        .lte('date', `${prefix}-${daysInMonth}`),
-    ]);
+    let bioLogs = [], attLogs = [], holidayLogs = [];
+    try {
+      const [{ data: bioData, error: bioErr }, { data: attData, error: attErr }] = await Promise.all([
+        supabase.from('offline_biometric_punch')
+          .select('employee_id,employee_name,attendance_date,in_time,out_time')
+          .gte('attendance_date', `${prefix}-01`)
+          .lte('attendance_date', `${prefix}-${daysInMonth}`),
+        supabase.from('attendance')
+          .select('person_name,employee_code,date,status,approved_status')
+          .gte('date', `${prefix}-01`)
+          .lte('date', `${prefix}-${daysInMonth}`),
+      ]);
+      if (!bioErr) bioLogs = bioData || [];
+      if (!attErr) attLogs = attData || [];
+    } catch (err) {
+      console.error("Error fetching attendance/biometric logs", err);
+    }
+
+    try {
+      const { data, error } = await supabase.from('holiday_master')
+        .select('holiday_date,holiday_name')
+        .gte('holiday_date', `${prefix}-01`)
+        .lte('holiday_date', `${prefix}-${daysInMonth}`);
+      if (!error) holidayLogs = data || [];
+    } catch (err) {
+      console.warn("holiday_master fetch error", err);
+    }
 
     // Create O(1) indexes
     const bioMap = {};
-    (bioLogs || []).forEach(b => {
+    bioLogs.forEach(b => {
       const codeKey = b.employee_id ? `${b.employee_id.trim().toLowerCase()}_${b.attendance_date}` : null;
       const nameKey = b.employee_name ? `${b.employee_name.trim().toLowerCase()}_${b.attendance_date}` : null;
       const hasPunch = b.in_time || b.out_time;
@@ -164,7 +181,7 @@ export default function PayrollPage() {
     const manualMap = {};
     const leaveMap = {};
     const fieldMap = {};
-    (attLogs || []).forEach(a => {
+    attLogs.forEach(a => {
       const nameKey = a.person_name ? `${a.person_name.trim().toLowerCase()}_${a.date}` : null;
       const codeKey = a.employee_code ? `${a.employee_code.trim().toLowerCase()}_${a.date}` : null;
       
@@ -181,15 +198,23 @@ export default function PayrollPage() {
       }
     });
 
+    const holidayMap = {};
+    holidayLogs.forEach(h => {
+      if (h.holiday_date) {
+        holidayMap[h.holiday_date] = h.holiday_name;
+      }
+    });
+
     return empList.map(emp => {
       const empNameClean = emp.employee_name?.trim().toLowerCase();
       const empCodeClean = emp.rbp_joining_id?.trim().toLowerCase();
 
-      let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0;
+      let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         const dayStr = `${prefix}-${String(d).padStart(2, '0')}`;
         const isSunday = new Date(yVal, mVal, d).getDay() === 0;
-        let status = isSunday ? 'WO' : 'A';
+        const isHoliday = holidayMap[dayStr];
+        let status = isSunday ? 'WO' : (isHoliday ? 'H' : 'A');
 
         const nameKey = empNameClean ? `${empNameClean}_${dayStr}` : '';
         const codeKey = empCodeClean ? `${empCodeClean}_${dayStr}` : '';
@@ -215,15 +240,17 @@ export default function PayrollPage() {
         if (status === 'P') presentDays++;
         else if (status === 'WO') weekOffCount++;
         else if (status === 'CL') paidLeaves++;
+        else if (status === 'H') holidayCount++;
         else absentDays++;
       }
 
       return {
         employee_id: emp.id,
-        working_days: daysInMonth - weekOffCount,
+        working_days: daysInMonth - weekOffCount - holidayCount,
         present_days: presentDays,
         week_off: weekOffCount,
         paid_leave: paidLeaves,
+        holidays: holidayCount,
         absent_days: absentDays,
       };
     });

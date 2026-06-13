@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import supabase from "../utils/supabase";
-import toast from "react-hot-toast";
 import { Select } from "antd";
 
 // Sub-components
@@ -12,6 +11,7 @@ import AttendanceFilters from "../components/attendance/AttendanceFilters";
 import AttendanceTable from "../components/attendance/AttendanceTable";
 import EmployeeSummaryPanel from "../components/attendance/EmployeeSummaryPanel";
 import RecentCorrections from "../components/attendance/RecentCorrections";
+import DayDetailModal from "../components/attendance/DayDetailModal";
 
 // Helper Functions
 function calcSummary(data) {
@@ -44,17 +44,17 @@ const getMonthNumber = (monthName) => {
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return null;
   timeStr = timeStr.trim().toUpperCase();
-  
+
   let hours = 0;
   let minutes = 0;
-  
+
   if (timeStr.includes("AM") || timeStr.includes("PM")) {
     const isPM = timeStr.includes("PM");
     const cleanTime = timeStr.replace(/[AP]M/, "").trim();
     const parts = cleanTime.split(":");
     hours = parseInt(parts[0], 10);
     minutes = parts.length > 1 ? parseInt(parts[1], 10) : 0;
-    
+
     if (isPM && hours < 12) hours += 12;
     if (!isPM && hours === 12) hours = 0;
   } else {
@@ -62,7 +62,7 @@ const parseTimeToMinutes = (timeStr) => {
     hours = parseInt(parts[0], 10);
     minutes = parts.length > 1 ? parseInt(parts[1], 10) : 0;
   }
-  
+
   return hours * 60 + minutes;
 };
 
@@ -86,7 +86,7 @@ export default function HRMSAttendanceDashboard() {
   const [processedDraft, setProcessedDraft] = useState({});
   const [processedDraftDetails, setProcessedDraftDetails] = useState({});
   const [manualOverrides, setManualOverrides] = useState({}); // { empId: { dateStr: status } }
-  
+
   // Holiday form state
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState(null);
@@ -106,6 +106,12 @@ export default function HRMSAttendanceDashboard() {
     date: null,
     currentStatus: null,
     dayIndex: null
+  });
+  const [showDayDetailModal, setShowDayDetailModal] = useState(false);
+  const [dayDetailData, setDayDetailData] = useState({
+    employee: null,
+    date: null,
+    status: null
   });
 
   // UI States
@@ -146,11 +152,30 @@ export default function HRMSAttendanceDashboard() {
   const fetchEmployees = async () => {
     try {
       // Fetch all joining data (both Active and Inactive) to calculate historical attendance correctly
-      const { data: joiningData, error: joiningError } = await supabase
-        .from("joining")
-        .select("id, name_as_per_aadhar, firm_name, attendance_type, rbp_joining_id, department, designation, status, employee_category, date_of_joining, leaving_date");
+      let joiningData = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
 
-      if (joiningError) throw joiningError;
+      while (hasMore) {
+        const { data, error: joiningError } = await supabase
+          .from("joining")
+          .select("id, name_as_per_aadhar, firm_name, attendance_type, rbp_joining_id, department, designation, status, employee_category, date_of_joining, leaving_date")
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+        if (joiningError) throw joiningError;
+
+        if (data && data.length > 0) {
+          joiningData = [...joiningData, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
 
       // Get unique companies from joining data
       const uniqueCompanies = [...new Set((joiningData || []).map(j => j.firm_name).filter(Boolean))];
@@ -209,25 +234,87 @@ export default function HRMSAttendanceDashboard() {
       const startDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-01`;
       const endDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
-      const { data, error: err } = await supabase
-        .from("offline_biometric_punch")
-        .select("*")
-        .gte("attendance_date", startDate)
-        .lte("attendance_date", endDate)
-        .order("attendance_date", { ascending: false });
+      let allData = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
 
-      if (err) throw err;
+      while (hasMore) {
+        const { data, error: err } = await supabase
+          .from("offline_biometric_punch")
+          .select("*")
+          .gte("attendance_date", startDate)
+          .lte("attendance_date", endDate)
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-      const formatted = (data || []).map(record => {
-        const isPresent = record.in_time || record.out_time;
+        if (err) throw err;
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Group biometric records by employee and date to handle multiple punches on the same date
+      const groupedData = {};
+      allData.forEach(record => {
+        if (!record.employee_id || !record.attendance_date) return;
+        const key = `${record.employee_id}_${record.attendance_date}`;
+        if (!groupedData[key]) {
+          groupedData[key] = {
+            employeeCode: record.employee_id,
+            employeeName: record.employee_name,
+            date: record.attendance_date,
+            inTimes: [],
+            outTimes: [],
+            records: []
+          };
+        }
+        groupedData[key].records.push(record);
+        if (record.in_time) groupedData[key].inTimes.push(record.in_time);
+        if (record.out_time) groupedData[key].outTimes.push(record.out_time);
+      });
+
+      const formatted = Object.values(groupedData).map(group => {
+        const allTimes = [];
+        group.inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+        group.outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+
+        // Sort times ascending using parseTimeToMinutes
+        allTimes.sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
+
+        let finalIn = null;
+        let finalOut = null;
+
+        if (allTimes.length === 1) {
+          if (group.inTimes.length > 0) {
+            finalIn = group.inTimes[0];
+          } else if (group.outTimes.length > 0) {
+            finalOut = group.outTimes[0];
+          } else {
+            finalIn = allTimes[0];
+          }
+        } else if (allTimes.length > 1) {
+          finalIn = allTimes[0];
+          finalOut = allTimes[allTimes.length - 1];
+        }
+
+        const isPresent = finalIn || finalOut;
+
         return {
-          employeeCode: record.employee_id,
-          employeeName: record.employee_name,
-          date: record.attendance_date,
-          inTime: formatTime12hr(record.in_time),
-          outTime: formatTime12hr(record.out_time),
+          employeeCode: group.employeeCode,
+          employeeName: group.employeeName,
+          date: group.date,
+          inTime: formatTime12hr(finalIn),
+          outTime: formatTime12hr(finalOut),
           status: isPresent ? "P" : "A",
-          records: [record]
+          records: group.records
         };
       });
 
@@ -248,17 +335,35 @@ export default function HRMSAttendanceDashboard() {
       const startDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-01`;
       const endDate = `${yearVal}-${String(monthNum).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
-      const { data, error: err } = await supabase
-        .from("attendance")
-        .select("*")
-        .gte("date", startDate)
-        .lte("date", endDate)
-        .order("date", { ascending: false });
+      let allData = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
 
-      if (err) throw err;
+      while (hasMore) {
+        const { data, error: err } = await supabase
+          .from("attendance")
+          .select("*")
+          .gte("date", startDate)
+          .lte("date", endDate)
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+        if (err) throw err;
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
 
       const grouped = {};
-      (data || []).forEach(record => {
+      allData.forEach(record => {
         const key = `${record.person_name}_${record.date}`;
 
         if (!grouped[key]) {
@@ -330,7 +435,7 @@ export default function HRMSAttendanceDashboard() {
       }));
 
       setManualCorrections(corrections);
-      
+
       // Also populate manualOverrides state from corrections
       const overrides = {};
       corrections.forEach(c => {
@@ -361,22 +466,50 @@ export default function HRMSAttendanceDashboard() {
   };
 
   // Fetch Leave Ledger
-  const fetchLeaveLedger = async () => {
+  const fetchLeaveLedger = async (employeesList = []) => {
     try {
-      const { data, error: err } = await supabase
+      let query = supabase
         .from("leave_ledger")
         .select("*")
         .order("created_at", { ascending: false });
-      if (err) {
-        // Handle table missing gracefully
-        if (err.message?.includes("does not exist")) {
-          console.warn("leave_ledger table does not exist yet. Please run SQL schema.");
-          return [];
+
+      if (employeesList && employeesList.length > 0) {
+        const empIds = employeesList.map(e => e.id).filter(Boolean);
+        if (empIds.length > 0) {
+          query = query.in("employee_id", empIds);
         }
-        throw err;
       }
-      setLeaveLedger(data || []);
-      return data || [];
+
+      let allData = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error: err } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        if (err) {
+          // Handle table missing gracefully
+          if (err.message?.includes("does not exist")) {
+            console.warn("leave_ledger table does not exist yet. Please run SQL schema.");
+            return [];
+          }
+          throw err;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setLeaveLedger(allData);
+      return allData;
     } catch (err) {
       console.error("Error fetching leave ledger:", err);
       return [];
@@ -403,20 +536,48 @@ export default function HRMSAttendanceDashboard() {
   };
 
   // Fetch Finalized Attendance
-  const fetchFinalizedAttendance = async (year, month) => {
+  const fetchFinalizedAttendance = async (year, month, employeesList = []) => {
     try {
       const monthNum = getMonthNumber(month) + 1;
-      const { data, error: err } = await supabase
+      let query = supabase
         .from("final_attendance")
         .select("*")
         .eq("month", monthNum)
         .eq("year", parseInt(year));
-      if (err) {
-        if (err.message?.includes("does not exist")) return [];
-        throw err;
+
+      if (employeesList && employeesList.length > 0) {
+        const empIds = employeesList.map(e => e.id).filter(Boolean);
+        if (empIds.length > 0) {
+          query = query.in("employee_id", empIds);
+        }
       }
-      setFinalizedAttendance(data || []);
-      return data || [];
+
+      let allData = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error: err } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        if (err) {
+          if (err.message?.includes("does not exist")) return [];
+          throw err;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setFinalizedAttendance(allData);
+      return allData;
     } catch (err) {
       console.error("Error fetching finalized attendance:", err);
       return [];
@@ -432,11 +593,11 @@ export default function HRMSAttendanceDashboard() {
 
       // Determine financial year. April = 4.
       const fyStartYear = selectedMonthNum >= 4 ? parseInt(yearNum) : parseInt(yearNum) - 1;
-      
+
       // Generate the list of months in the financial year up to min(selectedMonth, currentMonth)
       const eligibleMonths = [];
       const totalMonthsInFY = 12; // April to March
-      
+
       const targetMonthDate = new Date(parseInt(yearNum), selectedMonthNum - 1, 1);
       const today = new Date();
       const minTargetDate = targetMonthDate < today ? targetMonthDate : today;
@@ -449,7 +610,7 @@ export default function HRMSAttendanceDashboard() {
           normMonth -= 12;
           normYear = tempYear + 1;
         }
-        
+
         const firstOfM = new Date(normYear, normMonth - 1, 1);
         if (firstOfM <= minTargetDate) {
           eligibleMonths.push({ month: normMonth, year: normYear });
@@ -472,18 +633,18 @@ export default function HRMSAttendanceDashboard() {
           const firstDayOfTarget = new Date(target.year, target.month - 1, 1);
 
           // Skip if month is before employee's date of joining
-          if (firstDayOfTarget.getFullYear() < doj.getFullYear() || 
-              (firstDayOfTarget.getFullYear() === doj.getFullYear() && firstDayOfTarget.getMonth() < doj.getMonth())) {
+          if (firstDayOfTarget.getFullYear() < doj.getFullYear() ||
+            (firstDayOfTarget.getFullYear() === doj.getFullYear() && firstDayOfTarget.getMonth() < doj.getMonth())) {
             continue;
           }
 
           const targetMonthName = monthsNames[target.month - 1];
           const remarkKey = `Auto Monthly Credit - ${targetMonthName} ${target.year}`;
 
-          const alreadyCredited = ledgerRows.some(row => 
-            row.employee_id === emp.id && 
-            row.leave_type === "CL" && 
-            row.transaction_type === "CREDIT" && 
+          const alreadyCredited = ledgerRows.some(row =>
+            row.employee_id === emp.id &&
+            row.leave_type === "CL" &&
+            row.transaction_type === "CREDIT" &&
             row.remarks === remarkKey
           );
 
@@ -505,7 +666,7 @@ export default function HRMSAttendanceDashboard() {
         const { error: insertError } = await supabase
           .from("leave_ledger")
           .insert(missingCredits);
-        
+
         if (insertError) {
           console.error("Error auto crediting CL:", insertError);
         } else {
@@ -523,7 +684,7 @@ export default function HRMSAttendanceDashboard() {
   const processAttendanceEngine = (employeesList, biometricList, fieldList, holidaysList, ledgerList, yearVal, monthName) => {
     const monthIndex = getMonthNumber(monthName);
     const daysInMonth = new Date(parseInt(yearVal), monthIndex + 1, 0).getDate();
-    
+
     const draftStatus = {};
     const draftDetails = {};
     const localBalances = {};
@@ -569,7 +730,7 @@ export default function HRMSAttendanceDashboard() {
       // Prior CL balance for decrementing during the month
       const empLedger = ledgerList.filter(row => row.employee_id === emp.id);
       const targetMonthStartStr = `${yearVal}-${String(monthIndex + 1).padStart(2, "0")}-01`;
-      
+
       const clDebitsPrior = empLedger
         .filter(row => row.leave_type === "CL" && (row.transaction_type === "DEBIT" || row.used > 0) && row.ledger_date < targetMonthStartStr)
         .reduce((sum, row) => sum + Number(row.used || 0), 0);
@@ -600,7 +761,7 @@ export default function HRMSAttendanceDashboard() {
         // Join & leaving check
         const doj = emp.dateOfJoining ? new Date(emp.dateOfJoining) : null;
         const dol = emp.dateOfLeaving ? new Date(emp.dateOfLeaving) : null;
-        
+
         // Remove time portion for comparison
         const compareDate = new Date(dayDate);
         compareDate.setHours(0, 0, 0, 0);
@@ -620,7 +781,7 @@ export default function HRMSAttendanceDashboard() {
         }
 
         // Apply Priority Engine
-        
+
         // 1. Manual Override Check
         const manualOverride = manualOverrides[emp.code]?.[dateStr] || manualOverrides[emp.id]?.[dateStr];
 
@@ -628,7 +789,7 @@ export default function HRMSAttendanceDashboard() {
           status = manualOverride;
           remarks = "Manual Override";
           source = "manual";
-          
+
           if (status === "CL") {
             runningCLBalance--;
           } else if (status === "EL") {
@@ -639,7 +800,7 @@ export default function HRMSAttendanceDashboard() {
         } else {
           // 2. Holiday Rule
           const holidayMatch = holidaysList.find(h => h.holiday_date === dateStr);
-          
+
           if (holidayMatch) {
             status = "H";
             remarks = holidayMatch.holiday_name;
@@ -652,9 +813,9 @@ export default function HRMSAttendanceDashboard() {
           // 4. Approved Leave
           else {
             // Find in fieldAttendance (which has leave requests) or approved leave requests
-            const fieldCL = fieldList.find(f => 
-              (f.employeeName === emp.name || f.employeeCode === emp.code) && 
-              f.date === dateStr && 
+            const fieldCL = fieldList.find(f =>
+              (f.employeeName === emp.name || f.employeeCode === emp.code) &&
+              f.date === dateStr &&
               f.status === "CL"
             );
 
@@ -671,17 +832,17 @@ export default function HRMSAttendanceDashboard() {
             } else {
               // 5. Attendance Record (Biometric/Field Punch)
               let record = null;
-              
+
               if (emp.employeeCategory?.trim() === "Office Staff") {
-                record = biometricList.find(b => 
+                record = biometricList.find(b =>
                   (b.employeeCode?.trim().toLowerCase() === emp.code?.trim().toLowerCase() ||
-                   b.employeeName?.trim().toLowerCase() === emp.name?.trim().toLowerCase()) &&
+                    b.employeeName?.trim().toLowerCase() === emp.name?.trim().toLowerCase()) &&
                   b.date === dateStr
                 );
                 source = "biometric";
               } else {
-                record = fieldList.find(f => 
-                  (f.employeeName === emp.name || f.employeeCode === emp.code) && 
+                record = fieldList.find(f =>
+                  (f.employeeName === emp.name || f.employeeCode === emp.code) &&
                   f.date === dateStr &&
                   f.status !== "CL"
                 );
@@ -712,7 +873,7 @@ export default function HRMSAttendanceDashboard() {
                       status = "P";
                       remarks = `Late Mark (${lateCount})`;
                     }
-                  } 
+                  }
                   // In Time > 12:30 PM -> HD
                   else if (inMin > 750) {
                     status = "HD";
@@ -761,7 +922,7 @@ export default function HRMSAttendanceDashboard() {
 
       draftStatus[emp.id] = empStatusArray;
       draftDetails[emp.id] = empDetailsArray;
-      
+
       // Update LWP counts
       if (localBalances[emp.id]) {
         localBalances[emp.id].lwpCount = lwpCount;
@@ -847,10 +1008,10 @@ export default function HRMSAttendanceDashboard() {
 
     if (isFinalized) {
       const arr = new Array(daysInMonth).fill("A");
-      const empFinalRecords = finalizedAttendance.filter(f => 
+      const empFinalRecords = finalizedAttendance.filter(f =>
         (f.employee_id === employee.id || f.employee_code === employee.code || f.employee_name === employee.name)
       );
-      
+
       empFinalRecords.forEach(r => {
         const d = new Date(r.attendance_date).getDate();
         if (d >= 1 && d <= daysInMonth) {
@@ -919,7 +1080,7 @@ export default function HRMSAttendanceDashboard() {
 
       await fetchFieldAttendance();
       await fetchManualCorrections();
-      
+
       alert(`Attendance updated to ${newStatus} for ${employee.name} on ${date}`);
 
       // Reset form
@@ -958,11 +1119,11 @@ export default function HRMSAttendanceDashboard() {
     }
 
     const overrides = { ...manualOverrides };
-    
+
     // Apply to filtered list of employees
     filtered.forEach(emp => {
       if (!overrides[emp.code]) overrides[emp.code] = {};
-      
+
       const temp = new Date(start);
       while (temp <= end) {
         const dateStr = temp.toISOString().split("T")[0];
@@ -995,7 +1156,7 @@ export default function HRMSAttendanceDashboard() {
       // 1. Write computed rows into final_attendance
       const finalRows = [];
       const ledgerEntries = [];
-      
+
       const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
 
       // Filter employees for this company
@@ -1201,20 +1362,20 @@ export default function HRMSAttendanceDashboard() {
   const loadDynamicData = async () => {
     try {
       const empList = await fetchEmployees();
-      const biometricList = await fetchBiometricAttendance();
-      const fieldList = await fetchFieldAttendance();
+      const biometricList = await fetchBiometricAttendance(selectedYear, selectedMonth);
+      const fieldList = await fetchFieldAttendance(selectedYear, selectedMonth);
       const holidaysList = await fetchHolidays();
-      const ledgerList = await fetchLeaveLedger();
+      const ledgerList = await fetchLeaveLedger(empList);
       const logList = await fetchFinalizationLogs();
-      const finalizedList = await fetchFinalizedAttendance(selectedYear, selectedMonth);
+      const finalizedList = await fetchFinalizedAttendance(selectedYear, selectedMonth, empList);
 
       // Check if current month and company are finalized
-      const isMonthFinalized = logList.some(log => 
-        log.month === (getMonthNumber(selectedMonth) + 1) && 
-        log.year === parseInt(selectedYear) && 
+      const isMonthFinalized = logList.some(log =>
+        log.month === (getMonthNumber(selectedMonth) + 1) &&
+        log.year === parseInt(selectedYear) &&
         log.company === selectedCompany
       );
-      
+
       setIsFinalized(isMonthFinalized);
 
       // Auto CL Sync
@@ -1326,7 +1487,7 @@ export default function HRMSAttendanceDashboard() {
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-medium">
               <span>📅</span> {getCurrentDate()}
             </div>
-            
+
             {currentMainTab === "attendance" && (
               <>
                 <AttendanceExcel
@@ -1371,11 +1532,10 @@ export default function HRMSAttendanceDashboard() {
             <button
               key={tab.id}
               onClick={() => setCurrentMainTab(tab.id)}
-              className={`py-3.5 px-5 text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
-                currentMainTab === tab.id
+              className={`py-3.5 px-5 text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${currentMainTab === tab.id
                   ? "border-indigo-600 text-indigo-600"
                   : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
+                }`}
             >
               <span>{tab.icon}</span>
               {tab.label}
@@ -1385,7 +1545,7 @@ export default function HRMSAttendanceDashboard() {
 
         {/* SCROLLABLE BODY */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          
+
           {/* TAB 1: ATTENDANCE GRID */}
           {currentMainTab === "attendance" && (
             <>
@@ -1531,6 +1691,8 @@ export default function HRMSAttendanceDashboard() {
                   ROWS_PER_PAGE={ROWS_PER_PAGE}
                   paidDays={paidDays}
                   getMonthNumber={getMonthNumber}
+                  setShowDayDetailModal={setShowDayDetailModal}
+                  setDayDetailData={setDayDetailData}
                 />
 
                 <EmployeeSummaryPanel
@@ -1646,16 +1808,14 @@ export default function HRMSAttendanceDashboard() {
                             <td className="p-3 font-bold text-slate-800">{emp ? emp.name : `ID: ${row.employee_id}`}</td>
                             <td className="p-3 font-mono">{row.ledger_date}</td>
                             <td className="p-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                row.leave_type === "CL" ? "bg-violet-50 text-violet-700" : "bg-emerald-50 text-emerald-700"
-                              }`}>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${row.leave_type === "CL" ? "bg-violet-50 text-violet-700" : "bg-emerald-50 text-emerald-700"
+                                }`}>
                                 {row.leave_type}
                               </span>
                             </td>
                             <td className="p-3 font-bold">
-                              <span className={`text-[10px] uppercase font-black ${
-                                row.transaction_type === "CREDIT" ? "text-emerald-600" : "text-red-500"
-                              }`}>
+                              <span className={`text-[10px] uppercase font-black ${row.transaction_type === "CREDIT" ? "text-emerald-600" : "text-red-500"
+                                }`}>
                                 {row.transaction_type}
                               </span>
                             </td>
@@ -1713,9 +1873,8 @@ export default function HRMSAttendanceDashboard() {
                         <td className="p-4 font-bold text-slate-850">{h.holiday_name}</td>
                         <td className="p-4 font-mono text-slate-500">{h.holiday_date}</td>
                         <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            h.holiday_type === "National" ? "bg-red-50 text-red-700" : "bg-indigo-50 text-indigo-700"
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${h.holiday_type === "National" ? "bg-red-50 text-red-700" : "bg-indigo-50 text-indigo-700"
+                            }`}>
                             {h.holiday_type}
                           </span>
                         </td>
@@ -1864,49 +2023,34 @@ export default function HRMSAttendanceDashboard() {
           <div className="bg-white rounded-2xl p-6 w-[450px] shadow-xl border border-slate-100">
             <h3 className="text-base font-bold text-slate-800 mb-4">➕ Manual HR Adjustment</h3>
             <form onSubmit={handleAddAdjustment} className="space-y-4">
-              {/* <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Select Employee</label>
-                <select
-                  required
-                  value={adjustForm.employee_id}
-                  onChange={e => setAdjustForm({ ...adjustForm, employee_id: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none"
-                >
-                  <option value="">Select Employee</option>
-                  {employees.map(e => (
-                    <option key={e.id} value={e.id}>{e.code} - {e.name}</option>
-                  ))}
-                </select>
-              </div> */}
-
               <div>
-  <label className="block text-xs font-semibold text-slate-500 mb-1">
-    Select Employee
-  </label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Select Employee
+                </label>
 
-  <Select
-    showSearch
-    placeholder="Search Employee"
-    value={adjustForm.employee_id || undefined}
-    onChange={(value) =>
-      setAdjustForm({ ...adjustForm, employee_id: value })
-    }
-    className="w-full"
-    optionFilterProp="children"
-    filterOption={(input, option) =>
-      option?.children
-        ?.toString()
-        .toLowerCase()
-        .includes(input.toLowerCase())
-    }
-  >
-    {employees.map((e) => (
-      <Select.Option key={e.id} value={e.id}>
-        {e.code} - {e.name}
-      </Select.Option>
-    ))}
-  </Select>
-</div>
+                <Select
+                  showSearch
+                  placeholder="Search Employee"
+                  value={adjustForm.employee_id || undefined}
+                  onChange={(value) =>
+                    setAdjustForm({ ...adjustForm, employee_id: value })
+                  }
+                  className="w-full"
+                  optionFilterProp="children"
+                  filterOption={(input, option) =>
+                    option?.children
+                      ?.toString()
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                >
+                  {employees.map((e) => (
+                    <Select.Option key={e.id} value={e.id}>
+                      {e.code} - {e.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </div>
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Leave Type</label>
@@ -2008,6 +2152,31 @@ export default function HRMSAttendanceDashboard() {
         generateMonthlyAttendance={generateMonthlyAttendance}
         handleFileUpload={handleFileUpload}
         updateAttendanceStatus={updateAttendanceStatus}
+      />
+
+      {/* DAY DETAIL MODAL */}
+      <DayDetailModal
+        show={showDayDetailModal}
+        onClose={() => {
+          setShowDayDetailModal(false);
+          setDayDetailData({ employee: null, date: null, status: null });
+        }}
+        employee={dayDetailData.employee}
+        date={dayDetailData.date}
+        status={dayDetailData.status}
+        biometricAttendance={biometricAttendance}
+        fieldAttendance={fieldAttendance}
+        onEdit={(emp, date, currentStatus) => {
+          const [year, month, day] = date.split("-");
+          const dayIndex = parseInt(day) - 1;
+          setEditModalData({
+            employee: emp,
+            date: date,
+            currentStatus: currentStatus,
+            dayIndex: dayIndex
+          });
+          setShowEditModal(true);
+        }}
       />
     </div>
   );
