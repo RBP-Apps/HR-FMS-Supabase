@@ -170,9 +170,7 @@ const ListView = ({
                     Letter
                   </th>
                 )}
-                {activeTab !== "history" && (
-                  <th className="px-6 py-4 text-sm font-semibold text-white bg-indigo-600 text-center">Action</th>
-                )}
+                
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -191,8 +189,9 @@ const ListView = ({
               ) : (
                 filteredOffers.map((offer) => (
                   <tr key={offer.id} className="hover:bg-gray-50 transition group">
-                    <td className="px-6 py-4 font-medium text-indigo-600">
-                      #{offer.id || offer.offerId || "N/A"}
+                    <td className="px-6 py-4 font-medium text-indigo-600 whitespace-nowrap">
+                      
+                      {offer.enquiry_number || "N/A"}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3 justify-center">
@@ -271,28 +270,7 @@ const ListView = ({
                         </div>
                       </td>
                     )}
-                    {activeTab !== "history" && (
-                      <td className="px-6 py-4">
-                        {/* {activeTab === "pending" && (offer.status === "Draft" || offer.status === "Pending") && (
-                          <button
-                            onClick={() => onSendOfferEmail && onSendOfferEmail(offer)}
-                            className="inline-flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"
-                          >
-                            <Plus size={12} />
-                            Create Offer
-                          </button>
-                        )}
-                        {activeTab === "pendingConfirmation" && (
-                          <button
-                            onClick={() => onSendConfirmationEmail && onSendConfirmationEmail(offer)}
-                            className="inline-flex items-center gap-1.5 bg-green-600 text-white hover:bg-green-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"
-                          >
-                            <Plus size={12} />
-                            Create Conf
-                          </button>
-                        )} */}
-                      </td>
-                    )}
+                   
                   </tr>
                 ))
               )}

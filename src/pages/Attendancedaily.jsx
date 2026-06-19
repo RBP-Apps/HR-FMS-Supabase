@@ -7,27 +7,7 @@ import {
   MapPin,
   Clock,
   Image as ImageIcon,
-  ExternalLink,
-  Filter,
-  Calendar,
-  Users,
-  UserCheck,
-  UserMinus,
-  TrendingUp,
-  LayoutDashboard,
-  Fingerprint,
-  Map,
-  Coffee,
-  LogOut,
-  AlertCircle,
-  CheckCircle,
-  Clock as ClockIcon,
-  Database,
-  Smartphone,
-  ChevronLeft,
-  ChevronRight as ChevronRightIcon,
-  X,
-  Eye,
+  ExternalLink,Filter,Calendar,Users,UserCheck,UserMinus,TrendingUp,LayoutDashboard,Fingerprint,Map,Coffee,LogOut,AlertCircle,CheckCircle,Clock as ClockIcon,Database,Smartphone,ChevronLeft,ChevronRight as ChevronRightIcon,X,Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import supabase from "../utils/supabase";
@@ -45,27 +25,6 @@ const calculateDuration = (inTime, outTime) => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   } catch (error) {
     return "N/A";
-  }
-};
-
-// Add this function
-const fetchEmployeeIds = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("joining")
-      .select("name_as_per_aadhar, rbp_joining_id");
-
-    if (error) throw error;
-
-    const mapping = {};
-    (data || []).forEach((emp) => {
-      if (emp.name_as_per_aadhar) {
-        mapping[emp.name_as_per_aadhar.toLowerCase()] = emp.rbp_joining_id;
-      }
-    });
-    setEmployeeIdMap(mapping);
-  } catch (error) {
-    console.error("Error fetching employee IDs:", error);
   }
 };
 
@@ -108,6 +67,77 @@ const getStatusBadge = (status) => {
   }
 };
 
+const processBiometricAttendance = (data) => {
+  if (!data) return [];
+  const grouped = {};
+  data.forEach(item => {
+    if (!item.employee_id || !item.attendance_date) return;
+    const empId = item.employee_id.toString().trim().toUpperCase();
+    const attDate = item.attendance_date.toString().trim().split(" ")[0].split("T")[0];
+    const key = `${empId}_${attDate}`;
+    if (!grouped[key]) {
+      grouped[key] = {
+        item,
+        empId,
+        attDate,
+        inTimes: [],
+        outTimes: [],
+        records: []
+      };
+    }
+    grouped[key].records.push(item);
+    if (item.in_time) grouped[key].inTimes.push(item.in_time);
+    if (item.out_time) grouped[key].outTimes.push(item.out_time);
+  });
+
+  return Object.values(grouped).map(({ item, empId, attDate, inTimes, outTimes, records }) => {
+    const allTimes = [];
+    inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+    outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+    allTimes.sort((a, b) => a.localeCompare(b));
+
+    let finalIn = null;
+    let finalOut = null;
+
+    if (allTimes.length === 1) {
+      if (inTimes.length > 0) {
+        finalIn = inTimes[0];
+      } else if (outTimes.length > 0) {
+        finalOut = outTimes[0];
+      } else {
+        finalIn = allTimes[0];
+      }
+    } else if (allTimes.length > 1) {
+      finalIn = allTimes[0];
+      finalOut = allTimes[allTimes.length - 1];
+    }
+
+    return {
+      type: "biometric",
+      employee: item.employee_name,
+      empIdCode: empId,
+      employeeId: empId,
+      date: attDate,
+      year: item.year?.toString(),
+      monthName: item.month_name,
+      day: item.day_name,
+      inTime: finalIn,
+      outTime: finalOut,
+      location: "Head Office",
+      records: records,
+      status: finalIn && finalOut
+        ? "Present"
+        : finalIn || finalOut
+          ? "Half Day"
+          : "Absent",
+      workingHour: item.working_hour,
+      lateCalculation: item.late_calculation,
+      lateCountsMorning: item.late_counts_morning,
+      lateCountsEvening: item.late_counts_evening,
+    };
+  });
+};
+
 const Attendancedaily = () => {
   // Existing States
   const [searchTerm, setSearchTerm] = useState("");
@@ -119,14 +149,7 @@ const Attendancedaily = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedName, setSelectedName] = useState("");
-  const [uniqueMonths, setUniqueMonths] = useState([]);
-  const [uniqueNames, setUniqueNames] = useState([]);
-  const [selectedYear, setSelectedYear] = useState("");
-  const [uniqueYears, setUniqueYears] = useState([]);
   const [showTodayData, setShowTodayData] = useState(false);
-  const [employeeIdMap, setEmployeeIdMap] = useState({});
 
   // New States for Attendance Editing
   const [selectedEditItem, setSelectedEditItem] = useState(null);
@@ -279,11 +302,17 @@ const Attendancedaily = () => {
       
       // Refresh data
       fetchAttendanceData(1, false, {
-        year: selectedYear,
-        month: selectedMonth,
-        name: selectedName,
+        startDate,
+        endDate,
+        showTodayData,
+        searchTerm: debouncedSearchTerm,
       });
-      fetchFieldAttendance();
+      fetchFieldAttendance({
+        startDate,
+        endDate,
+        showTodayData,
+        searchTerm: debouncedSearchTerm,
+      });
     } catch (err) {
       console.error("Error saving attendance edit:", err);
       alert("Failed to save changes: " + err.message);
@@ -298,7 +327,6 @@ const Attendancedaily = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [expandedRows, setExpandedRows] = useState({});
   const [fieldRecords, setFieldRecords] = useState([]);
-  const [usersList, setUsersList] = useState([]);
   const [activeModalCard, setActiveModalCard] = useState(null);
   const [modalSearch, setModalSearch] = useState("");
   const [stats, setStats] = useState({
@@ -309,14 +337,42 @@ const Attendancedaily = () => {
     late: 0,
   });
 
-  const fetchFieldAttendance = async () => {
+  const fetchFieldAttendance = async (customFilters = {}) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("attendance")
         .select("*")
         .order("date", { ascending: false })
         .order("time", { ascending: true });
 
+      const activeStartDate = customFilters.startDate !== undefined ? customFilters.startDate : startDate;
+      const activeEndDate = customFilters.endDate !== undefined ? customFilters.endDate : endDate;
+      const activeShowToday = customFilters.showTodayData !== undefined ? customFilters.showTodayData : showTodayData;
+      const activeSearchTerm = customFilters.searchTerm !== undefined ? customFilters.searchTerm : debouncedSearchTerm;
+
+      if (activeShowToday) {
+        const todayDate = getTodayDate();
+        query = query.eq("date", todayDate);
+      } else {
+        if (activeStartDate) {
+          query = query.gte("date", activeStartDate);
+        }
+        if (activeEndDate) {
+          query = query.lte("date", activeEndDate);
+        }
+        // Limit default view to last 30 days to avoid full table scans
+        if (!activeStartDate && !activeEndDate && !activeSearchTerm) {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          query = query.gte("date", thirtyDaysAgo.toISOString().split("T")[0]);
+        }
+      }
+
+      if (activeSearchTerm) {
+        query = query.ilike("person_name", `%${activeSearchTerm}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
 
       const processedFieldData = {};
@@ -394,134 +450,10 @@ const Attendancedaily = () => {
   };
 
 
-
-const processBiometricAttendance = (data) => {
-  if (!data) return [];
-  const grouped = {};
-  data.forEach(item => {
-    if (!item.employee_id || !item.attendance_date) return;
-    const key = `${item.employee_id}_${item.attendance_date}`;
-    if (!grouped[key]) {
-      grouped[key] = {
-        item,
-        inTimes: [],
-        outTimes: [],
-        records: []
-      };
-    }
-    grouped[key].records.push(item);
-    if (item.in_time) grouped[key].inTimes.push(item.in_time);
-    if (item.out_time) grouped[key].outTimes.push(item.out_time);
-  });
-
-  return Object.values(grouped).map(({ item, inTimes, outTimes, records }) => {
-    const allTimes = [];
-    inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
-    outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
-    allTimes.sort((a, b) => a.localeCompare(b));
-
-    let finalIn = null;
-    let finalOut = null;
-
-    if (allTimes.length === 1) {
-      if (inTimes.length > 0) {
-        finalIn = inTimes[0];
-      } else if (outTimes.length > 0) {
-        finalOut = outTimes[0];
-      } else {
-        finalIn = allTimes[0];
-      }
-    } else if (allTimes.length > 1) {
-      finalIn = allTimes[0];
-      finalOut = allTimes[allTimes.length - 1];
-    }
-
-    return {
-      type: "biometric",
-      employee: item.employee_name,
-      empIdCode: item.employee_id,
-      employeeId: item.employee_id,
-      date: item.attendance_date,
-      year: item.year?.toString(),
-      monthName: item.month_name,
-      day: item.day_name,
-      inTime: finalIn,
-      outTime: finalOut,
-      location: "Head Office",
-      records: records,
-      status: finalIn && finalOut
-        ? "Present"
-        : finalIn || finalOut
-          ? "Half Day"
-          : "Absent",
-      workingHour: item.working_hour,
-      lateCalculation: item.late_calculation,
-      lateCountsMorning: item.late_counts_morning,
-      lateCountsEvening: item.late_counts_evening,
-    };
-  });
-};
-
-  // Fetch users for stats
-  const fetchUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("employee_id, user_name, sales_person_name, admin");
-
-      if (error) throw error;
-      setUsersList(data || []);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    }
-  };
-
-  // Existing fetch functions
-const fetchUniqueMonths = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("offline_biometric_punch")
-      .select("attendance_date");
-    if (error) throw error;
-    const months = [
-      ...new Set(
-        data.map((item) =>
-          new Date(item.attendance_date).toLocaleString("default", {
-            month: "long",
-          }),
-        ),
-      ),
-    ];
-    setUniqueMonths(months);
-  } catch (error) {
-    console.error("Error fetching unique months:", error);
-  }
-};
-
-
-
-
-const fetchUniqueNames = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("offline_biometric_punch")
-      .select("employee_name");
-    if (error) throw error;
-    const names = [
-      ...new Set(data.map((item) => item.employee_name).filter(Boolean)),
-    ];
-    setUniqueNames(names);
-  } catch (error) {
-    console.error("Error fetching unique names:", error);
-  }
-};
-
-
-
 const fetchAttendanceData = async (
   pageNum = 1,
   append = false,
-  filters = {},
+  customFilters = {},
 ) => {
   if (pageNum === 1) setTableLoading(true);
   else setIsLoadingMore(true);
@@ -531,34 +463,72 @@ const fetchAttendanceData = async (
     let query = supabase
       .from("offline_biometric_punch")
       .select("*")
-      .order("attendance_date", { ascending: false })
-      .range((pageNum - 1) * 500, pageNum * 500 - 1);
+      .order("attendance_date", { ascending: false });
+
+    const activeStartDate = customFilters.startDate !== undefined ? customFilters.startDate : startDate;
+    const activeEndDate = customFilters.endDate !== undefined ? customFilters.endDate : endDate;
+    const activeShowToday = customFilters.showTodayData !== undefined ? customFilters.showTodayData : showTodayData;
+    const activeSearchTerm = customFilters.searchTerm !== undefined ? customFilters.searchTerm : debouncedSearchTerm;
+
+    if (activeShowToday) {
+      const todayDate = getTodayDate();
+      query = query.eq("attendance_date", todayDate);
+    } else {
+      if (activeStartDate) {
+        query = query.gte("attendance_date", activeStartDate);
+      }
+      if (activeEndDate) {
+        query = query.lte("attendance_date", activeEndDate);
+      }
+    }
+
+    if (activeSearchTerm) {
+      query = query.ilike("employee_name", `%${activeSearchTerm}%`);
+    }
+
+    const pageSize = 200;
+    query = query.range((pageNum - 1) * pageSize, pageNum * pageSize - 1);
 
     const { data, error } = await query;
     if (error) throw error;
 
-    // Process biometric data with new logic
-    let processedData = processBiometricAttendance(data);
+    const processedData = processBiometricAttendance(data);
 
-    if (filters.year)
-      processedData = processedData.filter(
-        (item) => item.year === filters.year,
-      );
-    if (filters.month)
-      processedData = processedData.filter(
-        (item) => item.monthName === filters.month,
-      );
-    if (filters.name)
-      processedData = processedData.filter((item) =>
-        (item.employee || "")
-          .toLowerCase()
-          .includes(filters.name.toLowerCase()),
-      );
+    if (append) {
+      setAttendanceData((prev) => {
+        const merged = [...prev];
+        processedData.forEach(newItem => {
+          const existingIndex = merged.findIndex(
+            (item) => item.employeeId === newItem.employeeId && item.date === newItem.date
+          );
+          if (existingIndex > -1) {
+            const existingItem = merged[existingIndex];
+            const allTimes = [];
+            if (existingItem.inTime) allTimes.push(existingItem.inTime);
+            if (existingItem.outTime) allTimes.push(existingItem.outTime);
+            if (newItem.inTime) allTimes.push(newItem.inTime);
+            if (newItem.outTime) allTimes.push(newItem.outTime);
+            allTimes.sort((a, b) => a.localeCompare(b));
+            const finalIn = allTimes.length > 0 ? allTimes[0] : null;
+            const finalOut = allTimes.length > 1 ? allTimes[allTimes.length - 1] : null;
+            merged[existingIndex] = {
+              ...existingItem,
+              inTime: finalIn,
+              outTime: finalOut,
+              records: [...existingItem.records, ...newItem.records],
+              status: finalIn && finalOut ? "Present" : (finalIn || finalOut ? "Half Day" : "Absent")
+            };
+          } else {
+            merged.push(newItem);
+          }
+        });
+        return merged;
+      });
+    } else {
+      setAttendanceData(processedData);
+    }
 
-    if (append) setAttendanceData((prev) => [...prev, ...processedData]);
-    else setAttendanceData(processedData);
-
-    setHasMore(data.length === 500);
+    setHasMore(data.length === pageSize);
     setPage(pageNum);
   } catch (error) {
     console.error("Error fetching data:", error);
@@ -566,25 +536,6 @@ const fetchAttendanceData = async (
   } finally {
     setTableLoading(false);
     setIsLoadingMore(false);
-  }
-};
-
-const fetchUniqueYears = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("offline_biometric_punch")
-      .select("attendance_date");
-    if (error) throw error;
-    const years = [
-      ...new Set(
-        data.map((item) =>
-          new Date(item.attendance_date).getFullYear().toString(),
-        ),
-      ),
-    ];
-    setUniqueYears(years);
-  } catch (error) {
-    console.error("Error fetching unique years:", error);
   }
 };
 
@@ -600,22 +551,9 @@ const fetchUniqueYears = async () => {
       if (endDate) {
         result = result.filter((item) => item.date <= endDate);
       }
-      if (selectedMonth) {
-        result = result.filter((item) => {
-          const itemMonth = new Date(item.date).toLocaleString("default", {
-            month: "long",
-          });
-          return itemMonth === selectedMonth;
-        });
-      }
-      if (selectedYear) {
-        result = result.filter(
-          (item) => new Date(item.date).getFullYear().toString() === selectedYear,
-        );
-      }
     }
     return result;
-  }, [showTodayData, startDate, endDate, selectedMonth, selectedYear]);
+  }, [showTodayData, startDate, endDate]);
 
   const calculateStats = useCallback(() => {
     const currentAttendanceData = filterByDate(attendanceData);
@@ -730,7 +668,6 @@ const fetchUniqueYears = async () => {
     statusFilter,
     activeTab,
     attendanceType,
-    employeeIdMap,
     filterByDate,
   ]);
 
@@ -749,33 +686,19 @@ const fetchUniqueYears = async () => {
       !isLoadingMore
     ) {
       fetchAttendanceData(page + 1, true, {
-        year: selectedYear,
-        month: selectedMonth,
-        name: selectedName,
+        startDate,
+        endDate,
+        showTodayData,
+        searchTerm: debouncedSearchTerm,
       });
     }
   };
 
-  const handleTodayClick = () => {
-    setShowTodayData(true);
-    // Clear other date-related filters
-    setStartDate("");
-    setEndDate("");
-    setSelectedMonth("");
-    setSelectedYear("");
-    setSearchTerm("");
-    setStatusFilter([]);
-    setAttendanceType("all");
-    // Reset pagination if needed
-    setPage(1);
-  };
+
 
 
 
   const clearFilters = () => {
-    setSelectedYear("");
-    setSelectedMonth("");
-    setSelectedName("");
     setSearchTerm("");
     setStartDate("");
     setEndDate("");
@@ -784,7 +707,6 @@ const fetchUniqueYears = async () => {
     setActiveTab("all");
     setPage(1);
     setAttendanceData([]);
-    fetchAttendanceData(1, false, { year: "", month: "", name: "" });
     setShowTodayData(false);
   };
 
@@ -830,16 +752,31 @@ const fetchUniqueYears = async () => {
     URL.revokeObjectURL(url);
   };
 
-  // Initial data fetch
+  // Debounce search term to prevent excessive database hits
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
   useEffect(() => {
-    fetchAttendanceData(1, false, {});
-    fetchUniqueMonths();
-    fetchUniqueYears();
-    fetchUniqueNames();
-    fetchFieldAttendance();
-    fetchUsers();
-    fetchEmployeeIds();
-  }, []);
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Fetch biometric and field attendance when filters or debounced search term changes
+  useEffect(() => {
+    fetchAttendanceData(1, false, {
+      startDate,
+      endDate,
+      showTodayData,
+      searchTerm: debouncedSearchTerm,
+    });
+    fetchFieldAttendance({
+      startDate,
+      endDate,
+      showTodayData,
+      searchTerm: debouncedSearchTerm,
+    });
+  }, [startDate, endDate, showTodayData, debouncedSearchTerm]);
 
 
   const getStatsCards = () => {
@@ -855,7 +792,7 @@ const fetchUniqueYears = async () => {
           total: stats.totalBiometricEmployees
         },
         {
-          label: "Present Today",
+          label: "Present",
           icon: UserCheck,
           gradient: "from-emerald-500 to-emerald-600",
           items: [
@@ -864,7 +801,7 @@ const fetchUniqueYears = async () => {
           total: stats.biometricPresent
         },
         {
-          label: "Absent Today",
+          label: "Absent",
           icon: UserMinus,
           gradient: "from-rose-500 to-rose-600",
           items: [

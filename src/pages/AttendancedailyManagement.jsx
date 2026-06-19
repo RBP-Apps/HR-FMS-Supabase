@@ -265,12 +265,14 @@ export default function HRMSAttendanceDashboard() {
       const groupedData = {};
       allData.forEach(record => {
         if (!record.employee_id || !record.attendance_date) return;
-        const key = `${record.employee_id}_${record.attendance_date}`;
+        const empId = record.employee_id.toString().trim().toUpperCase();
+        const attDate = record.attendance_date.toString().trim().split(" ")[0].split("T")[0];
+        const key = `${empId}_${attDate}`;
         if (!groupedData[key]) {
           groupedData[key] = {
-            employeeCode: record.employee_id,
+            employeeCode: empId,
             employeeName: record.employee_name,
-            date: record.attendance_date,
+            date: attDate,
             inTimes: [],
             outTimes: [],
             records: []
@@ -286,8 +288,8 @@ export default function HRMSAttendanceDashboard() {
         group.inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
         group.outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
 
-        // Sort times ascending using parseTimeToMinutes
-        allTimes.sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
+        // Sort times ascending using localeCompare
+        allTimes.sort((a, b) => a.localeCompare(b));
 
         let finalIn = null;
         let finalOut = null;
@@ -853,42 +855,14 @@ export default function HRMSAttendanceDashboard() {
                 inTime = record.inTime;
                 outTime = record.outTime;
 
-                if (!inTime || !outTime) {
-                  status = "PM";
+                if (inTime && outTime) {
+                  status = "P";
+                  remarks = "Present";
+                } else {
+                  status = "HD";
+                  isHalfDay = true;
                   isPunchMissing = true;
                   remarks = "Punch Missing";
-                } else {
-                  const inMin = parseTimeToMinutes(inTime);
-                  const outMin = parseTimeToMinutes(outTime);
-
-                  // Late mark check: limit 09:30 AM. Late if > 09:45 AM (585 min) and <= 12:30 PM (750 min)
-                  if (inMin > 585 && inMin <= 750) {
-                    lateCount++;
-                    isLate = true;
-                    if (lateCount >= 4) {
-                      status = "HD";
-                      isHalfDay = true;
-                      remarks = `4th Late Mark (${lateCount})`;
-                    } else {
-                      status = "P";
-                      remarks = `Late Mark (${lateCount})`;
-                    }
-                  }
-                  // In Time > 12:30 PM -> HD
-                  else if (inMin > 750) {
-                    status = "HD";
-                    isHalfDay = true;
-                    remarks = "In-time after 12:30 PM";
-                  }
-                  // Out Time < 04:00 PM (16:00 = 960 min) -> HD
-                  else if (outMin < 960) {
-                    status = "HD";
-                    isHalfDay = true;
-                    remarks = "Out-time before 04:00 PM";
-                  }
-                  else {
-                    status = "P";
-                  }
                 }
               } else {
                 status = "A";

@@ -22,7 +22,7 @@ const PendingTable = ({
   handleJoiningClick
 }) => {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-indigo-600 sticky text-center top-0 z-10 text-nowrap">
           <tr>

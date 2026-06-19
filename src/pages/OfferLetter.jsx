@@ -314,9 +314,9 @@ const OfferLetter = () => {
             ...followUp,
             name_as_per_aadhar: enquiry?.candidate_name || followUp.candidate_says || "Candidate",
             rbp_joining_id: followUp.enquiry_number || `ENQ-${followUp.id}`,
-            designation: enquiry?.applying_post ,
-            department: enquiry?.department ,
-            company_name: enquiry?.company_name ,
+            designation: enquiry?.applying_post,
+            department: enquiry?.department,
+            company_name: enquiry?.company_name,
             mobile_number: enquiry?.candidate_phone || "",
             email: enquiry?.candidate_email || "",
             next_call_date: followUp.next_call_date || "",
@@ -802,11 +802,11 @@ const OfferLetter = () => {
       toast.loading("Sending email to candidate...", { id: "offer-send" });
 
       const empName = formData.employeeName;
-      const company = formData.companyName ;
+      const company = formData.companyName;
       const designation = formData.designation;
       const joiningDate = formData.joiningDate || new Date().toISOString().split("T")[0];
-      const dept = formData.department ;
-      const loc = formData.placeOfPosting ;
+      const dept = formData.department;
+      const loc = formData.placeOfPosting;
 
       const offerText = `Dear ${empName},
 
@@ -1020,7 +1020,7 @@ Wishing you a successful career with us.`;
       // Construct Offer Letter Text
       const empName = emailTargetOffer.employee_name || emailTargetOffer.employeeName || "Candidate";
       const company = emailTargetOffer.companyName || emailTargetOffer.company_name || "RBP Energy India Pvt Ltd";
-      const designation = emailTargetOffer.designation ;
+      const designation = emailTargetOffer.designation;
       const joiningDate = emailTargetOffer.joining_date || emailTargetOffer.next_call_date || new Date().toISOString().split("T")[0];
       const dept = emailTargetOffer.department;
       const loc = emailTargetOffer.work_location || emailTargetOffer.presentAddress || "Raipur";
@@ -1144,7 +1144,7 @@ Authorised Signatory`;
       // Construct Confirmation Letter Text
       const empName = confirmationTarget.employee_name || confirmationTarget.employeeName || "Employee";
       const company = confirmationTarget.company_name || confirmationTarget.companyName || "RBP Energy India Pvt Ltd";
-      const designation = confirmationTarget.designation ;
+      const designation = confirmationTarget.designation;
       const effectiveDate = confirmationTarget.effective_date || confirmationTarget.effectiveDate || new Date().toLocaleDateString();
 
       const confirmationText = `Dear ${empName},
