@@ -541,7 +541,8 @@ const FindEnquiry = () => {
         <div>
           <button
             onClick={() => handleEnquiryClick()}
-            className="px-4 py-2 text-white bg-green-600 rounded-md hover:bg-opacity-90 text-sm flex items-center"
+            // className="px-4 py-2 text-white bg-green-600 rounded-md hover:bg-opacity-90 text-sm flex items-center"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-base font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg hover:shadow-2xl hover:scale-105 hover:from-green-600 hover:to-emerald-700 transition-all duration-300"
           >
             New Enquiry
           </button>
@@ -552,25 +553,6 @@ const FindEnquiry = () => {
       {/* Dynamic Filters Section */}
       <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Indent Number Filter */}
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
-            <div className="relative">
-              <input
-                type="text"
-                list="enqIndentList"
-                placeholder="Select/Search Indent"
-                value={filterIndentNo}
-                onChange={(e) => setFilterIndentNo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
-              />
-              <datalist id="enqIndentList">
-                {uniqueIndents.map(indent => (
-                  <option key={indent} value={indent} />
-                ))}
-              </datalist>
-            </div>
-          </div>
 
           {/* Post Filter */}
           <div className="flex flex-col">
@@ -629,10 +611,8 @@ const FindEnquiry = () => {
               />
             </div>
           </div>
-        </div>
 
-        {/* Actions Button */}
-        <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100">
+          <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100">
           <button
             onClick={() => {
               setFilterIndentNo("");
@@ -646,6 +626,8 @@ const FindEnquiry = () => {
             Clear Filters
           </button>
         </div>
+        </div>
+
       </div>
 
       {/* Tabs */}

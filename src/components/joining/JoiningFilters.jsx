@@ -10,30 +10,13 @@ const JoiningFilters = ({
 }) => {
   return (
     <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Indent Number Filter */}
-        <div className="flex flex-col">
-          <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
-          <div className="relative">
-            <input
-              type="text"
-              list="joiningIndentList"
-              placeholder="Select/Search Indent"
-              value={filterIndentNo}
-              onChange={(e) => setFilterIndentNo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
-            />
-            <datalist id="joiningIndentList">
-              {uniqueIndents.map((indent, i) => (
-                <option key={`indent-${i}`} value={indent} />
-              ))}
-            </datalist>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
 
         {/* Post Filter */}
-        <div className="flex flex-col">
-          <label className="text-xs font-medium text-gray-500 mb-1">Applying For Post</label>
+        <div className="lg:col-span-3 flex flex-col">
+          <label className="text-xs font-medium text-gray-500 mb-1">
+            Applying For Post
+          </label>
           <div className="relative">
             <input
               type="text"
@@ -51,9 +34,11 @@ const JoiningFilters = ({
           </div>
         </div>
 
-        {/* Name As Per Aadhaar Filter */}
-        <div className="flex flex-col">
-          <label className="text-xs font-medium text-gray-500 mb-1">Name As Per Aadhaar</label>
+        {/* Name Filter */}
+        <div className="lg:col-span-3 flex flex-col">
+          <label className="text-xs font-medium text-gray-500 mb-1">
+            Name As Per Aadhaar
+          </label>
           <div className="relative">
             <input
               type="text"
@@ -72,9 +57,11 @@ const JoiningFilters = ({
         </div>
 
         {/* Global Search */}
-        <div className="flex flex-col">
-          <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
-          <div className="relative h-full flex items-center">
+        <div className="lg:col-span-4 flex flex-col">
+          <label className="text-xs font-medium text-gray-500 mb-1">
+            Global Search
+          </label>
+          <div className="relative">
             <input
               type="text"
               placeholder="Search all fields..."
@@ -82,21 +69,28 @@ const JoiningFilters = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <Search size={16} className="absolute left-3 text-gray-500" />
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+            />
           </div>
         </div>
+
+        {/* Clear Filters Button */}
+        <div className="lg:col-span-2">
+          <button
+            onClick={onClearFilters}
+            className="w-full px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 text-sm font-semibold"
+          >
+            <X size={16} />
+            Clear Filters
+          </button>
+        </div>
+
       </div>
 
       {/* Actions Button */}
       <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100">
-        <button
-          onClick={onClearFilters}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
-        >
-          <X size={16} />
-          Clear Filters
-        </button>
-
         {/* New Employee Joining Button */}
         <button
           onClick={onNewJoining}

@@ -399,7 +399,7 @@ const Indent = () => {
     <div className="space-y-6 page-content p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-indigo-600">Indent Management</h1>
-        <button
+        {/* <button
           onClick={() => setShowModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-indigo-700 transition-all duration-200"
           disabled={loading}
@@ -431,6 +431,42 @@ const Indent = () => {
           ) : (
             <>
               <Plus size={16} className="mr-2" />
+              Create Indent
+            </>
+          )}
+        </button> */}
+        <button
+          onClick={() => setShowModal(true)}
+          disabled={loading}
+          className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-base font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg hover:shadow-2xl hover:scale-105 hover:from-green-600 hover:to-emerald-700 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <svg
+                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Loading...
+            </>
+          ) : (
+            <>
+              <Plus size={20} className="mr-2" />
               Create Indent
             </>
           )}
@@ -693,26 +729,6 @@ const Indent = () => {
       {/* Dynamic Filters Section */}
       <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Indent Number Filter */}
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
-            <div className="relative">
-              <input
-                type="text"
-                list="indentList"
-                placeholder="Select/Search Indent"
-                value={filterIndentNo}
-                onChange={(e) => setFilterIndentNo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
-              />
-              <datalist id="indentList">
-                {uniqueIndents.map(indent => (
-                  <option key={indent} value={indent} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-
           {/* Gender Filter */}
           <div className="flex flex-col">
             <label className="text-xs font-medium text-gray-500 mb-1">Gender</label>
@@ -770,23 +786,24 @@ const Indent = () => {
               />
             </div>
           </div>
+
+          <div className="flex justify-end pt-2 mt-2 border-t border-gray-100">
+            <button
+              onClick={() => {
+                setFilterIndentNo("");
+                setFilterGender("");
+                setFilterPost("");
+                setSearchTerm("");
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
+            >
+              <X size={16} />
+              Clear Filters
+            </button>
+          </div>
         </div>
 
-        {/* Clear Filters Button */}
-        <div className="flex justify-end pt-2 mt-2 border-t border-gray-100">
-          <button
-            onClick={() => {
-              setFilterIndentNo("");
-              setFilterGender("");
-              setFilterPost("");
-              setSearchTerm("");
-            }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
-          >
-            <X size={16} />
-            Clear Filters
-          </button>
-        </div>
+
       </div>
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">

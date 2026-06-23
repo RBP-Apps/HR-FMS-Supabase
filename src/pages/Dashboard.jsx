@@ -1,12 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import supabase from "../utils/supabase";
-
-import {
-  Users,
-  UserCheck,
-  UserPlus,
-  FileText,
-} from "lucide-react";
+import { Users, UserCheck, UserPlus, FileText, } from "lucide-react";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, } from "recharts";
 
 const Dashboard = () => {
   const [totalEmployee, setTotalEmployee] = useState(0);
@@ -60,18 +55,6 @@ const Dashboard = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  // Parse DD/MM/YYYY format date
-  const parseSheetDate = (dateStr) => {
-    if (!dateStr) return null;
-    const parts = dateStr.split("/");
-    if (parts.length !== 3) return null;
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-    return new Date(year, month, day);
   };
 
   // Fetch Leave Management Data for New Analytics
@@ -128,8 +111,6 @@ const Dashboard = () => {
       setLeaveTypeData([]);
     }
   };
-
-
 
   const fetchJoiningCount = async () => {
     try {
@@ -251,7 +232,6 @@ const Dashboard = () => {
     }
   };
 
-
   const fetchLeaveCount = async () => {
     try {
       console.log("🔍 Fetching leaving data from Supabase...");
@@ -356,15 +336,6 @@ const Dashboard = () => {
     return result;
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      approved: "#10B981",
-      pending: "#F59E0B",
-      rejected: "#EF4444",
-      cancelled: "#6B7280",
-    };
-    return colors[status.toLowerCase()] || "#3B82F6";
-  };
 
   const fetchIndentCount = async () => {
     try {
@@ -401,8 +372,6 @@ const Dashboard = () => {
       return 0;
     }
   };
-
-
 
   const fetchEnquiryCount = async () => {
     try {
@@ -451,8 +420,6 @@ const Dashboard = () => {
       };
     }
   };
-
-
 
   const fetchEnquiryTableDataJoining = async () => {
     try {
@@ -524,9 +491,6 @@ const Dashboard = () => {
     }
   };
 
-
-
-  // Fetch INDENT Table Data
   const fetchIndentTableData = async () => {
     try {
       console.log("🔍 Fetching INDENT table data from Supabase...");
@@ -554,7 +518,6 @@ const Dashboard = () => {
       setIndentTableData([]);
     }
   };
-
 
 
   // Fetch ENQUIRY Table Data
@@ -598,7 +561,7 @@ const Dashboard = () => {
       const { data, error } = await supabase
         .from('joining')
         .select(
-          'rbp_joining_id, status, firm_name, name_as_per_aadhar, date_of_joining, work_location, designation, gender'
+          'rbp_joining_id, status, firm_name, name_as_per_aadhar, date_of_joining, work_location, designation, gender, employee_category'
         );
 
       if (error) {
@@ -620,6 +583,7 @@ const Dashboard = () => {
           workLocation: row.work_location?.toString().trim() || "-",
           designation: row.designation?.toString().trim() || "-",
           gender: row.gender?.toString().trim() || "-",
+          employeeCategory: row.employee_category?.toString().trim() || "-",
         }));
 
       console.log("Filtered Active Employees:", tableData.length);
@@ -687,6 +651,90 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  // Compute chart data for Active Employees (Designation-wise Count)
+  const designationChartData = useMemo(() => {
+    const counts = {};
+    joiningTableData.forEach((emp) => {
+      const designation = emp.designation || "Unknown";
+      counts[designation] = (counts[designation] || 0) + 1;
+    });
+
+    const sortedData = Object.keys(counts)
+      .map((key) => ({
+        designation: key,
+        count: counts[key],
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    if (sortedData.length <= 12) {
+      return sortedData;
+    }
+
+    const top12 = sortedData.slice(0, 12);
+    const rest = sortedData.slice(12);
+    const restCount = rest.reduce((acc, curr) => acc + curr.count, 0);
+
+    return [
+      ...top12,
+      {
+        designation: "Others",
+        count: restCount,
+      },
+    ];
+  }, [joiningTableData]);
+
+  // Compute chart data for Active Employees (Gender Distribution)
+  const genderChartData = useMemo(() => {
+    const counts = { Male: 0, Female: 0, Other: 0 };
+    joiningTableData.forEach((emp) => {
+      let gender = emp.gender || "Other";
+      if (gender.toLowerCase() === "male") gender = "Male";
+      else if (gender.toLowerCase() === "female") gender = "Female";
+      else gender = "Other";
+
+      counts[gender] = (counts[gender] || 0) + 1;
+    });
+    return Object.keys(counts)
+      .map((key) => ({
+        name: key,
+        value: counts[key],
+      }))
+      .filter((item) => item.value > 0);
+  }, [joiningTableData]);
+
+  // Compute chart data for Active Employees (Staff Category Distribution)
+  const staffTypeChartData = useMemo(() => {
+    const counts = { "Office Staff": 0, "Field Staff": 0, "Other": 0 };
+    joiningTableData.forEach((emp) => {
+      const category = emp.employeeCategory || "Other";
+      if (category.toLowerCase().includes("office")) {
+        counts["Office Staff"] += 1;
+      } else if (category.toLowerCase().includes("field")) {
+        counts["Field Staff"] += 1;
+      } else {
+        counts["Other"] += 1;
+      }
+    });
+    return Object.keys(counts)
+      .map((key) => ({
+        name: key,
+        value: counts[key],
+      }))
+      .filter((item) => item.value > 0);
+  }, [joiningTableData]);
+
+  const GENDER_COLORS = {
+    Male: "#3B82F6",    // Blue
+    Female: "#EC4899",  // Pink
+    Other: "#8B5CF6",   // Purple
+  };
+
+  const STAFF_TYPE_COLORS = {
+    "Office Staff": "#10B981", // Green/Emerald
+    "Field Staff": "#F59E0B",  // Amber
+    Other: "#6B7280",          // Gray
+  };
+
   return (
     <div className="p-6 space-y-6 bg-gray-50 page-content">
       <div className="flex justify-between items-center">
@@ -694,97 +742,237 @@ const Dashboard = () => {
       </div>
 
       {/* Summary Stats - CORRECTED */}
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
 
-  {/* Total Indent */}
-  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
+        {/* Total Indent */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
 
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-blue-100">
-          Total Indent
-        </p>
-        <h3 className="mt-2 text-4xl font-bold">
-          {totalEmployee}
-        </h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-100">
+                Total Indent
+              </p>
+              <h3 className="mt-2 text-4xl font-bold">
+                {totalEmployee}
+              </h3>
+            </div>
+
+            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+              <FileText size={28} />
+            </div>
+          </div>
+        </div>
+
+        {/* Total Enquiry */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-100">
+                Total Enquiry
+              </p>
+              <h3 className="mt-2 text-4xl font-bold">
+                {activeEmployee}
+              </h3>
+            </div>
+
+            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+              <UserCheck size={28} />
+            </div>
+          </div>
+        </div>
+
+        {/* Total Joining */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-100">
+                Total Joining
+              </p>
+              <h3 className="mt-2 text-4xl font-bold">
+                {leftEmployee}
+              </h3>
+            </div>
+
+            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+              <UserPlus size={28} />
+            </div>
+          </div>
+        </div>
+
+        {/* Live Employee */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-pink-100">
+                Live Employee
+              </p>
+              <h3 className="mt-2 text-4xl font-bold">
+                {leaveThisMonth}
+              </h3>
+            </div>
+
+            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+              <Users size={28} />
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-        <FileText size={28} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Designation-wise Employee Count Bar Chart */}
+        <div className="p-6 bg-white rounded-xl border shadow-lg">
+          <h2 className="text-xl font-bold text-blue-800 mb-6">
+            Designation-wise Employee Count
+          </h2>
+          <div className="h-96 w-full">
+            {designationChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={designationChartData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 50 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis
+                    dataKey="designation"
+                    angle={-35}
+                    textAnchor="end"
+                    interval={0}
+                    tick={{ fill: '#4B5563', fontSize: 10 }}
+                    height={70}
+                  />
+                  <YAxis tick={{ fill: '#4B5563', fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#FFF', borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                    cursor={{ fill: '#F3F4F6' }}
+                  />
+                  {/* <Bar dataKey="count" name="Employees" fill="#3B82F6" radius={[4, 4, 0, 0]} /> */}
+
+                  <Bar dataKey="count" name="Employees" radius={[4, 4, 0, 0]}>
+                    {designationChartData.map((entry, index) => {
+                      let color = "#22C55E"; // Green
+
+                      if (entry.count <= 2) {
+                        color = "#EF4444"; // Red
+                      } else if (entry.count <= 5) {
+                        color = "#F97316"; // Orange
+                      } else if (entry.count <= 10) {
+                        color = "#EAB308"; // Yellow
+                      }
+
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500">
+                No designation data available
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Gender and Staff Type Distribution Donuts */}
+        <div className="p-6 bg-white rounded-xl border shadow-lg flex flex-col justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-blue-800 mb-6">
+              Employee Demographics & Classification
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full items-center">
+            {/* Gender Chart */}
+            <div className="flex flex-col items-center justify-center">
+              <h3 className="text-sm font-semibold text-gray-600 mb-4">Gender Distribution</h3>
+              <div className="h-60 w-full flex items-center justify-center relative">
+                {genderChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={genderChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {genderChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={GENDER_COLORS[entry.name] || '#9CA3AF'} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-gray-500">No gender data</div>
+                )}
+              </div>
+              <div className="flex flex-wrap justify-center gap-4 mt-4">
+                {genderChartData.map((entry, idx) => (
+                  <div key={idx} className="flex items-center text-xs">
+                    <span className="w-3 h-3 rounded-full mr-1.5" style={{ backgroundColor: GENDER_COLORS[entry.name] }}></span>
+                    <span className="text-gray-600 font-medium">{entry.name}: {entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Staff Type Chart */}
+            <div className="flex flex-col items-center justify-center">
+              <h3 className="text-sm font-semibold text-gray-600 mb-4">Staff Type</h3>
+              <div className="h-60 w-full flex items-center justify-center relative">
+                {staffTypeChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={staffTypeChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {staffTypeChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={STAFF_TYPE_COLORS[entry.name] || '#9CA3AF'} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-gray-500">No staff category data</div>
+                )}
+              </div>
+              <div className="flex flex-wrap justify-center gap-4 mt-4">
+                {staffTypeChartData.map((entry, idx) => (
+                  <div key={idx} className="flex items-center text-xs">
+                    <span className="w-3 h-3 rounded-full mr-1.5" style={{ backgroundColor: STAFF_TYPE_COLORS[entry.name] }}></span>
+                    <span className="text-gray-600 font-medium">{entry.name}: {entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-
-  {/* Total Enquiry */}
-  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
-
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-green-100">
-          Total Enquiry
-        </p>
-        <h3 className="mt-2 text-4xl font-bold">
-          {activeEmployee}
-        </h3>
-      </div>
-
-      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-        <UserCheck size={28} />
-      </div>
-    </div>
-  </div>
-
-  {/* Total Joining */}
-  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
-
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-amber-100">
-          Total Joining
-        </p>
-        <h3 className="mt-2 text-4xl font-bold">
-          {leftEmployee}
-        </h3>
-      </div>
-
-      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-        <UserPlus size={28} />
-      </div>
-    </div>
-  </div>
-
-  {/* Live Employee */}
-  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-    <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
-
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-pink-100">
-          Live Employee
-        </p>
-        <h3 className="mt-2 text-4xl font-bold">
-          {leaveThisMonth}
-        </h3>
-      </div>
-
-      <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-        <Users size={28} />
-      </div>
-    </div>
-  </div>
-
-</div>
 
       {/* Tables Section */}
       <div className="space-y-6">
         {/* INDENT Table */}
         <div style={{ display: "flex" }}>
           {" "}
-          {/* Gap kam kiya 2px */}
-          {/* INDENT Table - Left Side */}
+
           <div
             className="p-4 bg-white rounded-xl border shadow-lg"
             style={{ width: "520px", marginRight: "15px" }}
@@ -1283,6 +1471,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

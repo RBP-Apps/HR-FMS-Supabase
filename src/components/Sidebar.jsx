@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
- 
+
   Globe,
   Calendar,
   DollarSign,
@@ -170,12 +170,6 @@ const Sidebar = ({ onClose }) => {
       color: "from-yellow-500 to-orange-600",
     },
 
-    {
-      path: "/leave-management",
-      icon: "🌴",
-      label: "Leave Approval",
-      color: "from-red-500 to-pink-600",
-    },
 
     {
       path: "/attendancedaily",
@@ -183,6 +177,13 @@ const Sidebar = ({ onClose }) => {
       label: "Attendance",
       color: "from-indigo-500 to-blue-700",
     },
+    {
+      path: "/leave-management",
+      icon: "🌴",
+      label: "Approval",
+      color: "from-red-500 to-pink-600",
+    },
+
 
     {
       path: "/attendancedaily_management",
@@ -197,12 +198,12 @@ const Sidebar = ({ onClose }) => {
       label: "Payroll",
       color: "from-emerald-500 to-teal-700",
     },
-{
-  path: "/after-payment",
-  icon: "💳",
-  label: "After Payment",
-  color: "from-emerald-500 to-teal-700",
-},
+    {
+      path: "/after-payment",
+      icon: "💳",
+      label: "After Payment",
+      color: "from-emerald-500 to-teal-700",
+    },
 
     {
       path: "/add_users",
@@ -218,12 +219,12 @@ const Sidebar = ({ onClose }) => {
       color: "from-gray-600 to-slate-800",
     },
 
-    {
-      path: "/resignation_approval",
-      icon: "❌",
-      label: "Resignation Approval",
-      color: "from-rose-500 to-red-700",
-    },
+    // {
+    //   path: "/resignation_approval",
+    //   icon: "❌",
+    //   label: "Resignation Approval",
+    //   color: "from-rose-500 to-red-700",
+    // },
 
     {
       path: "/after-resignation-work",
@@ -457,7 +458,7 @@ const Sidebar = ({ onClose }) => {
             onClose?.();
             setIsOpen(false);
           }}
-         className="flex items-center py-1.5 px-3 rounded-lg bg-red-600 text-white hover:bg-red-700 cursor-pointer transition-colors duration-200 w-full"
+          className="flex items-center py-1.5 px-3 rounded-lg bg-red-600 text-white hover:bg-red-700 cursor-pointer transition-colors duration-200 w-full"
         >
           <LogOutIcon className={isCollapsed ? "mx-auto" : "mr-3"} size={20} />
           {!isCollapsed && <span>Logout</span>}

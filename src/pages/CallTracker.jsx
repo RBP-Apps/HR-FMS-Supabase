@@ -519,25 +519,6 @@ const CallTracker = () => {
       {/* Dynamic Filters Section */}
       <div className="bg-white p-4 rounded-lg shadow flex flex-col space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Indent Number Filter */}
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number</label>
-            <div className="relative">
-              <input
-                type="text"
-                list="callIndentList"
-                placeholder="Select/Search Indent"
-                value={filterIndentNo}
-                onChange={(e) => setFilterIndentNo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
-              />
-              <datalist id="callIndentList">
-                {uniqueIndents.map(indent => (
-                  <option key={indent} value={indent} />
-                ))}
-              </datalist>
-            </div>
-          </div>
 
           {/* Post Filter */}
           <div className="flex flex-col">
@@ -596,22 +577,22 @@ const CallTracker = () => {
               />
             </div>
           </div>
-        </div>
 
-        {/* Clear Filters Button */}
-        <div className="flex justify-end pt-2 border-t border-gray-100">
-          <button
-            onClick={() => {
-              setFilterIndentNo("");
-              setFilterPost("");
-              setFilterName("");
-              setSearchTerm("");
-            }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
-          >
-            <X size={16} />
-            Clear Filters
-          </button>
+          {/* Clear Filters Button */}
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <button
+              onClick={() => {
+                setFilterIndentNo("");
+                setFilterPost("");
+                setFilterName("");
+                setSearchTerm("");
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            >
+              <X size={16} />
+              Clear Filters
+            </button>
+          </div>
         </div>
       </div>
 
