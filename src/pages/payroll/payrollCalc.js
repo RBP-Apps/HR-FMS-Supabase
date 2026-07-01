@@ -1,4 +1,5 @@
 
+
 /**
  * Payroll Calculation Engine
  * 
@@ -42,32 +43,38 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const otDays = Number(edits.ot ?? 0);
 
   // --- REAL salary components ---
-  const basicReal      = Math.round(grossSalary * 0.50);
-  const hraReal        = Math.round(grossSalary * 0.20);
-  const convReal       = Math.round(grossSalary * 0.10);
-  const medReal        = Math.round(grossSalary * 0.15);
-  const specialReal    = Math.round(grossSalary * 0.05);
+  const basicReal      = grossSalary * 0.50;
+  const hraReal        = grossSalary * 0.20;
+  const convReal       = grossSalary * 0.10;
+  const medReal        = grossSalary * 0.15;
+  const specialReal    = grossSalary * 0.05;
   const grossReal      = grossSalary;
 
-  // Total paid days calculation (Present + Week Off + Paid Leave + Holidays)
-  const totalPaidDays = presentDays + weekOff + paidLeave + holidays;
-  const calendarDays = totalDaysInMonth || (workingDays + weekOff + holidays) || 30;
+  // Prorate weekly offs and holidays based on worked/paid days relative to working days in month
+  // This ensures employees who only work a few days do not get full monthly weekly offs/holidays,
+  // but full-month employees and those with small absences get their full/correct share.
+  const workedDaysCombined = presentDays + paidLeave;
+  const paidWeekOff = workingDays > 0 ? Math.round((weekOff * workedDaysCombined) / workingDays) : 0;
+  const paidHolidays = workingDays > 0 ? Math.round((holidays * workedDaysCombined) / workingDays) : 0;
+
+  const totalPaidDays = workedDaysCombined + paidWeekOff + paidHolidays;
+  const calendarDays = totalDaysInMonth || 30;
 
   // --- EARNED (paid-day prorated) ---
-  const basicEarned    = calendarDays ? Math.round((basicReal   / calendarDays) * totalPaidDays) : 0;
-  const hraEarned      = calendarDays ? Math.round((hraReal     / calendarDays) * totalPaidDays) : 0;
-  const convEarned     = calendarDays ? Math.round((convReal    / calendarDays) * totalPaidDays) : 0;
-  const medEarned      = calendarDays ? Math.round((medReal     / calendarDays) * totalPaidDays) : 0;
-  const specialEarned  = calendarDays ? Math.round((specialReal / calendarDays) * totalPaidDays) : 0;
+  const basicEarned    = calendarDays ? (basicReal   / calendarDays) * totalPaidDays : 0;
+  const hraEarned      = calendarDays ? (hraReal     / calendarDays) * totalPaidDays : 0;
+  const convEarned     = calendarDays ? (convReal    / calendarDays) * totalPaidDays : 0;
+  const medEarned      = calendarDays ? (medReal     / calendarDays) * totalPaidDays : 0;
+  const specialEarned  = calendarDays ? (specialReal / calendarDays) * totalPaidDays : 0;
   const grossEarned    = basicEarned + hraEarned + convEarned + medEarned + specialEarned;
 
   // --- OT ---
-  const perDaySalary   = totalDaysInMonth ? Math.round(grossSalary / totalDaysInMonth) : 0;
-  const otAmount       = Math.round(otDays * perDaySalary);
+  const perDaySalary   = totalDaysInMonth ? grossSalary / totalDaysInMonth : 0;
+  const otAmount       = otDays * perDaySalary;
 
   // --- DEDUCTIONS ---
-  const epfDed         = Math.round(basicEarned * 0.12);
-  const esicDed        = Math.round(basicEarned * 0.0075);
+  const epfDed         = basicEarned * 0.12;
+  const esicDed        = basicEarned * 0.0075;
   const advance        = Number(edits.advance        ?? 0);
   const securityDep    = Number(edits.security_deposit ?? 0);
   const otherDed       = Number(edits.other_deduction  ?? 0);
@@ -84,8 +91,8 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const totalPayable   = netSalary + taDA + reimbursement + salaryArrears;
 
   // --- EMPLOYER ---
-  const employerEPF    = Math.round(basicEarned * 0.13);
-  const employerESIC   = Math.round(basicEarned * 0.0325);
+  const employerEPF    = basicEarned * 0.13;
+  const employerESIC   = basicEarned * 0.0325;
   const ctc            = grossEarned + employerEPF + employerESIC;
 
   return {
@@ -98,3 +105,4 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
     employerEPF, employerESIC, ctc,
   };
 }
+

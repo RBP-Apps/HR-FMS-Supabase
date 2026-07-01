@@ -30,7 +30,7 @@ const Employee = () => {
   const [filterName, setFilterName] = useState("");
 
   const visibleColumnsEmployeeJoining = [
-    'Employee ID', 'Firm Name', 'Name As Per Aadhaar', 'Father Name',
+    'Employee ID', 'Punch Id', 'Firm Name', 'Name As Per Aadhaar', 'Father Name',
     'Date Of Joining', 'Work Location', 'Designation', 'Salary', 'Aadhaar Frontside photo',
     'Aadhaar Backside photo', 'Pan Card', 'Relationship with family Person', 'Current Address',
     'Address as per aadhaar card', 'Date of birth aadhaar card', 'Gender', 'Mobile Number',
@@ -41,7 +41,7 @@ const Employee = () => {
   ];
 
   const visibleColumnsEmployeeLeaving = [
-    'Employee ID', 'Name', 'Date Of Joining', 'Date Of Leaving', 'Mobile Number',
+    'Employee ID', 'Punch Id', 'Name', 'Date Of Joining', 'Date Of Leaving', 'Mobile Number',
     'Father Name', 'Designation', 'Salary', 'Reason Of Leaving'
   ];
 
@@ -53,6 +53,7 @@ const Employee = () => {
       let value;
       switch (column) {
         case 'Employee ID': value = rowData.employeeId; break;
+        case 'Punch Id': value = rowData.punchId; break;
         case 'Firm Name': value = rowData.firmName; break;
         case 'Name As Per Aadhaar': value = rowData.nameAsPerAadhar; break;
         case 'Father Name': value = rowData.fatherName; break;
@@ -161,6 +162,7 @@ const Employee = () => {
 
       const updateData = {
         rbp_joining_id: editLeavingData.employeeId,
+        punch_id: editLeavingData.punchId || null,
         name_as_per_aadhar: editLeavingData.name,
         date_of_joining: editLeavingData.dateOfJoining || null,
         leaving_date: editLeavingData.dateOfLeaving || null,
@@ -326,6 +328,7 @@ const Employee = () => {
 
       const updateData = {
         rbp_joining_id: editData.employeeId,
+        punch_id: editData.punchId || null,
         status: editData.status,
         firm_name: editData.firmName,
         name_as_per_aadhar: editData.nameAsPerAadhar,
@@ -400,6 +403,7 @@ const Employee = () => {
       const processedData = data.map((row) => ({
         id: row.id,
         employeeId: row.rbp_joining_id || "",
+        punchId: row.punch_id || "",
         status: row.status || "",
         firmName: row.firm_name || "",
         nameAsPerAadhar: row.name_as_per_aadhar || "",
@@ -473,6 +477,7 @@ const Employee = () => {
       const processedData = data.map((row) => ({
         id: row.id,
         employeeId: row.rbp_joining_id || "",
+        punchId: row.punch_id || "",
         status: row.status || "",
         name: row.name_as_per_aadhar || "",
         dateOfJoining: row.date_of_joining || "",
@@ -508,6 +513,7 @@ const Employee = () => {
     const matchesSearch = searchTerm === "" ||
       item.nameAsPerAadhar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.punchId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.fatherName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -525,6 +531,7 @@ const Employee = () => {
     const matchesSearch = searchTerm === "" ||
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.punchId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.designation?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory = filterEmployeeCategory === "" || item.employeeCategory === filterEmployeeCategory;
@@ -683,6 +690,12 @@ const Employee = () => {
                         Employee ID
                       </th>
                       <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                        Punch ID
+                      </th>
+                      <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                        Employee Category
+                      </th>
+                      <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
@@ -786,7 +799,7 @@ const Employee = () => {
                   <tbody className="divide-y divide-white text-center">
                     {tableLoading ? (
                       <tr>
-                        <td colSpan="35" className="px-6 py-12 text-center">
+                        <td colSpan="36" className="px-6 py-12 text-center">
                           <div className="flex justify-center flex-col items-center">
                             <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
                             <span className="text-gray-600 text-sm">
@@ -797,7 +810,7 @@ const Employee = () => {
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan="35" className="px-6 py-12 text-center">
+                        <td colSpan="36" className="px-6 py-12 text-center">
                           <p className="text-red-500">Error: {error}</p>
                           <button
                             onClick={fetchJoiningData}
@@ -884,6 +897,12 @@ const Employee = () => {
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {renderField(item.employeeId)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {renderField(item.punchId)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {renderField(item.employeeCategory)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {renderField(item.status)}
@@ -1022,6 +1041,9 @@ const Employee = () => {
                         Employee ID
                       </th>
                       <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
+                        Punch ID
+                      </th>
+                      <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
                         Name
                       </th>
                       <th className="px-6 py-3  text-xs font-medium  uppercase tracking-wider">
@@ -1050,7 +1072,7 @@ const Employee = () => {
                   <tbody className="divide-y divide-white text-center">
                     {tableLoading ? (
                       <tr>
-                        <td colSpan="10" className="px-6 py-12 text-center">
+                        <td colSpan="11" className="px-6 py-12 text-center">
                           <div className="flex justify-center flex-col items-center">
                             <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
                             <span className="text-gray-600 text-sm">
@@ -1061,7 +1083,7 @@ const Employee = () => {
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan="10" className="px-6 py-12 text-center">
+                        <td colSpan="11" className="px-6 py-12 text-center">
                           <p className="text-red-500">Error: {error}</p>
                           <button
                             onClick={fetchLeavingData}
@@ -1146,6 +1168,13 @@ const Employee = () => {
                             {renderLeavingCell(
                               item.employeeId,
                               "employeeId",
+                              index,
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {renderLeavingCell(
+                              item.punchId,
+                              "punchId",
                               index,
                             )}
                           </td>

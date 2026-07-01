@@ -6,7 +6,7 @@ export const visibleColumnsPending = [
 ];
 
 export const visibleColumnsHistory = [
-  'Indent Number', 'Name', 'Father Name', 'Date of Joining', 'Designation',
+  'Indent Number', 'Punch Id', 'Name', 'Father Name', 'Date of Joining', 'Designation',
   'Department', 'Salary', 'Mobile Number', 'Personal Email', 'Aadhar Address',
   'Current Address', 'Bank Account', 'IFSC Code', 'PF ID', 'ESIC No', 'Company PF',
   'Company ESIC', 'Attendance Type', 'Aadhar Front', 'Aadhar Back', 'PAN Card'
@@ -39,6 +39,7 @@ export const getCompletionStats = (rowData, visibleColumns, joiningRecord = null
       case 'Resume': value = rowData.candidateResume; break;
 
       // History Specific
+      case 'Punch Id': value = joiningRecord?.punch_id; break;
       case 'Father Name': value = joiningRecord?.father_name; break;
       case 'Date of Joining': value = joiningRecord?.date_of_joining; break;
       case 'Salary': value = joiningRecord?.salary; break;

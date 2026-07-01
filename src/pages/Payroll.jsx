@@ -138,6 +138,60 @@ export default function PayrollPage() {
     const daysInMonth = new Date(yVal, monthNum, 0).getDate();
     const prefix = `${yVal}-${String(monthNum).padStart(2, '0')}`;
 
+    // 1. First check if finalized attendance exists in final_attendance
+    try {
+      const { data: finalAtt, error: finalAttErr } = await supabase
+        .from('final_attendance')
+        .select('employee_id,attendance_date,status')
+        .eq('month', monthNum)
+        .eq('year', yVal);
+
+      if (!finalAttErr && finalAtt && finalAtt.length > 0) {
+        // Group by employee_id
+        const empAttMap = {};
+        finalAtt.forEach(row => {
+          if (!empAttMap[row.employee_id]) {
+            empAttMap[row.employee_id] = [];
+          }
+          empAttMap[row.employee_id].push(row.status);
+        });
+
+        return empList.map(emp => {
+          const statuses = empAttMap[emp.id] || [];
+          let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
+
+          statuses.forEach(status => {
+            if (status === 'P') {
+              presentDays++;
+            } else if (status === 'HD') {
+              presentDays += 0.5;
+              absentDays += 0.5;
+            } else if (status === 'WO') {
+              weekOffCount++;
+            } else if (status === 'CL' || status === 'EL') {
+              paidLeaves++;
+            } else if (status === 'H') {
+              holidayCount++;
+            } else {
+              absentDays++;
+            }
+          });
+
+          return {
+            employee_id: emp.id,
+            working_days: daysInMonth - weekOffCount - holidayCount,
+            present_days: presentDays,
+            week_off: weekOffCount,
+            paid_leave: paidLeaves,
+            holidays: holidayCount,
+            absent_days: absentDays,
+          };
+        });
+      }
+    } catch (err) {
+      console.warn("Error fetching from final_attendance, falling back to live calculation", err);
+    }
+
     let bioLogs = [], attLogs = [], holidayLogs = [];
     try {
       const [{ data: bioData, error: bioErr }, { data: attData, error: attErr }] = await Promise.all([
@@ -173,8 +227,9 @@ export default function PayrollPage() {
       const nameKey = b.employee_name ? `${b.employee_name.trim().toLowerCase()}_${b.attendance_date}` : null;
       const hasPunch = b.in_time || b.out_time;
       if (hasPunch) {
-        if (codeKey) bioMap[codeKey] = true;
-        if (nameKey) bioMap[nameKey] = true;
+        const punchObj = { in_time: b.in_time, out_time: b.out_time };
+        if (codeKey) bioMap[codeKey] = punchObj;
+        if (nameKey) bioMap[nameKey] = punchObj;
       }
     });
 
@@ -186,9 +241,8 @@ export default function PayrollPage() {
       const codeKey = a.employee_code ? `${a.employee_code.trim().toLowerCase()}_${a.date}` : null;
       
       if (a.approved_status === 'corrected') {
-        const isPresent = a.status === 'P' || a.status === 'IN';
-        if (nameKey) manualMap[nameKey] = isPresent ? 'P' : 'A';
-        if (codeKey) manualMap[codeKey] = isPresent ? 'P' : 'A';
+        if (nameKey) manualMap[nameKey] = a.status;
+        if (codeKey) manualMap[codeKey] = a.status;
       } else if (a.status === 'CL') {
         if (nameKey) leaveMap[nameKey] = 'CL';
         if (codeKey) leaveMap[codeKey] = 'CL';
@@ -227,9 +281,13 @@ export default function PayrollPage() {
           if (leaveStatus) {
             status = 'CL';
           } else {
-            const hasBio = (codeKey && bioMap[codeKey]) || (nameKey && bioMap[nameKey]);
-            if (hasBio) {
-              status = 'P';
+            const bioEntry = (codeKey && bioMap[codeKey]) || (nameKey && bioMap[nameKey]);
+            if (bioEntry) {
+              if (bioEntry.in_time && bioEntry.out_time) {
+                status = 'P';
+              } else {
+                status = 'HD';
+              }
             } else {
               const hasField = (nameKey && fieldMap[nameKey]) || (codeKey && fieldMap[codeKey]);
               if (hasField) status = 'P';
@@ -237,11 +295,20 @@ export default function PayrollPage() {
           }
         }
 
-        if (status === 'P') presentDays++;
-        else if (status === 'WO') weekOffCount++;
-        else if (status === 'CL') paidLeaves++;
-        else if (status === 'H') holidayCount++;
-        else absentDays++;
+        if (status === 'P') {
+          presentDays++;
+        } else if (status === 'HD') {
+          presentDays += 0.5;
+          absentDays += 0.5;
+        } else if (status === 'WO') {
+          weekOffCount++;
+        } else if (status === 'CL' || status === 'EL') {
+          paidLeaves++;
+        } else if (status === 'H') {
+          holidayCount++;
+        } else {
+          absentDays++;
+        }
       }
 
       return {

@@ -10,13 +10,11 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Indent from "./pages/Indent";
-import SocialSite from "./pages/SocialSite";
 import FindEnquiry from "./pages/FindEnquiry";
 import CallTracker from "./pages/CallTracker";
 import AfterJoiningWork from "./pages/AfterJoiningWork";
 import AfterResignatyionWork from "./pages/AfterResignationWork";
 import Employee from "./pages/Employee";
-import MySalary from "./pages/MySalary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LeaveManagement from "./pages/LeaveManagement";
 import Attendancedaily from "./pages/Attendancedaily";
@@ -51,7 +49,6 @@ function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="indent" element={<Indent />} />
-            {/* <Route path="social-site" element={<SocialSite />} /> */}
             <Route path="find-enquiry" element={<FindEnquiry />} />
             <Route path="call-tracker" element={<CallTracker />} />
             <Route path="joining" element={<Joining />} />
@@ -60,7 +57,6 @@ function App() {
             <Route path="after-joining-work" element={<AfterJoiningWork />} />
             <Route path="after-resignation-work" element={<AfterResignatyionWork />} />
             <Route path="employee" element={<Employee />} />
-            <Route path="my-salary" element={<MySalary />} />
             <Route path="leave-management" element={<LeaveManagement />} />
             <Route path="attendancedaily" element={<Attendancedaily />} />
             <Route path="report" element={<Report />} />

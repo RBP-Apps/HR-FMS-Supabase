@@ -3,23 +3,18 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
 
   Globe,
-  Calendar,
-  DollarSign,
+
   FileText as LeaveIcon,
   User as ProfileIcon,
-  Clock,
   LogOut as LogOutIcon,
   X,
-  DoorOpen,
   User,
   Menu,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import useAuthStore from "../store/authStore";
 
 const Sidebar = ({ onClose }) => {
-  // const { logout, user } = useAuthStore();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [attendanceOpen, setAttendanceOpen] = useState(false);
@@ -219,12 +214,6 @@ const Sidebar = ({ onClose }) => {
       color: "from-gray-600 to-slate-800",
     },
 
-    // {
-    //   path: "/resignation_approval",
-    //   icon: "❌",
-    //   label: "Resignation Approval",
-    //   color: "from-rose-500 to-red-700",
-    // },
 
     {
       path: "/after-resignation-work",
@@ -234,19 +223,7 @@ const Sidebar = ({ onClose }) => {
     },
   ];
 
-
-  const employeeMenuItems = [
-    // { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: "/my-profile", icon: ProfileIcon, label: "My Profile" },
-    { path: "/my-attendance", icon: Clock, label: "My Attendance" },
-    { path: "/leave-request", icon: LeaveIcon, label: "Leave Request" },
-    { path: "/gate-pass-request", icon: DoorOpen, label: "Gate Pass Request" },
-    { path: "/my-salary", icon: DollarSign, label: "My Salary" },
-    { path: "/company-calendar", icon: Calendar, label: "Company Calendar" },
-  ];
-
-  const menuItems = user?.role === "ADMIN" ? adminMenuItems : employeeMenuItems;
-
+  const menuItems = adminMenuItems;
   const SidebarContent = ({ onClose, isCollapsed = false }) => (
     <div
       className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"} bg-[#0A0F2C] text-white`}

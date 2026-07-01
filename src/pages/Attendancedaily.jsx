@@ -720,6 +720,7 @@ const fetchAttendanceData = async (
       "In Time",
       "Mid Time",
       "Out Time",
+      "Working Hours",
       "Duration",
       "Status",
       "Location",
@@ -731,6 +732,7 @@ const fetchAttendanceData = async (
       item.inTime || "N/A",
       item.midEntries?.join(", ") || "N/A",
       item.outTime || "N/A",
+      item.workingHour || "N/A",
       calculateDuration(item.inTime, item.outTime),
       item.status,
       item.location || "N/A",
@@ -1027,6 +1029,8 @@ const fetchAttendanceData = async (
     }
   };
 
+  const colSpanCount = 11 + (activeTab !== "biometric" ? 2 : 0) + (activeTab !== "field" ? 1 : 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-4 md:p-6 ml-0 md:ml-50">
       {/* Animated Background Pattern */}
@@ -1313,15 +1317,24 @@ const fetchAttendanceData = async (
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
                   IN Time
                 </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                  MID Time
-                </th>
+                {activeTab !== "biometric" && (
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
+                    MID Time
+                  </th>
+                )}
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
                   OUT Time
                 </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                  Duration
-                </th>
+                {activeTab !== "field" && (
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
+                    Working Hours
+                  </th>
+                )}
+                {activeTab !== "biometric" && (
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
+                    Duration
+                  </th>
+                )}
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
                   Status
                 </th>
@@ -1336,7 +1349,7 @@ const fetchAttendanceData = async (
             <tbody className="divide-y divide-gray-100">
               {tableLoading && mergedData.length === 0 ? (
                 <tr>
-                  <td colSpan="13" className="px-4 py-16 text-center">
+                  <td colSpan={colSpanCount} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                       <span className="text-gray-500 text-sm">
@@ -1348,7 +1361,7 @@ const fetchAttendanceData = async (
               ) : error ? (
                 <tr>
                   <td
-                    colSpan="13"
+                    colSpan={colSpanCount}
                     className="px-4 py-12 text-center text-red-500"
                   >
                     Error: {error}
@@ -1423,18 +1436,20 @@ const fetchAttendanceData = async (
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        {item.midEntries?.length > 0 ? (
-                          <div className="flex items-center gap-1">
-                            <Coffee className="w-3 h-3 text-amber-500" />
-                            <span className="text-sm text-gray-600">
-                              {item.midEntries.join(", ")}
-                            </span>
-                          </div>
-                        ) : (
-                          "--"
-                        )}
-                      </td>
+                      {activeTab !== "biometric" && (
+                        <td className="px-4 py-3">
+                          {item.midEntries?.length > 0 ? (
+                            <div className="flex items-center gap-1">
+                              <Coffee className="w-3 h-3 text-amber-500" />
+                              <span className="text-sm text-gray-600">
+                                {item.midEntries.join(", ")}
+                              </span>
+                            </div>
+                          ) : (
+                            "--"
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <div className="p-1 bg-red-50 rounded-md">
@@ -1445,17 +1460,35 @@ const fetchAttendanceData = async (
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center gap-1 text-sm font-semibold ${item.inTime && item.outTime
-                            ? "text-emerald-600"
-                            : "text-gray-400"
-                            }`}
-                        >
-                          <Clock className="w-3 h-3" />
-                          {calculateDuration(item.inTime, item.outTime)}
-                        </span>
-                      </td>
+                      {activeTab !== "field" && (
+                        <td className="px-4 py-3">
+                          {item.type === "biometric" && item.workingHour ? (
+                            <div className="flex items-center gap-1.5">
+                              <div className="p-1 bg-indigo-50 rounded-md">
+                                <Clock className="w-3 h-3 text-indigo-500" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700">
+                                {item.workingHour}
+                              </span>
+                            </div>
+                          ) : (
+                            "--"
+                          )}
+                        </td>
+                      )}
+                      {activeTab !== "biometric" && (
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center gap-1 text-sm font-semibold ${item.inTime && item.outTime
+                              ? "text-emerald-600"
+                              : "text-gray-400"
+                              }`}
+                          >
+                            <Clock className="w-3 h-3" />
+                            {calculateDuration(item.inTime, item.outTime)}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         {getStatusBadge(item.status)}
                       </td>
@@ -1486,10 +1519,10 @@ const fetchAttendanceData = async (
                       </td>
                     </tr>
 
-                    {/* Enhanced Expanded Row for Field Attendance */}
+                     {/* Enhanced Expanded Row for Field Attendance */}
                     {expandedRows[idx] && item.type === "field" && (
                       <tr className="bg-gradient-to-r from-indigo-50/50 via-white to-indigo-50/50">
-                        <td colSpan="13" className="px-4 py-5">
+                        <td colSpan={colSpanCount} className="px-4 py-5">
                           <div className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b border-indigo-200">
                               <Map className="w-5 h-5 text-indigo-600" />
@@ -1600,7 +1633,7 @@ const fetchAttendanceData = async (
                 ))
               ) : (
                 <tr>
-                  <td colSpan="13" className="px-4 py-16 text-center">
+                  <td colSpan={colSpanCount} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <Database className="w-12 h-12 text-gray-300" />
                       <p className="text-gray-500">

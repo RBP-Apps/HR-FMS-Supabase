@@ -49,6 +49,7 @@ const Joining = () => {
 
   const [joiningFormData, setJoiningFormData] = useState({
     joiningId: "",
+    punchId: "",
     firmName: "",
     nameAsPerAadhar: "",
     fatherName: "",
@@ -341,6 +342,7 @@ const Joining = () => {
         status: rowData[2],
         firm_name: rowData[3],
         name_as_per_aadhar: rowData[4],
+        punch_id: rowData[5],
         father_name: rowData[6],
         date_of_joining: rowData[7] ? new Date(rowData[7]) : null,
         work_location: rowData[8],
@@ -419,6 +421,7 @@ const Joining = () => {
       rowData[2] = "Active";
       rowData[3] = joiningFormData.firmName;
       rowData[4] = joiningFormData.nameAsPerAadhar;
+      rowData[5] = joiningFormData.punchId;
       rowData[6] = joiningFormData.fatherName;
       rowData[7] = formatDateForStorage(joiningFormData.dateOfJoining);
       rowData[8] = joiningFormData.workLocation;
@@ -501,6 +504,7 @@ const Joining = () => {
         .update({
           firm_name: editJoiningFormData.firmName,
           name_as_per_aadhar: editJoiningFormData.nameAsPerAadhar,
+          punch_id: editJoiningFormData.punchId,
           father_name: editJoiningFormData.fatherName,
           date_of_joining: editJoiningFormData.dateOfJoining ? new Date(editJoiningFormData.dateOfJoining) : null,
           work_location: editJoiningFormData.workLocation,
@@ -607,6 +611,7 @@ const Joining = () => {
     const isNewEmployee = !item.id || !item.candidateEnquiryNo;
     setJoiningFormData({
       joiningId: nextJoiningId,
+      punchId: "",
       firmName: isNewEmployee ? "" : (findMatchingFirm(item.companyName) || ""),
       nameAsPerAadhar: isNewEmployee ? "" : (item.candidateName || ""),
       fatherName: "",
@@ -677,6 +682,7 @@ const Joining = () => {
       if (joinRec) {
         setEditJoiningFormData({
           joiningId: joinRec.rbp_joining_id || "",
+          punchId: joinRec.punch_id || "",
           firmName: joinRec.firm_name || findMatchingFirm(item.companyName) || "",
           nameAsPerAadhar: joinRec.name_as_per_aadhar || item.candidateName || "",
           fatherName: joinRec.father_name || "",
@@ -723,6 +729,7 @@ const Joining = () => {
       } else {
         setEditJoiningFormData({
           joiningId: "",
+          punchId: "",
           firmName: findMatchingFirm(item.companyName) || "",
           nameAsPerAadhar: item.candidateName || "",
           fatherName: "",

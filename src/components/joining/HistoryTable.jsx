@@ -35,7 +35,10 @@ const HistoryTable = ({
               Action
             </th>
             <th className="px-6 py-3 text-xs font-medium text-white uppercase tracking-wider">
-              Indent Number
+              Employee Code
+            </th>
+            <th className="px-6 py-3 text-xs font-medium text-white uppercase tracking-wider">
+              Punch ID
             </th>
             <th className="px-6 py-3 text-xs font-medium text-white uppercase tracking-wider">
               Name
@@ -105,7 +108,7 @@ const HistoryTable = ({
         <tbody className="bg-white divide-y divide-gray-200 text-center">
           {tableLoading ? (
             <tr>
-              <td colSpan="24" className="px-6 py-12 text-center">
+              <td colSpan="25" className="px-6 py-12 text-center">
                 <div className="flex justify-center flex-col items-center">
                   <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
                   <span className="text-gray-600 text-sm">
@@ -116,7 +119,7 @@ const HistoryTable = ({
             </tr>
           ) : error ? (
             <tr>
-              <td colSpan="24" className="px-6 py-12 text-center">
+              <td colSpan="25" className="px-6 py-12 text-center">
                 <p className="text-red-500">Error: {error}</p>
                 <button
                   onClick={() => {
@@ -131,7 +134,7 @@ const HistoryTable = ({
             </tr>
           ) : filteredHistoryData.length === 0 ? (
             <tr>
-              <td colSpan="24" className="px-6 py-12 text-center">
+              <td colSpan="25" className="px-6 py-12 text-center">
                 <p className="text-gray-500">No history found.</p>
               </td>
             </tr>
@@ -174,6 +177,9 @@ const HistoryTable = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {renderField(joiningRecord?.rbp_joining_id || "")}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {renderField(joiningRecord?.punch_id || "")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {renderField(joiningRecord?.name_as_per_aadhar || item.candidateName || "")}
