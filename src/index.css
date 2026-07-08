@@ -3,31 +3,70 @@
 @tailwind utilities;
 
 body {
-  background: radial-gradient(circle, #3b82f6, #8b5cf6);
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
   min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-.gradient-bg {
-  background: white;
+/* Premium input and form styling overrides */
+input[type="text"], 
+input[type="number"], 
+input[type="email"], 
+input[type="password"], 
+input[type="date"], 
+select, 
+textarea {
+  border-radius: 0.75rem; /* rounded-xl */
+  border: 1px solid #e2e8f0; /* border-slate-200 */
+  background-color: #f8fafc; /* bg-slate-50 */
+  color: #1e293b; /* text-slate-800 */
+  font-size: 0.875rem; /* text-sm */
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.glass-effect {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+input[type="text"]:focus, 
+input[type="number"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus, 
+input[type="date"]:focus, 
+select:focus, 
+textarea:focus {
+  outline: none;
+  border-color: #0F766E; /* border-teal-600 */
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.15); /* focus:ring-teal-600/15 */
 }
 
-.modal-backdrop {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(5px);
+/* Global button focus and radius */
+button {
+  border-radius: 0.75rem; /* rounded-xl */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Page content container card overrides */
 .page-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff !important;
+  border-radius: 1rem !important; /* rounded-2xl */
+  border: 1px solid rgba(226, 232, 240, 0.8) !important; /* border-slate-200/80 */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important; /* shadow-sm */
 }
 
+/* Glassmorphism for specific UI spots */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+/* Modal backdrop overlay */
+.modal-backdrop {
+  background-color: rgba(15, 23, 42, 0.3) !important; /* slate-900 with opacity */
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Hide scrollbars but keep functionality */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }

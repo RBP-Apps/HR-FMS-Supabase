@@ -736,90 +736,82 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 page-content">
+    <div className="p-6 space-y-6 bg-slate-50 page-content">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-blue-600">HR Dashboard</h1>
+        <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#065F46] to-[#0F766E] tracking-tight">HR Dashboard</h1>
       </div>
 
       {/* Summary Stats - CORRECTED */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
 
         {/* Total Indent */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
-
+        <div className="relative overflow-hidden rounded-2xl bg-white p-6 border border-slate-200/60 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-100">
+              <p className="text-sm font-semibold text-slate-500 tracking-wide uppercase">
                 Total Indent
               </p>
-              <h3 className="mt-2 text-4xl font-bold">
+              <h3 className="mt-2 text-3xl font-extrabold text-slate-850">
                 {totalEmployee}
               </h3>
             </div>
 
-            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-              <FileText size={28} />
+            <div className="rounded-xl bg-emerald-50 text-[#0F766E] p-3 border border-emerald-100">
+              <FileText size={24} />
             </div>
           </div>
         </div>
 
         {/* Total Enquiry */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
-
+        <div className="relative overflow-hidden rounded-2xl bg-white p-6 border border-slate-200/60 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-100">
+              <p className="text-sm font-semibold text-slate-500 tracking-wide uppercase">
                 Total Enquiry
               </p>
-              <h3 className="mt-2 text-4xl font-bold">
+              <h3 className="mt-2 text-3xl font-extrabold text-slate-850">
                 {activeEmployee}
               </h3>
             </div>
 
-            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-              <UserCheck size={28} />
+            <div className="rounded-xl bg-teal-50 text-[#0F766E] p-3 border border-teal-100">
+              <UserCheck size={24} />
             </div>
           </div>
         </div>
 
         {/* Total Joining */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
-
+        <div className="relative overflow-hidden rounded-2xl bg-white p-6 border border-slate-200/60 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-amber-100">
+              <p className="text-sm font-semibold text-slate-500 tracking-wide uppercase">
                 Total Joining
               </p>
-              <h3 className="mt-2 text-4xl font-bold">
+              <h3 className="mt-2 text-3xl font-extrabold text-slate-850">
                 {leftEmployee}
               </h3>
             </div>
 
-            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-              <UserPlus size={28} />
+            <div className="rounded-xl bg-emerald-50 text-[#0F766E] p-3 border border-emerald-100">
+              <UserPlus size={24} />
             </div>
           </div>
         </div>
 
         {/* Live Employee */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10"></div>
-
+        <div className="relative overflow-hidden rounded-2xl bg-white p-6 border border-slate-200/60 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-pink-100">
+              <p className="text-sm font-semibold text-slate-500 tracking-wide uppercase">
                 Live Employee
               </p>
-              <h3 className="mt-2 text-4xl font-bold">
+              <h3 className="mt-2 text-3xl font-extrabold text-slate-850">
                 {leaveThisMonth}
               </h3>
             </div>
 
-            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-              <Users size={28} />
+            <div className="rounded-xl bg-teal-50 text-[#0F766E] p-3 border border-teal-100">
+              <Users size={24} />
             </div>
           </div>
         </div>
@@ -829,8 +821,8 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Designation-wise Employee Count Bar Chart */}
-        <div className="p-6 bg-white rounded-xl border shadow-lg">
-          <h2 className="text-xl font-bold text-blue-800 mb-6">
+        <div className="p-6 bg-white rounded-2xl border border-slate-200/60 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-800 mb-6">
             Designation-wise Employee Count
           </h2>
           <div className="h-96 w-full">
@@ -882,9 +874,9 @@ const Dashboard = () => {
         </div>
 
         {/* Gender and Staff Type Distribution Donuts */}
-        <div className="p-6 bg-white rounded-xl border shadow-lg flex flex-col justify-between">
+        <div className="p-6 bg-white rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 className="text-xl font-bold text-blue-800 mb-6">
+            <h2 className="text-lg font-bold text-slate-800 mb-6">
               Employee Demographics & Classification
             </h2>
           </div>
@@ -974,24 +966,24 @@ const Dashboard = () => {
           {" "}
 
           <div
-            className="p-4 bg-white rounded-xl border shadow-lg"
+            className="p-5 bg-white rounded-2xl border border-slate-200/60 shadow-sm"
             style={{ width: "520px", marginRight: "15px" }}
           >
             {" "}
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-blue-800">
+              <h2 className="text-lg font-bold text-slate-800">
                 Indent Details
               </h2>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search in all columns..."
-                  className="py-2 pr-4 pl-8 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Search..."
+                  className="py-2 pr-4 pl-9 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all w-48 hover:border-slate-350"
                   value={indentSearchTerm}
                   onChange={(e) => setIndentSearchTerm(e.target.value)}
                 />
                 <svg
-                  className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400"
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1007,19 +999,19 @@ const Dashboard = () => {
             </div>
             <div className="overflow-x-auto">
               <div className="overflow-y-auto max-h-96">
-                <table className="text-sm w-300">
+                <table className="text-sm w-full">
                   <thead>
-                    <tr className="sticky top-0 bg-gray-100 border-b-2 border-gray-300">
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <tr className="sticky top-0 bg-[#0F766E]/5 border-b border-slate-200">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Indent Number
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Post
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Prefer
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Number of Posts
                       </th>
                     </tr>
@@ -1046,18 +1038,18 @@ const Dashboard = () => {
                         .map((row, idx) => (
                           <tr
                             key={idx}
-                            className="border-b border-gray-200 hover:bg-gray-50"
+                            className="border-b border-slate-100 hover:bg-emerald-50/20 transition-colors"
                           >
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.indentNumber}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.post}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.prefer}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.numberOfPosts}
                             </td>
                           </tr>
@@ -1066,7 +1058,7 @@ const Dashboard = () => {
                       <tr>
                         <td
                           colSpan="4"
-                          className="px-4 py-3 text-center text-gray-500"
+                          className="px-4 py-3 text-center text-slate-500"
                         >
                           No data available
                         </td>
@@ -1079,25 +1071,25 @@ const Dashboard = () => {
           </div>
           {/* ENQUIRY Table - Right Side */}
           <div
-            className="p-4 bg-white rounded-xl border shadow-lg"
+            className="p-5 bg-white rounded-2xl border border-slate-200/60 shadow-sm"
             style={{ width: "650px" }}
           >
             {" "}
             {/* Padding kam kiya */}
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-blue-800">
+              <h2 className="text-lg font-bold text-slate-800">
                 Enquiry Details
               </h2>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search in all columns..."
-                  className="py-2 pr-4 pl-8 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Search..."
+                  className="py-2 pr-4 pl-9 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all w-48 hover:border-slate-350"
                   value={enquirySearchTerm}
                   onChange={(e) => setEnquirySearchTerm(e.target.value)}
                 />
                 <svg
-                  className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400"
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1115,23 +1107,23 @@ const Dashboard = () => {
               <div className="overflow-y-auto max-h-96">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="sticky top-0 bg-gray-100 border-b-2 border-gray-300">
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <tr className="sticky top-0 bg-[#0F766E]/5 border-b border-slate-200">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Indent Number
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Candidate Enquiry
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Applying For
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Candidate Name
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Experience
                       </th>
-                      <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                      <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                         Marital Status
                       </th>
                     </tr>
@@ -1168,24 +1160,24 @@ const Dashboard = () => {
                         .map((row, idx) => (
                           <tr
                             key={idx}
-                            className="border-b border-gray-200 hover:bg-gray-50"
+                            className="border-b border-slate-100 hover:bg-emerald-50/20 transition-colors"
                           >
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.indentNumber}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.candidateEnquiry}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.applyingFor}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.candidateName}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.experience}
                             </td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                            <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                               {row.maritalStatus}
                             </td>
                           </tr>
@@ -1194,7 +1186,7 @@ const Dashboard = () => {
                       <tr>
                         <td
                           colSpan="6"
-                          className="px-4 py-3 text-center text-gray-500"
+                          className="px-4 py-3 text-center text-slate-500"
                         >
                           No data available
                         </td>
@@ -1208,25 +1200,24 @@ const Dashboard = () => {
         </div>
 
         <div
-          className="p-4 bg-white rounded-xl border shadow-lg"
+          className="p-5 bg-white rounded-2xl border border-slate-200/60 shadow-sm"
           style={{ width: "1100px", margin: "25px" }}
         >
           {" "}
-          {/* Padding kam kiya */}
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-blue-800">
+            <h2 className="text-lg font-bold text-slate-800">
               Enquiry Details (Tracker Status: Joining)
             </h2>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search in all columns..."
-                className="py-2 pr-4 pl-8 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Search..."
+                className="py-2 pr-4 pl-9 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all w-60 hover:border-slate-350"
                 value={joiningSearchTerm}
                 onChange={(e) => setJoiningSearchTerm(e.target.value)}
               />
               <svg
-                className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400"
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1246,32 +1237,32 @@ const Dashboard = () => {
             <div className="overflow-y-auto max-h-96">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="sticky top-0 bg-gray-100 border-b-2 border-gray-300">
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                  <tr className="sticky top-0 bg-[#0F766E]/5 border-b border-slate-200">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Indent Number
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Candidate Enquiry
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Applying For
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Candidate Name
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Experience
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Department
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Previous Position
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Marital Status
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Tracker Status
                     </th>
                   </tr>
@@ -1311,34 +1302,34 @@ const Dashboard = () => {
                       .map((row, idx) => (
                         <tr
                           key={idx}
-                          className="border-b border-gray-200 hover:bg-gray-50"
+                          className="border-b border-slate-100 hover:bg-emerald-50/20 transition-colors"
                         >
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.indentNumber}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.candidateEnquiry}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.applyingFor}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.candidateName}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.jobExperience}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.department}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.previousPosition}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                             {row.maritalStatus}
                           </td>
-                          <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
-                            <span className="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded">
+                          <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
+                            <span className="px-2.5 py-1 text-xs font-semibold text-[#0F766E] bg-emerald-50 border border-emerald-100 rounded-lg">
                               {row.trackerStatus}
                             </span>
                           </td>
@@ -1348,7 +1339,7 @@ const Dashboard = () => {
                     <tr>
                       <td
                         colSpan="9"
-                        className="px-4 py-3 text-center text-gray-500"
+                        className="px-4 py-3 text-center text-slate-500"
                       >
                         No data available with Tracker Status: Joining
                       </td>
@@ -1361,14 +1352,14 @@ const Dashboard = () => {
         </div>
 
         {/* JOINING Table */}
-        <div className="p-6 bg-white rounded-xl border shadow-lg">
+        <div className="p-6 bg-white rounded-2xl border border-slate-200/60 shadow-sm">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-blue-800">
+            <h2 className="text-lg font-bold text-slate-800">
               Joining Details (Active Employees)
             </h2>
             <button
               onClick={() => exportToCSV(joiningTableData, "joining_details")}
-              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              className="flex items-center px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] shadow-sm rounded-xl transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={joiningTableData.length === 0}
             >
               <svg
@@ -1394,29 +1385,29 @@ const Dashboard = () => {
               {/* Y-axis scroll */}
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="sticky top-0 bg-gray-100 border-b-2 border-gray-300">
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                  <tr className="sticky top-0 bg-[#0F766E]/5 border-b border-slate-200">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       RBP ID
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Status
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Firm Name
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Name
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Date of Joining
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Work Location
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Designation
                     </th>
-                    <th className="px-4 py-3 font-semibold text-left text-gray-700 whitespace-nowrap bg-gray-100">
+                    <th className="px-4 py-3 font-semibold text-left text-slate-700 whitespace-nowrap bg-slate-50/50">
                       Gender
                     </th>
                   </tr>
@@ -1426,32 +1417,32 @@ const Dashboard = () => {
                     joiningTableData.map((row, idx) => (
                       <tr
                         key={idx}
-                        className="border-b border-gray-200 hover:bg-gray-50"
+                        className="border-b border-slate-100 hover:bg-emerald-50/20 transition-colors"
                       >
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                           {row.rbpJoiningId}
                         </td>
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
-                          <span className="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
+                          <span className="px-2.5 py-1 text-xs font-semibold text-[#0F766E] bg-emerald-50 border border-emerald-100 rounded-lg">
                             {row.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                           {row.firmName}
                         </td>
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                           {row.nameAadhar}
                         </td>
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                           {row.dateOfJoining}
                         </td>
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                           {row.workLocation}
                         </td>
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                           {row.designation}
                         </td>
-                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                        <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
                           {row.gender}
                         </td>
                       </tr>
@@ -1460,7 +1451,7 @@ const Dashboard = () => {
                     <tr>
                       <td
                         colSpan="8"
-                        className="px-4 py-3 text-center text-gray-500"
+                        className="px-4 py-3 text-center text-slate-500"
                       >
                         No active employees
                       </td>

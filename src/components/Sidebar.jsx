@@ -219,20 +219,19 @@ const Sidebar = ({ onClose }) => {
       path: "/after-resignation-work",
       icon: "🚪",
       label: "After Resignation Work",
-      color: "from-stone-500 to-neutral-800",
     },
   ];
 
   const menuItems = adminMenuItems;
   const SidebarContent = ({ onClose, isCollapsed = false }) => (
     <div
-      className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"} bg-[#0A0F2C] text-white`}
+      className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"} bg-white border-r border-slate-200/80 text-slate-800`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-indigo-800">
+      <div className="flex items-center justify-between p-4 border-b border-slate-100">
         {!isCollapsed && (
-          <h1 className="text-xl font-bold flex items-center gap-2 text-white">
-            <div className="w-14 h-14 overflow-hidden rounded">
+          <h1 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <div className="w-12 h-12 overflow-hidden rounded-xl border border-slate-100 shadow-sm p-1.5 bg-white">
               <img
                 src="/Logo.PNG"
                 alt="RBP Logo"
@@ -240,17 +239,17 @@ const Sidebar = ({ onClose }) => {
               />
             </div>
 
-            <span>HR FMS</span>
+            <span className="text-[#0F766E] font-extrabold tracking-tight">HR FMS</span>
             <div className="relative">
               <button
                 onClick={toggleLanguage}
-                className="p-2 rounded-md hover:bg-indigo-800 transition relative"
+                className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-[#0F766E] transition relative"
                 aria-label="Toggle language"
                 title={
                   currentLang === "en" ? "Switch to Hindi" : "Switch to English"
                 }
               >
-                <Globe size={20} />
+                <Globe size={18} />
               </button>
 
               {/* Language hint tooltip */}
@@ -279,7 +278,7 @@ const Sidebar = ({ onClose }) => {
             </div>
             <div id="google_translate_element" style={{ display: "none" }} />
             {user?.role === "employee" && (
-              <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
+              <span className="text-xs bg-emerald-50 text-[#0F766E] px-2 py-1 rounded-md border border-emerald-100 font-semibold">
                 Employee
               </span>
             )}
@@ -288,10 +287,10 @@ const Sidebar = ({ onClose }) => {
         {onClose && (
           <button
             onClick={onClose}
-            className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none"
           >
             <span className="sr-only">Close sidebar</span>
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           </button>
         )}
       </div>
@@ -304,9 +303,9 @@ const Sidebar = ({ onClose }) => {
               <div key={item.label}>
                 <button
                   onClick={item.toggle}
-                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-lg transition-colors ${item.isOpen
-                    ? "bg-indigo-800 text-white"
-                    : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-xl transition-all duration-200 ${item.isOpen
+                    ? "bg-slate-100 text-slate-800 font-semibold"
+                    : "text-slate-600 hover:bg-emerald-50/50 hover:text-[#0F766E]"
                     }`}
                 >
                   <div className="flex items-center">
@@ -319,17 +318,17 @@ const Sidebar = ({ onClose }) => {
                       {typeof item.icon === "string" ? (
                         item.icon
                       ) : (
-                        <item.icon size={20} />
+                        <item.icon size={18} />
                       )}
                     </span>
 
-                    {!isCollapsed && <span>{item.label}</span>}
+                    {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
                   </div>
                   {!isCollapsed &&
                     (item.isOpen ? (
-                      <ChevronUp size={16} />
+                      <ChevronUp size={14} />
                     ) : (
-                      <ChevronDown size={16} />
+                      <ChevronDown size={14} />
                     ))}
                 </button>
 
@@ -337,13 +336,13 @@ const Sidebar = ({ onClose }) => {
                   <div className="ml-6 mt-1 space-y-1">
                     {item.items.map((subItem) => (
                       <NavLink
-                        key={item.path}
-                        to={item.path}
+                        key={subItem.path}
+                        to={subItem.path}
                         className={({ isActive }) =>
-                          `flex items-center py-2.5 px-4 rounded-lg transition-all duration-300
+                          `flex items-center py-2 px-3 rounded-xl transition-all duration-200
     ${isActive
-                            ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
-                            : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                             ? `bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white shadow-md shadow-emerald-950/10 font-semibold`
+                             : "text-slate-500 hover:bg-emerald-50/50 hover:text-[#0F766E] text-sm font-medium"
                           }`
                         }
                         onClick={() => {
@@ -378,9 +377,9 @@ const Sidebar = ({ onClose }) => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center py-3 px-4 rounded-xl transition-all duration-300 ${isActive
-                  ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
-                  : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 ${isActive
+                  ? `bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white shadow-md shadow-emerald-950/10 font-semibold`
+                  : "text-slate-600 hover:bg-emerald-50/60 hover:text-[#0F766E]"
                 }`
               }
               onClick={() => {
@@ -391,18 +390,18 @@ const Sidebar = ({ onClose }) => {
               <span
                 className={`
     ${isCollapsed ? "mx-auto" : "mr-3"}
-    text-2xl flex items-center justify-center
+    text-xl flex items-center justify-center
   `}
               >
                 {typeof item.icon === "string" ? (
                   item.icon
                 ) : (
-                  React.createElement(item.icon, { size: 20 })
+                  React.createElement(item.icon, { size: 18 })
                 )}
               </span>
 
               {!isCollapsed && (
-                <span className="font-medium tracking-wide">
+                <span className="text-sm font-medium tracking-wide">
                   {item.label}
                 </span>
               )}
@@ -412,18 +411,18 @@ const Sidebar = ({ onClose }) => {
       </nav>
 
       {/* Footer - Always visible */}
-      <div className="p-4 border-t border-white border-opacity-20">
+      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
         <div className="flex items-center space-x-4 mb-4">
           <div className="flex items-center space-x-2 cursor-pointer">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
-              <User size={20} className="text-indigo-600" />
+            <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+              <User size={18} className="text-[#0F766E]" />
             </div>
             {/* Show user info in mobile view regardless of collapsed state */}
             <div className={`${isCollapsed ? "hidden" : "block"} md:block`}>
-              <p className="text-sm font-medium text-white">
+              <p className="text-sm font-semibold text-slate-700">
                 {user?.Name || user?.Username || "Guest"}
               </p>
-              <p className="text-xs text-white">
+              <p className="text-xs text-slate-500">
                 {user?.role === "ADMIN" ? "Administrator" : "Employee"}
               </p>
             </div>
@@ -435,9 +434,9 @@ const Sidebar = ({ onClose }) => {
             onClose?.();
             setIsOpen(false);
           }}
-          className="flex items-center py-1.5 px-3 rounded-lg bg-red-600 text-white hover:bg-red-700 cursor-pointer transition-colors duration-200 w-full"
+          className="flex items-center justify-center py-2 px-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer font-semibold transition-colors duration-200 w-full text-sm border border-red-100"
         >
-          <LogOutIcon className={isCollapsed ? "mx-auto" : "mr-3"} size={20} />
+          <LogOutIcon className={isCollapsed ? "mx-auto" : "mr-2"} size={16} />
           {!isCollapsed && <span>Logout</span>}
         </button>
       </div>
@@ -448,18 +447,18 @@ const Sidebar = ({ onClose }) => {
     <>
       {/* Mobile menu button - visible only on mobile */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-900 text-white rounded-md shadow-md"
+        className="md:hidden fixed top-4 left-4 z-50 p-2.5 bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white rounded-xl shadow-lg hover:shadow-emerald-950/20 active:scale-[0.98] transition-all"
         onClick={() => setIsOpen(true)}
       >
-        <Menu size={24} />
+        <Menu size={20} />
       </button>
 
       {/* Tablet menu button - visible on tablet (hidden on mobile and desktop) */}
       <button
-        className="hidden md:block lg:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-900 text-white rounded-md shadow-md"
+        className="hidden md:block lg:hidden fixed top-4 left-4 z-50 p-2.5 bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white rounded-xl shadow-lg hover:shadow-emerald-950/20 active:scale-[0.98] transition-all"
         onClick={() => setIsOpen(true)}
       >
-        <Menu size={24} />
+        <Menu size={20} />
       </button>
 
       {/* Desktop Sidebar - full width on desktop */}

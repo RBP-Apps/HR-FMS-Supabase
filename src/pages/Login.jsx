@@ -72,7 +72,7 @@ const Login = () => {
 
       {/* Main Container */}
       <div className="w-full max-w-6xl min-h-[650px] bg-[#1E293B]/60 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10 transition-transform duration-300 hover:scale-[1.002]">
-        
+
         {/* LEFT BRANDING PANEL (40% width on md+) */}
         <div className="w-full md:w-[40%] bg-gradient-to-br from-[#065F46] via-[#0F766E] to-[#0F172A] p-8 md:p-12 flex flex-col justify-between relative overflow-hidden border-b md:border-b-0 md:border-r border-slate-700/30">
           {/* Subtle background mesh illustration */}
@@ -124,13 +124,13 @@ const Login = () => {
             </div>
           </div>
 
-         
+
         </div>
 
         {/* RIGHT LOGIN FORM AREA (60% width on md+) */}
         <div className="w-full md:w-[60%] p-8 md:p-16 flex flex-col justify-between bg-[#0F172A]/70 backdrop-blur-md">
           <div className="max-w-md w-full mx-auto my-auto space-y-8">
-            
+
             {/* Header */}
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-[#34D399] rounded-full text-xs font-medium mb-3 border border-emerald-500/20">
@@ -148,7 +148,7 @@ const Login = () => {
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-5">
-                
+
                 {/* Username Field */}
                 <div>
                   <label htmlFor="username" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
@@ -166,7 +166,7 @@ const Login = () => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Enter your username"
-                      className="w-full pl-11 pr-4 py-3 bg-[#1E293B]/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E]/50 focus:border-[#0F766E] transition-all hover:border-slate-600 focus:bg-[#1E293B]"
+                      className="w-full !pl-11 pr-4 py-3 bg-[#1E293B]/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E]/50 focus:border-[#0F766E] transition-all hover:border-slate-600 focus:bg-[#1E293B]"
                     />
                   </div>
                 </div>
@@ -190,7 +190,7 @@ const Login = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="w-full pl-11 pr-11 py-3 bg-[#1E293B]/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E]/50 focus:border-[#0F766E] transition-all hover:border-slate-600 focus:bg-[#1E293B]"
+                      className="w-full !pl-11 pr-11 py-3 bg-[#1E293B]/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E]/50 focus:border-[#0F766E] transition-all hover:border-slate-600 focus:bg-[#1E293B]"
                     />
                     <button
                       type="button"
@@ -215,7 +215,7 @@ const Login = () => {
                     />
                     <span>Remember me</span>
                   </label>
-                 
+
                 </div>
               </div>
 
@@ -224,9 +224,8 @@ const Login = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className={`w-full flex justify-center items-center py-3 px-4 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] shadow-lg hover:shadow-emerald-950/20 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-[#34D399] transition-all duration-200 ${
-                    submitting ? 'opacity-70 cursor-not-allowed' : ''
-                  }`}
+                  className={`w-full flex justify-center items-center py-3 px-4 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] shadow-lg hover:shadow-emerald-950/20 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-[#34D399] transition-all duration-200 ${submitting ? 'opacity-70 cursor-not-allowed' : ''
+                    }`}
                 >
                   {submitting ? (
                     <div className="flex items-center gap-2">

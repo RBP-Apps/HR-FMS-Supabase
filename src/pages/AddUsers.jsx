@@ -285,13 +285,16 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
   // ================= UI =================
   return (
-    <div className="p-2 md:p-4 lg:p-6 space-y-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="p-4 md:p-6 space-y-6 min-h-screen">
       {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-indigo-600">
-            Add User
+          <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#065F46] to-[#0F766E] tracking-tight">
+            User Registration & Access
           </h1>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">
+            Create user credentials and configure role-based department access
+          </p>
         </div>
 
         <div className="flex gap-3">
@@ -299,7 +302,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
           <button
             onClick={() => setOpen(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-5 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+            className="flex items-center gap-2 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white px-5 py-2.5 rounded-xl font-semibold shadow-md shadow-emerald-950/10 hover:shadow-lg transition-all duration-200"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -319,17 +322,17 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       </div>
 
       {/* STATS CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-gray-500 text-sm">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Total Users</p>
+              <p className="text-2xl font-extrabold text-slate-800">{users.length}</p>
             </div>
-            <div className="p-3 rounded-full bg-purple-50">
+            <div className="p-3 rounded-xl bg-emerald-50 text-[#0F766E]">
               <svg
-                xmlns="http://www.w3.org2000/svg"
-                className="h-6 w-6 text-purple-600"
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -345,18 +348,18 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-gray-500 text-sm">Admin</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Admin</p>
+              <p className="text-2xl font-extrabold text-slate-800">
                 {users.filter((u) => u.role === "ADMIN").length}
               </p>
             </div>
-            <div className="p-3 rounded-full bg-blue-50">
+            <div className="p-3 rounded-xl bg-slate-100 text-slate-700">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-blue-600"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -372,18 +375,18 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-gray-500 text-sm"> Users</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Users</p>
+              <p className="text-2xl font-extrabold text-slate-800">
                 {users.filter((u) => u.role === "USER").length}
               </p>
             </div>
-            <div className="p-3 rounded-full bg-green-50">
+            <div className="p-3 rounded-xl bg-emerald-50 text-[#065F46]">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-green-600"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -399,16 +402,16 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow border border-gray-100">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-gray-500 text-sm">Active Today</p>
-              <p className="text-2xl font-bold text-gray-900">-</p>
+              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Active Today</p>
+              <p className="text-2xl font-extrabold text-slate-850">-</p>
             </div>
-            <div className="p-3 rounded-full bg-yellow-50">
+            <div className="p-3 rounded-xl bg-amber-50 text-amber-700">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-yellow-600"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -426,11 +429,11 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       </div>
 
       {/* Dynamic Filters Section */}
-      <div className="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col space-y-4 mb-6">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Indent Number Filter (Mapped to User ID) */}
           <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Indent Number (ID)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Indent Number (ID)</label>
             <div className="relative">
               <input
                 type="text"
@@ -438,7 +441,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 placeholder="Select/Search ID"
                 value={filterIndentNo}
                 onChange={(e) => setFilterIndentNo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
               />
               <datalist id="auIndentList">
                 {uniqueIndents.map(indent => (
@@ -450,7 +453,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
           {/* Post Filter (Mapped to Role) */}
           <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Post (Role)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Post (Role)</label>
             <div className="relative">
               <input
                 type="text"
@@ -458,7 +461,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 placeholder="Select/Search Role"
                 value={filterPost}
                 onChange={(e) => setFilterPost(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
               />
               <datalist id="auPostList">
                 {uniquePosts.map(post => (
@@ -470,7 +473,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
           {/* Name As Per Aadhaar Filter (Mapped to doer_name) */}
           <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Name</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Name</label>
             <div className="relative">
               <input
                 type="text"
@@ -478,7 +481,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 placeholder="Select/Search Name"
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
               />
               <datalist id="auNameList">
                 {uniqueNames.map(name => (
@@ -490,25 +493,25 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
           {/* Global Search */}
           <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Global Search</label>
             <div className="relative h-full flex items-center">
               <input
                 type="text"
                 placeholder="Search all fields..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
               <Search
                 size={16}
-                className="absolute left-3 text-gray-500"
+                className="absolute left-3.5 text-slate-400 pointer-events-none"
               />
             </div>
           </div>
         </div>
 
         {/* Clear Filters Button */}
-        <div className="flex justify-end pt-2 border-t border-gray-100">
+        <div className="flex justify-end pt-2 border-t border-slate-100">
           <button
             onClick={() => {
               setFilterIndentNo("");
@@ -516,7 +519,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               setFilterName("");
               setSearchTerm("");
             }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-gray-200 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-50 text-red-650 hover:bg-red-100 border border-red-100 rounded-xl flex items-center gap-2 text-sm font-semibold transition-colors"
           >
             <X size={16} />
             Clear Filters
@@ -525,15 +528,15 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       </div>
 
       {/* ================= DESKTOP TABLE ================= */}
-      <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50">
+      <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800">
-              User Details
+            <h2 className="text-lg font-bold text-slate-800">
+              User Directory
             </h2>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-600">Sort by:</span>
-              <select className="border-0 bg-transparent text-purple-700 font-medium focus:outline-none">
+              <span className="text-slate-500 font-medium">Sort by:</span>
+              <select className="border-0 bg-transparent text-[#0F766E] font-bold focus:outline-none cursor-pointer">
                 <option>Date Added</option>
                 <option>Name</option>
                 <option>Role</option>
@@ -545,41 +548,41 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         <div className="overflow-x-auto max-h-[400px]">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-30">
-              <tr className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-                <th className="px-4 py-3 text-center font-medium rounded-tl-xl">
-                  User
+              <tr className="bg-slate-50 text-slate-700 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
+                <th className="px-4 py-3.5 text-left font-semibold">
+                  User Info
                 </th>
-                <th className="px-4 py-3 text-center font-medium">Contact</th>
-                <th className="px-4 py-3 text-center font-medium">Details</th>
-                <th className="px-4 py-3 text-center font-medium">Role</th>
-                <th className="px-4 py-3 text-center font-medium">Access</th>
-                <th className="px-4 py-3 text-center font-medium rounded-tr-xl">
+                <th className="px-4 py-3.5 text-center font-semibold">Contact</th>
+                <th className="px-4 py-3.5 text-center font-semibold">Credentials & Dept</th>
+                <th className="px-4 py-3.5 text-center font-semibold">Role</th>
+                <th className="px-4 py-3.5 text-center font-semibold">Access</th>
+                <th className="px-4 py-3.5 text-center font-semibold">
                   Actions
                 </th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {filteredUsers.map((u) => (
                 <tr
                   key={u.id}
-                  className="border-b border-gray-100 hover:bg-purple-50 transition-all duration-150"
+                  className="hover:bg-slate-50/50 transition-colors"
                 >
                   {/* USER INFO COLUMN */}
                   <td className="px-4 py-4">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 flex items-center justify-center mr-3">
-                        <span className="font-bold text-purple-700">
+                      <div className="h-10 w-10 rounded-xl bg-[#0F766E]/5 border border-[#0F766E]/10 flex items-center justify-center mr-3">
+                        <span className="font-bold text-[#0F766E]">
                          {u.username
-  ? u.username.charAt(0).toUpperCase()
-  : "U"}
+                          ? u.username.charAt(0).toUpperCase()
+                          : "U"}
                         </span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-bold text-slate-800">
                          {u.username}
                         </div>
-                        <div className="text-gray-500 text-xs">ID: {u.id}</div>
+                        <div className="text-slate-400 text-xs font-medium">ID: {u.id}</div>
                       </div>
                     </div>
                   </td>
@@ -587,10 +590,10 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   {/* CONTACT COLUMN */}
                   <td className="px-4 py-4 text-center">
                     <div className="space-y-1">
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 text-gray-400 mr-2"
+                          className="h-4 w-4 text-slate-400 mr-2"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -607,16 +610,16 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             name="email_id"
                             value={editData.email_id}
                             onChange={handleEditChange}
-                            className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full"
                           />
                         ) : (
-                          <span className="text-sm">{u.email_id}</span>
+                          <span className="text-slate-600 font-medium">{u.email_id}</span>
                         )}
                       </div>
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 text-gray-400 mr-2"
+                          className="h-4 w-4 text-slate-400 mr-2"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -633,10 +636,10 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             name="wa_number"
                             value={editData.wa_number}
                             onChange={handleEditChange}
-                            className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full"
                           />
                         ) : (
-                          <span className="text-sm">{u.wa_number}</span>
+                          <span className="text-slate-600 font-medium">{u.wa_number}</span>
                         )}
                       </div>
                     </div>
@@ -647,16 +650,16 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     <div className="space-y-2 text-sm">
                       {/* Password */}
                       <div className="flex justify-center items-center gap-2">
-                        <span className="text-gray-500">Password:</span>
+                        <span className="text-slate-400 font-medium">Password:</span>
                         {editUserId === u.id ? (
                           <input
                             name="password"
                             value={editData.password}
                             onChange={handleEditChange}
-                            className="border border-gray-300 rounded px-2 py-1 w-40 text-center focus:ring-2 focus:ring-purple-500"
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-40 text-center"
                           />
                         ) : (
-                          <span className="font-mono bg-gray-50 px-2 py-1 rounded">
+                          <span className="font-mono bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200 text-slate-600 text-xs font-semibold">
                             {u.password}
                           </span>
                         )}
@@ -664,31 +667,31 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
                       {/* Dept */}
                       <div className="flex justify-center items-center gap-2">
-                        <span className="text-gray-500">Dept:</span>
+                        <span className="text-slate-400 font-medium">Dept:</span>
                         {editUserId === u.id ? (
                           <input
                             name="department"
                             value={editData.department}
                             onChange={handleEditChange}
-                            className="border border-gray-300 rounded px-2 py-1 w-40 text-center focus:ring-2 focus:ring-purple-500"
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-40 text-center"
                           />
                         ) : (
-                          <span>{u.department}</span>
+                          <span className="text-slate-700 font-semibold">{u.department}</span>
                         )}
                       </div>
 
                       {/* Given By */}
                       <div className="flex justify-center items-center gap-2">
-                        <span className="text-gray-500">Given By:</span>
+                        <span className="text-slate-400 font-medium">Given By:</span>
                         {editUserId === u.id ? (
                           <input
                             name="given_by"
                             value={editData.given_by}
                             onChange={handleEditChange}
-                            className="border border-gray-300 rounded px-2 py-1 w-40 text-center focus:ring-2 focus:ring-purple-500"
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-40 text-center"
                           />
                         ) : (
-                          <span>{u.given_by}</span>
+                          <span className="text-slate-600 font-medium">{u.given_by}</span>
                         )}
                       </div>
                     </div>
@@ -701,14 +704,14 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         name="role"
                         value={editData.role}
                         onChange={handleEditChange}
-                        className="border border-gray-300 rounded px-3 py-2 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full appearance-none font-semibold text-slate-700 text-center"
                       >
                         <option value="USER">USER</option>
                         <option value="ADMIN">ADMIN</option>
                       </select>
                     ) : (
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${u.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}
+                        className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold border ${u.role === "ADMIN" ? "bg-emerald-50 border-emerald-100 text-[#0F766E]" : "bg-slate-100 border-slate-200 text-slate-700"}`}
                       >
                         {u.role}
                       </span>
@@ -722,24 +725,24 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         name="page"
                         value={editData.page}
                         onChange={handleEditChange}
-                        className="border border-gray-300 rounded px-3 py-1 text-sm w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full"
                       />
                     ) : u.page ? (
-                      <div className="text-sm bg-gray-50 px-3 py-1 rounded truncate max-w-[150px]">
+                      <div className="text-xs bg-slate-50 border border-slate-200 text-slate-600 font-semibold px-3 py-1 rounded-xl truncate max-w-[150px] mx-auto">
                         {u.page}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm">Not set</span>
+                      <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Not set</span>
                     )}
                   </td>
 
                   {/* ACTIONS COLUMN */}
                   <td className="px-4 py-4 text-center">
                     {editUserId === u.id ? (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 justify-center">
                         <button
                           onClick={() => handleUpdate(u.id)}
-                          className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                          className="flex items-center gap-1 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-colors"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -757,7 +760,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         </button>
                         <button
                           onClick={() => setEditUserId(null)}
-                          className="flex items-center gap-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                          className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -775,10 +778,10 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         </button>
                       </div>
                     ) : (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 justify-center">
                         <button
                           onClick={() => handleEdit(u)}
-                          className="flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                          className="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-[#0F766E] border border-emerald-250/60 px-3 py-1.5 rounded-xl text-xs font-bold transition"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -792,7 +795,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         </button>
                         <button
                           onClick={() => handleDelete(u.id)}
-                          className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                          className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/60 px-3 py-1.5 rounded-xl text-xs font-bold transition"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -817,19 +820,19 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           </table>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 text-sm text-gray-500">
+        <div className="px-6 py-4 border-t border-slate-100 text-sm text-slate-500 font-medium">
           Showing {filteredUsers.length} of {users.length} users
         </div>
       </div>
 
       {/* ================= MOBILE CARD VIEW ================= */}
       <div className="md:hidden space-y-4">
-        <div className="bg-white rounded-xl shadow-lg p-4">
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">
-              User Details
+            <h2 className="text-lg font-bold text-slate-800">
+              User Directory
             </h2>
-            <span className="bg-purple-100 text-purple-800 text-xs font-medium px-3 py-1 rounded-full">
+            <span className="bg-emerald-50 border border-emerald-100 text-[#0F766E] text-xs font-bold px-3 py-1 rounded-xl">
               {filteredUsers.length} users
             </span>
           </div>
@@ -838,29 +841,29 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             {filteredUsers.map((u) => (
               <div
                 key={u.id}
-                className="border border-gray-200 rounded-xl p-4 hover:border-purple-300 transition-all duration-200"
+                className="border border-slate-100 rounded-2xl p-4 hover:border-slate-200 transition-all duration-200 bg-slate-50/30"
               >
                 {/* USER HEADER */}
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 flex items-center justify-center mr-3">
-                      <span className="font-bold text-lg text-purple-700">
+                    <div className="h-12 w-12 rounded-xl bg-[#0F766E]/5 border border-[#0F766E]/10 flex items-center justify-center mr-3">
+                      <span className="font-bold text-lg text-[#0F766E]">
                        {u.username
-  ? u.username.charAt(0).toUpperCase()
-  : "U"}
+                        ? u.username.charAt(0).toUpperCase()
+                        : "U"}
                       </span>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
-{u.username}
+                      <h3 className="font-bold text-slate-800">
+                        {u.username}
                       </h3>
-                      <div className="flex items-center mt-1">
+                      <div className="flex items-center mt-1 gap-2">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}
+                          className={`px-2.5 py-0.5 rounded-xl text-[10px] font-bold border ${u.role === "ADMIN" ? "bg-emerald-50 border-emerald-100 text-[#0F766E]" : "bg-slate-100 border-slate-200 text-slate-700"}`}
                         >
                           {u.role}
                         </span>
-                        <span className="text-gray-500 text-xs ml-2">
+                        <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
                           ID: {u.id}
                         </span>
                       </div>
@@ -869,14 +872,14 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
                   {/* ACTIONS */}
                   {editUserId === u.id ? (
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <button
                         onClick={() => handleUpdate(u.id)}
-                        className="p-2 bg-green-100 text-green-600 rounded-lg"
+                        className="p-2 bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white rounded-xl shadow-sm"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
+                          className="h-4 w-4"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                         >
@@ -889,11 +892,11 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       </button>
                       <button
                         onClick={() => setEditUserId(null)}
-                        className="p-2 bg-gray-100 text-gray-600 rounded-lg"
+                        className="p-2 bg-slate-100 text-slate-600 rounded-xl"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
+                          className="h-4 w-4"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                         >
@@ -906,14 +909,14 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       </button>
                     </div>
                   ) : (
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <button
                         onClick={() => handleEdit(u)}
-                        className="p-2 bg-purple-100 text-purple-600 rounded-lg"
+                        className="p-2 bg-emerald-50 text-[#0F766E] border border-emerald-250/60 rounded-xl"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
+                          className="h-4 w-4"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                         >
@@ -922,11 +925,11 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       </button>
                       <button
                         onClick={() => handleDelete(u.id)}
-                        className="p-2 bg-red-50 text-red-600 rounded-lg"
+                        className="p-2 bg-red-50 text-red-650 border border-red-200/60 rounded-xl"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
+                          className="h-4 w-4"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                         >
@@ -944,90 +947,90 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 {/* USER DETAILS */}
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Email</p>
+                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Email</p>
                     {editUserId === u.id ? (
                       <input
                         name="email_id"
                         value={editData.email_id}
                         onChange={handleEditChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
                       />
                     ) : (
-                      <p className="text-sm font-medium">{u.email_id}</p>
+                      <p className="text-sm font-medium text-slate-700">{u.email_id}</p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">WhatsApp</p>
+                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">WhatsApp</p>
                     {editUserId === u.id ? (
                       <input
                         name="wa_number"
                         value={editData.wa_number}
                         onChange={handleEditChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
                       />
                     ) : (
-                      <p className="text-sm font-medium">{u.wa_number}</p>
+                      <p className="text-sm font-medium text-slate-700">{u.wa_number}</p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Password</p>
+                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Password</p>
                     {editUserId === u.id ? (
                       <input
                         name="password"
                         value={editData.password}
                         onChange={handleEditChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
                       />
                     ) : (
-                      <p className="text-sm font-mono bg-gray-50 px-2 py-1 rounded">
+                      <p className="text-xs font-mono bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-block text-slate-600 font-semibold">
                         {u.password}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Department</p>
+                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Department</p>
                     {editUserId === u.id ? (
                       <input
                         name="department"
                         value={editData.department}
                         onChange={handleEditChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
                       />
                     ) : (
-                      <p className="text-sm font-medium">
+                      <p className="text-sm font-semibold text-slate-800">
                         {u.department || "-"}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Given By</p>
+                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Given By</p>
                     {editUserId === u.id ? (
                       <input
                         name="given_by"
                         value={editData.given_by}
                         onChange={handleEditChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
                       />
                     ) : (
-                      <p className="text-sm font-medium">{u.given_by || "-"}</p>
+                      <p className="text-sm font-medium text-slate-700">{u.given_by || "-"}</p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Page Access</p>
+                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Page Access</p>
                     {editUserId === u.id ? (
                       <input
                         name="page"
                         value={editData.page}
                         onChange={handleEditChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
                       />
                     ) : (
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-xs bg-slate-50 border border-slate-200 text-slate-650 font-semibold px-2 py-0.5 rounded-xl truncate">
                         {u.page || "Not set"}
                       </p>
                     )}
@@ -1035,12 +1038,12 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
                   {editUserId === u.id && (
                     <div className="col-span-2">
-                      <p className="text-xs text-gray-500 mb-1">Role</p>
+                      <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Role</p>
                       <select
                         name="role"
                         value={editData.role}
                         onChange={handleEditChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-850 text-sm appearance-none font-semibold text-slate-700"
                       >
                         <option value="USER">USER</option>
                         <option value="ADMIN">ADMIN</option>
@@ -1056,20 +1059,15 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
       {/* ================= ADD USER MODAL ================= */}
       {open && (
-        // <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
-        //   <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-y-auto">
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md h-[90vh] flex flex-col">
-
-
-
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-gradient-to-r from-[#065F46] to-[#0F766E] p-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-white">Add New User</h2>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="text-white hover:text-gray-200"
+                  className="text-white hover:text-emerald-100 transition-colors"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1087,19 +1085,18 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   </svg>
                 </button>
               </div>
-              <p className="text-purple-100 text-sm mt-1">
+              <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider mt-1">
                 Fill in the user details below
               </p>
             </div>
 
-            {/* <form onSubmit={handleSubmit} className="p-6 space-y-4"> */}
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                   Username
                 </label>
                 <input
-                  className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
                   name="doer_name"
                   placeholder="Enter username"
                   onChange={handleChange}
@@ -1108,11 +1105,11 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                   Email Address
                 </label>
                 <input
-                  className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
                   name="email_id"
                   type="email"
                   placeholder="user@example.com"
@@ -1123,27 +1120,27 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                     WhatsApp
                   </label>
                   <input
                     type="tel"
                     name="wa_number"
-                    placeholder="10 digit WhatsApp number"
+                    placeholder="10 digit number"
                     maxLength={10}
                     pattern="[0-9]{10}"
                     inputMode="numeric"
-                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
                     onChange={handleChange}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                     Password
                   </label>
                   <input
-                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
                     name="password"
                     placeholder="Enter password"
                     onChange={handleChange}
@@ -1155,11 +1152,11 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               <div className="grid grid-cols-2 gap-4">
                 {/* Department Field */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                     Department
                   </label>
                   <select
-                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm transition-all hover:border-slate-355 appearance-none font-semibold text-slate-700"
                     name="department"
                     onChange={handleChange}
                     value={formData.department}
@@ -1177,11 +1174,11 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 
                 {/* Given By Field */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                     Given By
                   </label>
                   <select
-                    className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm transition-all hover:border-slate-355 appearance-none font-semibold text-slate-700"
                     name="given_by"
                     onChange={handleChange}
                     value={formData.given_by}
@@ -1199,55 +1196,57 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               </div>
 
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                   Page Access (Departments)
                 </label>
 
                 {/* Select box */}
                 <div
                   onClick={() => setOpenPageBox(!openPageBox)}
-                  className="border border-gray-300 rounded-lg px-4 py-3 w-full cursor-pointer bg-white flex justify-between items-center"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 cursor-pointer bg-slate-50 text-slate-700 text-sm flex justify-between items-center hover:border-slate-355 font-semibold"
                 >
-                  <span className="text-gray-600">
+                  <span>
                     {pageAccess.length === 0
                       ? "Select departments"
                       : `${pageAccess.length} selected`}
                   </span>
-                  <span>▾</span>
+                  <span className="text-slate-400">▾</span>
                 </div>
 
                 {/* Dropdown */}
                 {openPageBox && (
-                  <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto border bg-white rounded-lg shadow-lg p-3 space-y-2">
+                  <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto border border-slate-200 bg-white rounded-xl shadow-lg p-3 space-y-2">
                     {loading ? (
                       <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-                        <p className="text-gray-500 mt-2">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0F766E] mx-auto"></div>
+                        <p className="text-slate-500 text-xs mt-2">
                           Loading departments...
                         </p>
                       </div>
                     ) : pageOptions.length === 0 ? (
-                      <p className="text-gray-500 text-center py-4">
+                      <p className="text-slate-500 text-center text-xs py-4">
                         No departments found
                       </p>
                     ) : (
                       <>
                         {/* All Departments */}
-                        <label className="flex items-center gap-2 font-medium text-green-600">
+                        <label className="flex items-center gap-2 font-bold text-emerald-650 text-xs uppercase tracking-wider cursor-pointer">
                           <input
                             type="checkbox"
+                            className="rounded text-[#0F766E] focus:ring-[#0F766E]/20"
                             checked={pageAccess.length === pageOptions.length}
                             onChange={toggleAllPages}
                           />
                           All Departments
                         </label>
 
-                        <hr />
+                        <hr className="border-slate-100" />
 
                         {pageOptions.map((page) => (
-                          <label key={page} className="flex items-center gap-2">
+                          <label key={page} className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-800">
                             <input
                               type="checkbox"
+                              className="rounded text-[#0F766E] focus:ring-[#0F766E]/20"
                               checked={pageAccess.includes(page)}
                               onChange={() => togglePage(page)}
                             />
@@ -1261,11 +1260,11 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                   User Role
                 </label>
                 <select
-                  className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm transition-all hover:border-slate-355 appearance-none font-semibold text-slate-700"
                   name="role"
                   onChange={handleChange}
                 >
@@ -1274,18 +1273,17 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 </select>
               </div>
 
-              {/* <div className="flex gap-3 justify-end pt-4 border-t border-gray-100"> */}
-              <div className="flex gap-3 justify-end p-4 border-t border-gray-100 sticky bottom-0 bg-white">
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 sticky bottom-0 bg-white">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="px-5 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  className="px-5 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
+                  className="px-5 py-2.5 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white rounded-xl font-bold shadow-md shadow-emerald-950/10 hover:shadow-lg transition-all text-sm"
                 >
                   Create User Account
                 </button>

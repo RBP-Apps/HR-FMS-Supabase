@@ -46,7 +46,7 @@ export default function BulkActionsPanel({
         </select>
         <button
           onClick={handleApplyBulkAction}
-          className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-1.5 px-4 rounded-xl transition-all shadow-sm"
+          className="bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white font-bold py-1.5 px-4 rounded-xl transition-all shadow-md shadow-emerald-950/10"
         >
           Apply Bulk Override
         </button>

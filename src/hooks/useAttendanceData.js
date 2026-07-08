@@ -546,6 +546,14 @@ export default function useAttendanceData() {
 
       const missingCredits = [];
 
+      // Create a Set of existing credit keys for O(1) lookup
+      const existingCreditsSet = new Set();
+      ledgerRows.forEach(row => {
+        if (row.employee_id && row.leave_type === "CL" && row.transaction_type === "CREDIT" && row.remarks) {
+          existingCreditsSet.add(`${row.employee_id}_${row.remarks}`);
+        }
+      });
+
       for (const emp of employeesList) {
         const dojStr = emp.dateOfJoining;
         if (!dojStr) continue;
@@ -562,12 +570,7 @@ export default function useAttendanceData() {
           const targetMonthName = monthsNames[target.month - 1];
           const remarkKey = `Auto Monthly Credit - ${targetMonthName} ${target.year}`;
 
-          const alreadyCredited = ledgerRows.some(row =>
-            row.employee_id === emp.id &&
-            row.leave_type === "CL" &&
-            row.transaction_type === "CREDIT" &&
-            row.remarks === remarkKey
-          );
+          const alreadyCredited = existingCreditsSet.has(`${emp.id}_${remarkKey}`);
 
           if (!alreadyCredited) {
             missingCredits.push({
@@ -608,8 +611,54 @@ export default function useAttendanceData() {
     const draftDetails = {};
     const localBalances = {};
 
+    // Group ledgerList by employee_id for O(1) retrieval
+    const ledgerMap = new Map();
+    ledgerList.forEach(row => {
+      if (row.employee_id) {
+        const key = row.employee_id.toString();
+        if (!ledgerMap.has(key)) {
+          ledgerMap.set(key, []);
+        }
+        ledgerMap.get(key).push(row);
+      }
+    });
+
+    // Group biometricList by employeeCode and employeeName for O(1) retrieval
+    const biometricByCodeDateMap = new Map();
+    const biometricByNameDateMap = new Map();
+    biometricList.forEach(b => {
+      const date = b.date;
+      if (b.employeeCode && date) {
+        biometricByCodeDateMap.set(`${b.employeeCode.toString().trim().toLowerCase()}_${date}`, b);
+      }
+      if (b.employeeName && date) {
+        biometricByNameDateMap.set(`${b.employeeName.toString().trim().toLowerCase()}_${date}`, b);
+      }
+    });
+
+    // Group fieldList by employeeCode and employeeName for O(1) retrieval
+    const fieldByCodeDateMap = new Map();
+    const fieldByNameDateMap = new Map();
+    fieldList.forEach(f => {
+      const date = f.date;
+      if (f.employeeCode && date) {
+        fieldByCodeDateMap.set(`${f.employeeCode.toString().trim().toLowerCase()}_${date}`, f);
+      }
+      if (f.employeeName && date) {
+        fieldByNameDateMap.set(`${f.employeeName.toString().trim().toLowerCase()}_${date}`, f);
+      }
+    });
+
+    // Map holidaysList by date for O(1) retrieval
+    const holidayMap = new Map();
+    holidaysList.forEach(h => {
+      if (h.holiday_date) {
+        holidayMap.set(h.holiday_date, h);
+      }
+    });
+
     employeesList.forEach(emp => {
-      const empLedger = ledgerList.filter(row => row.employee_id === emp.id);
+      const empLedger = ledgerMap.get(emp.id?.toString()) || [];
 
       const totalClCredits = empLedger
         .filter(row => row.leave_type === "CL" && (row.transaction_type === "CREDIT" || row.transaction_type === "ADJUSTMENT" && row.earned > 0))
@@ -644,7 +693,7 @@ export default function useAttendanceData() {
       const empStatusArray = new Array(daysInMonth).fill("A");
       const empDetailsArray = [];
 
-      const empLedger = ledgerList.filter(row => row.employee_id === emp.id);
+      const empLedger = ledgerMap.get(emp.id?.toString()) || [];
       const targetMonthStartStr = `${yearVal}-${String(monthIndex + 1).padStart(2, "0")}-01`;
 
       const clDebitsPrior = empLedger
@@ -709,7 +758,7 @@ export default function useAttendanceData() {
             lwpCount++;
           }
         } else {
-          const holidayMatch = holidaysList.find(h => h.holiday_date === dateStr);
+          const holidayMatch = holidayMap.get(dateStr);
 
           if (holidayMatch) {
             status = "H";
@@ -720,11 +769,13 @@ export default function useAttendanceData() {
             remarks = "Weekly Off";
           }
           else {
-            const fieldCL = fieldList.find(f =>
-              (f.employeeName === emp.name || f.employeeCode === emp.code) &&
-              f.date === dateStr &&
-              f.status === "CL"
-            );
+            const empCodeLower = emp.code?.toString().trim().toLowerCase();
+            const empNameLower = emp.name?.toString().trim().toLowerCase();
+            const codeKey = `${empCodeLower}_${dateStr}`;
+            const nameKey = `${empNameLower}_${dateStr}`;
+
+            const fRecord = fieldByCodeDateMap.get(codeKey) || fieldByNameDateMap.get(nameKey) || null;
+            const fieldCL = (fRecord && fRecord.status === "CL") ? fRecord : null;
 
             if (fieldCL) {
               if (runningCLBalance >= 1) {
@@ -740,18 +791,11 @@ export default function useAttendanceData() {
               let record = null;
 
               if (emp.employeeCategory?.trim() === "Office Staff") {
-                record = biometricList.find(b =>
-                  (b.employeeCode?.trim().toLowerCase() === emp.code?.trim().toLowerCase() ||
-                    b.employeeName?.trim().toLowerCase() === emp.name?.trim().toLowerCase()) &&
-                  b.date === dateStr
-                );
+                record = biometricByCodeDateMap.get(codeKey) || biometricByNameDateMap.get(nameKey) || null;
                 source = "biometric";
               } else {
-                record = fieldList.find(f =>
-                  (f.employeeName === emp.name || f.employeeCode === emp.code) &&
-                  f.date === dateStr &&
-                  f.status !== "CL"
-                );
+                const fNormalRecord = (fRecord && fRecord.status !== "CL") ? fRecord : null;
+                record = fNormalRecord;
                 source = "field";
               }
 
@@ -883,14 +927,14 @@ export default function useAttendanceData() {
 
     if (isFinalized) {
       const arr = new Array(daysInMonth).fill("A");
-      const empFinalRecords = finalizedAttendance.filter(f =>
-        (f.employee_id === employee.id || f.employee_code === employee.code || f.employee_name === employee.name)
-      );
+      const empFinalRecords = (employee.id && finalizedAttendanceMap.get(employee.id.toString())) || [];
 
       empFinalRecords.forEach(r => {
-        const d = new Date(r.attendance_date).getDate();
-        if (d >= 1 && d <= daysInMonth) {
-          arr[d - 1] = r.status;
+        if (r.attendance_date) {
+          const d = new Date(r.attendance_date).getDate();
+          if (d >= 1 && d <= daysInMonth) {
+            arr[d - 1] = r.status;
+          }
         }
       });
       return arr;
@@ -1221,12 +1265,22 @@ export default function useAttendanceData() {
   const loadDynamicData = async () => {
     try {
       const empList = await fetchEmployees();
-      const biometricList = await fetchBiometricAttendance(selectedYear, selectedMonth);
-      const fieldList = await fetchFieldAttendance(selectedYear, selectedMonth);
-      const holidaysList = await fetchHolidays();
-      const ledgerList = await fetchLeaveLedger(empList);
-      const logList = await fetchFinalizationLogs();
-      const finalizedList = await fetchFinalizedAttendance(selectedYear, selectedMonth, empList);
+      
+      const [
+        biometricList,
+        fieldList,
+        holidaysList,
+        ledgerList,
+        logList,
+        finalizedList
+      ] = await Promise.all([
+        fetchBiometricAttendance(selectedYear, selectedMonth),
+        fetchFieldAttendance(selectedYear, selectedMonth),
+        fetchHolidays(),
+        fetchLeaveLedger(empList),
+        fetchFinalizationLogs(),
+        fetchFinalizedAttendance(selectedYear, selectedMonth, empList)
+      ]);
 
       const isMonthFinalized = logList.some(log =>
         log.month === (getMonthNumber(selectedMonth) + 1) &&
@@ -1260,6 +1314,21 @@ export default function useAttendanceData() {
       processAttendanceEngine(employees, biometricAttendance, fieldAttendance, holidays, leaveLedger, selectedYear, selectedMonth);
     }
   }, [manualOverrides]);
+
+  // Group finalizedAttendance by employee identifier for O(1) lookups
+  const finalizedAttendanceMap = useMemo(() => {
+    const map = new Map();
+    finalizedAttendance.forEach(r => {
+      if (r.employee_id) {
+        const key = r.employee_id.toString();
+        if (!map.has(key)) {
+          map.set(key, []);
+        }
+        map.get(key).push(r);
+      }
+    });
+    return map;
+  }, [finalizedAttendance]);
 
   // Derived/computed properties
   const filtered = useMemo(() => {

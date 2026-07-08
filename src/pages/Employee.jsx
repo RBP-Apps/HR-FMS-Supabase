@@ -114,14 +114,22 @@ const Employee = () => {
   const formatDOB = (dateString) => {
     if (!dateString) return "";
 
+    // If dateString is in YYYY-MM-DD format (like "2026-07-08")
+    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [_, year, month, day] = match;
+      return `${day}/${month}/${year}`;
+    }
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       return dateString; // Return as-is if not a valid date
     }
 
-    const day = date.getDate();
-    const month = date.getMonth();
-    const year = date.getFullYear();
+    // Fallback: format using UTC methods to avoid timezone shift for ISO strings
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const year = date.getUTCFullYear();
 
     return `${day}/${month}/${year}`;
   };

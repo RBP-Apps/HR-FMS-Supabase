@@ -727,11 +727,11 @@ const Indent = () => {
       )}
 
       {/* Dynamic Filters Section */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-4">
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Gender Filter */}
           <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Gender</label>
+            <label className="text-xs font-semibold text-slate-500 mb-1">Gender</label>
             <div className="relative">
               <input
                 type="text"
@@ -739,7 +739,7 @@ const Indent = () => {
                 placeholder="Select/Search Gender"
                 value={filterGender}
                 onChange={(e) => setFilterGender(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-350"
               />
               <datalist id="genderList">
                 {uniqueGenders.map(gender => (
@@ -751,7 +751,7 @@ const Indent = () => {
 
           {/* Post Filter */}
           <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Post</label>
+            <label className="text-xs font-semibold text-slate-500 mb-1">Post</label>
             <div className="relative">
               <input
                 type="text"
@@ -759,7 +759,7 @@ const Indent = () => {
                 placeholder="Select/Search Post"
                 value={filterPost}
                 onChange={(e) => setFilterPost(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-350"
               />
               <datalist id="postList">
                 {uniquePosts.map(post => (
@@ -771,23 +771,23 @@ const Indent = () => {
 
           {/* Global Search */}
           <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-500 mb-1">Global Search</label>
-            <div className="relative h-full flex items-center">
+            <label className="text-xs font-semibold text-slate-500 mb-1">Global Search</label>
+            <div className="relative">
               <input
                 type="text"
                 placeholder="Search all fields..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700 text-sm"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-350"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
               <Search
                 size={16}
-                className="absolute left-3 text-gray-500"
+                className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"
               />
             </div>
           </div>
 
-          <div className="flex justify-end pt-2 mt-2 border-t border-gray-100">
+          <div className="flex items-end justify-end">
             <button
               onClick={() => {
                 setFilterIndentNo("");
@@ -795,15 +795,13 @@ const Indent = () => {
                 setFilterPost("");
                 setSearchTerm("");
               }}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm font-medium transition-colors"
+              className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-650 border border-red-100 rounded-xl flex items-center gap-2 text-sm font-semibold transition-all"
             >
               <X size={16} />
               Clear Filters
             </button>
           </div>
         </div>
-
-
       </div>
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">

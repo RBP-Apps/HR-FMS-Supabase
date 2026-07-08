@@ -125,16 +125,7 @@ export default function HRMSAttendanceDashboard() {
     weekendCols
   } = attendanceData;
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-slate-50 items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading attendance data...</p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
@@ -150,7 +141,7 @@ export default function HRMSAttendanceDashboard() {
               <span>📅</span> {getCurrentDate()}
             </div>
 
-            {currentMainTab === "attendance" && (
+            {!loading && currentMainTab === "attendance" && (
               <>
                 <AttendanceExcel
                   pageRows={pageRows}
@@ -209,181 +200,228 @@ export default function HRMSAttendanceDashboard() {
 
         {/* SCROLLABLE BODY */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {loading ? (
+            <div className="space-y-6 animate-pulse">
+              {/* Skeleton Banner */}
+              <div className="h-16 bg-slate-200/60 rounded-2xl w-full"></div>
+              
+              {/* Skeleton Filters */}
+              <div className="h-14 bg-slate-200/60 rounded-2xl w-full"></div>
+              
+              {/* Skeleton Grid */}
+              <div className="flex gap-4">
+                {/* Table Skeleton */}
+                <div className="flex-1 bg-white border border-slate-100 rounded-2xl p-5 space-y-4 shadow-sm">
+                  <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                    <div className="h-5 bg-slate-200 rounded w-1/4"></div>
+                    <div className="h-5 bg-slate-200 rounded w-1/12"></div>
+                  </div>
+                  {[...Array(6)].map((_, idx) => (
+                    <div key={idx} className="flex space-x-4 items-center py-3 border-b border-slate-50 last:border-0">
+                      <div className="w-10 h-10 bg-slate-200 rounded-full shrink-0"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-1/3"></div>
+                        <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+                      </div>
+                      <div className="h-4 bg-slate-200 rounded w-20"></div>
+                      <div className="h-4 bg-slate-200 rounded w-24"></div>
+                    </div>
+                  ))}
+                </div>
 
-          {/* TAB 1: ATTENDANCE GRID */}
-          {currentMainTab === "attendance" && (
+                {/* Right Panel Skeleton */}
+                <div className="w-80 bg-white border border-slate-100 rounded-2xl p-5 space-y-6 shrink-0 hidden lg:block shadow-sm">
+                  <div className="space-y-3">
+                    <div className="w-16 h-16 bg-slate-200 rounded-full mx-auto"></div>
+                    <div className="h-4 bg-slate-200 rounded w-1/2 mx-auto"></div>
+                    <div className="h-3 bg-slate-200 rounded w-1/3 mx-auto"></div>
+                  </div>
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    <div className="h-4 bg-slate-200 rounded w-full"></div>
+                    <div className="h-4 bg-slate-200 rounded w-5/6"></div>
+                    <div className="h-4 bg-slate-200 rounded w-4/5"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
             <>
-              {/* LOCKING STATUS BANNER */}
-              {isFinalized ? (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🔒</span>
-                    <div>
-                      <h4 className="font-bold text-sm">Attendance Finalized & Locked</h4>
-                      <p className="text-xs text-emerald-600">The attendance for {selectedMonth} {selectedYear} ({selectedCompany}) is locked and ready for payroll processing.</p>
+              {/* TAB 1: ATTENDANCE GRID */}
+              {currentMainTab === "attendance" && (
+                <>
+                  {/* LOCKING STATUS BANNER */}
+                  {isFinalized ? (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🔒</span>
+                        <div>
+                          <h4 className="font-bold text-sm">Attendance Finalized & Locked</h4>
+                          <p className="text-xs text-emerald-600">The attendance for {selectedMonth} {selectedYear} ({selectedCompany}) is locked and ready for payroll processing.</p>
+                        </div>
+                      </div>
+                      <span className="bg-emerald-600 text-white text-[10px] uppercase font-bold py-1 px-2.5 rounded-full">Finalized</span>
                     </div>
-                  </div>
-                  <span className="bg-emerald-600 text-white text-[10px] uppercase font-bold py-1 px-2.5 rounded-full">Finalized</span>
-                </div>
-              ) : (
-                <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">✍️</span>
-                    <div>
-                      <h4 className="font-bold text-sm">Attendance Draft (Unsubmitted)</h4>
-                      <p className="text-xs text-amber-600">You are reviewing live punches & leave calculations. Click 'Submit & Finalize' to lock records.</p>
-                    </div>
-                  </div>
-                  {selectedCompany !== "All Companies" ? (
-                    <button
-                      onClick={handleFinalizeAttendance}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-sm transition-all"
-                    >
-                      🔒 Submit & Finalize
-                    </button>
                   ) : (
-                    <span className="text-xs text-amber-700 font-semibold italic">Select a specific company to finalize</span>
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">✍️</span>
+                        <div>
+                          <h4 className="font-bold text-sm">Attendance Draft (Unsubmitted)</h4>
+                          <p className="text-xs text-amber-600">You are reviewing live punches & leave calculations. Click 'Submit & Finalize' to lock records.</p>
+                        </div>
+                      </div>
+                      {selectedCompany !== "All Companies" ? (
+                        <button
+                          onClick={handleFinalizeAttendance}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-sm transition-all"
+                        >
+                          🔒 Submit & Finalize
+                        </button>
+                      ) : (
+                        <span className="text-xs text-amber-700 font-semibold italic">Select a specific company to finalize</span>
+                      )}
+                    </div>
                   )}
-                </div>
+
+                  {/* BULK ACTIONS PANEL (DRAFT ONLY) */}
+                  <BulkActionsPanel
+                    isFinalized={isFinalized}
+                    bulkAction={bulkAction}
+                    setBulkAction={setBulkAction}
+                    handleApplyBulkAction={handleApplyBulkAction}
+                  />
+
+                  {/* FILTER BAR */}
+                  <AttendanceFilters
+                    search={search}
+                    setSearch={setSearch}
+                    setCurrentPage={setCurrentPage}
+                    selectedCompany={selectedCompany}
+                    setSelectedCompany={setSelectedCompany}
+                    companies={companies}
+                    selectedYear={selectedYear}
+                    setSelectedYear={setSelectedYear}
+                    selectedMonth={selectedMonth}
+                    setSelectedMonth={setSelectedMonth}
+                    selectedDept={selectedDept}
+                    setSelectedDept={setSelectedDept}
+                    selectedType={selectedType}
+                    setSelectedType={setSelectedType}
+                    selectedStatus={selectedStatus}
+                    setSelectedStatus={setSelectedStatus}
+                  />
+
+                  {/* ATTENDANCE GRID + RIGHT PANEL */}
+                  <div className="flex gap-4">
+                    <AttendanceTable
+                      selectedMonth={selectedMonth}
+                      selectedYear={selectedYear}
+                      activeTab={activeTab}
+                      setActiveTab={setActiveTab}
+                      daysOfWeek={daysOfWeek}
+                      weekendCols={weekendCols}
+                      pageRows={pageRows}
+                      generateMonthlyAttendance={generateMonthlyAttendance}
+                      calcSummary={calcSummary}
+                      expandedRow={expandedRow}
+                      setExpandedRow={setExpandedRow}
+                      setSelectedEmp={setSelectedEmp}
+                      employees={employees}
+                      leaveBalances={leaveBalances}
+                      MAX_CL_DAYS={MAX_CL_DAYS}
+                      editingCell={editingCell}
+                      setEditingCell={setEditingCell}
+                      editRemark={editRemark}
+                      setEditRemark={setEditRemark}
+                      editFilePreview={editFilePreview}
+                      setEditFilePreview={setEditFilePreview}
+                      setEditFile={setEditFile}
+                      isFutureDate={isFutureDate}
+                      updateAttendanceStatus={updateAttendanceStatus}
+                      handleFileUpload={handleFileUpload}
+                      biometricAttendance={biometricAttendance}
+                      fieldAttendance={fieldAttendance}
+                      setSelectedLeaveEmp={setSelectedLeaveEmp}
+                      setShowLeaveModal={setShowLeaveModal}
+                      setEditModalData={setEditModalData}
+                      setShowEditModal={setShowEditModal}
+                      currentPage={currentPage}
+                      setCurrentPage={setCurrentPage}
+                      totalPages={totalPages}
+                      filtered={filtered}
+                      ROWS_PER_PAGE={ROWS_PER_PAGE}
+                      paidDays={paidDays}
+                      getMonthNumber={getMonthNumber}
+                      setShowDayDetailModal={setShowDayDetailModal}
+                      setDayDetailData={setDayDetailData}
+                    />
+
+                    <EmployeeSummaryPanel
+                      selEmp={selEmp}
+                      selectedEmp={selectedEmp}
+                      selectedYear={selectedYear}
+                      selectedMonth={selectedMonth}
+                      generateMonthlyAttendance={generateMonthlyAttendance}
+                      calcSummary={calcSummary}
+                      paidDays={paidDays}
+                      leaveBalances={leaveBalances}
+                      MAX_CL_DAYS={MAX_CL_DAYS}
+                      setSelectedLeaveEmp={setSelectedLeaveEmp}
+                      setShowLeaveModal={setShowLeaveModal}
+                      biometricAttendance={biometricAttendance}
+                      fieldAttendance={fieldAttendance}
+                      setEditModalData={setEditModalData}
+                      setShowEditModal={setShowEditModal}
+                    />
+                  </div>
+
+                  {/* MANUAL CORRECTIONS + DATA SOURCE */}
+                  <RecentCorrections
+                    manualCorrections={manualCorrections}
+                    biometricAttendance={biometricAttendance}
+                    fieldAttendance={fieldAttendance}
+                    employees={employees}
+                  />
+                </>
               )}
 
-              {/* BULK ACTIONS PANEL (DRAFT ONLY) */}
-              <BulkActionsPanel
-                isFinalized={isFinalized}
-                bulkAction={bulkAction}
-                setBulkAction={setBulkAction}
-                handleApplyBulkAction={handleApplyBulkAction}
-              />
-
-              {/* FILTER BAR */}
-              <AttendanceFilters
-                search={search}
-                setSearch={setSearch}
-                setCurrentPage={setCurrentPage}
-                selectedCompany={selectedCompany}
-                setSelectedCompany={setSelectedCompany}
-                companies={companies}
-                selectedYear={selectedYear}
-                setSelectedYear={setSelectedYear}
-                selectedMonth={selectedMonth}
-                setSelectedMonth={setSelectedMonth}
-                selectedDept={selectedDept}
-                setSelectedDept={setSelectedDept}
-                selectedType={selectedType}
-                setSelectedType={setSelectedType}
-                selectedStatus={selectedStatus}
-                setSelectedStatus={setSelectedStatus}
-              />
-
-              {/* ATTENDANCE GRID + RIGHT PANEL */}
-              <div className="flex gap-4">
-                <AttendanceTable
-                  selectedMonth={selectedMonth}
-                  selectedYear={selectedYear}
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  daysOfWeek={daysOfWeek}
-                  weekendCols={weekendCols}
-                  pageRows={pageRows}
-                  generateMonthlyAttendance={generateMonthlyAttendance}
-                  calcSummary={calcSummary}
-                  expandedRow={expandedRow}
-                  setExpandedRow={setExpandedRow}
-                  setSelectedEmp={setSelectedEmp}
-                  employees={employees}
-                  leaveBalances={leaveBalances}
-                  MAX_CL_DAYS={MAX_CL_DAYS}
-                  editingCell={editingCell}
-                  setEditingCell={setEditingCell}
-                  editRemark={editRemark}
-                  setEditRemark={setEditRemark}
-                  editFilePreview={editFilePreview}
-                  setEditFilePreview={setEditFilePreview}
-                  setEditFile={setEditFile}
-                  isFutureDate={isFutureDate}
-                  updateAttendanceStatus={updateAttendanceStatus}
-                  handleFileUpload={handleFileUpload}
-                  biometricAttendance={biometricAttendance}
-                  fieldAttendance={fieldAttendance}
-                  setSelectedLeaveEmp={setSelectedLeaveEmp}
-                  setShowLeaveModal={setShowLeaveModal}
-                  setEditModalData={setEditModalData}
-                  setShowEditModal={setShowEditModal}
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  totalPages={totalPages}
+              {/* TAB 2: LEAVE LEDGER DASHBOARD */}
+              {currentMainTab === "ledger" && (
+                <LeaveLedgerDashboard
                   filtered={filtered}
-                  ROWS_PER_PAGE={ROWS_PER_PAGE}
-                  paidDays={paidDays}
-                  getMonthNumber={getMonthNumber}
-                  setShowDayDetailModal={setShowDayDetailModal}
-                  setDayDetailData={setDayDetailData}
-                />
-
-                <EmployeeSummaryPanel
-                  selEmp={selEmp}
-                  selectedEmp={selectedEmp}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  generateMonthlyAttendance={generateMonthlyAttendance}
-                  calcSummary={calcSummary}
-                  paidDays={paidDays}
                   leaveBalances={leaveBalances}
-                  MAX_CL_DAYS={MAX_CL_DAYS}
-                  setSelectedLeaveEmp={setSelectedLeaveEmp}
-                  setShowLeaveModal={setShowLeaveModal}
-                  biometricAttendance={biometricAttendance}
-                  fieldAttendance={fieldAttendance}
-                  setEditModalData={setEditModalData}
-                  setShowEditModal={setShowEditModal}
+                  leaveLedger={leaveLedger}
+                  employees={employees}
+                  setShowAdjustModal={setShowAdjustModal}
                 />
-              </div>
+              )}
 
-              {/* MANUAL CORRECTIONS + DATA SOURCE */}
-              <RecentCorrections
-                manualCorrections={manualCorrections}
-                biometricAttendance={biometricAttendance}
-                fieldAttendance={fieldAttendance}
-                employees={employees}
-              />
+              {/* TAB 3: HOLIDAY MANAGER */}
+              {currentMainTab === "holidays" && (
+                <HolidayManager
+                  holidays={holidays}
+                  setEditingHoliday={setEditingHoliday}
+                  setHolidayForm={setHolidayForm}
+                  setShowHolidayModal={setShowHolidayModal}
+                  handleDeleteHoliday={handleDeleteHoliday}
+                />
+              )}
+
+              {/* TAB 4: FINALIZATION LOGS */}
+              {currentMainTab === "logs" && (
+                <FinalizationLogs finalizationLogs={finalizationLogs} />
+              )}
+
+              {/* TAB 5: LATE ATTENDANCE APPROVALS */}
+              {currentMainTab === "late_approvals" && (
+                <LateApprovals employees={employees} />
+              )}
+
+              {/* TAB 6: SALARY DEDUCTIONS */}
+              {currentMainTab === "salary_deductions" && (
+                <SalaryDeductions employees={employees} />
+              )}
             </>
-          )}
-
-          {/* TAB 2: LEAVE LEDGER DASHBOARD */}
-          {currentMainTab === "ledger" && (
-            <LeaveLedgerDashboard
-              filtered={filtered}
-              leaveBalances={leaveBalances}
-              leaveLedger={leaveLedger}
-              employees={employees}
-              setShowAdjustModal={setShowAdjustModal}
-            />
-          )}
-
-          {/* TAB 3: HOLIDAY MANAGER */}
-          {currentMainTab === "holidays" && (
-            <HolidayManager
-              holidays={holidays}
-              setEditingHoliday={setEditingHoliday}
-              setHolidayForm={setHolidayForm}
-              setShowHolidayModal={setShowHolidayModal}
-              handleDeleteHoliday={handleDeleteHoliday}
-            />
-          )}
-
-          {/* TAB 4: FINALIZATION LOGS */}
-          {currentMainTab === "logs" && (
-            <FinalizationLogs finalizationLogs={finalizationLogs} />
-          )}
-
-          {/* TAB 5: LATE ATTENDANCE APPROVALS */}
-          {currentMainTab === "late_approvals" && (
-            <LateApprovals employees={employees} />
-          )}
-
-          {/* TAB 6: SALARY DEDUCTIONS */}
-          {currentMainTab === "salary_deductions" && (
-            <SalaryDeductions employees={employees} />
           )}
         </div>
       </main>
