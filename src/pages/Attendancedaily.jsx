@@ -1029,7 +1029,7 @@ const fetchAttendanceData = async (
     }
   };
 
-  const colSpanCount = 11 + (activeTab !== "biometric" ? 2 : 0) + (activeTab !== "field" ? 1 : 0);
+  const colSpanCount = 10 + (activeTab !== "biometric" ? 2 : 0) + (activeTab !== "field" ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-4 md:p-6 ml-0 md:ml-50">
@@ -1299,9 +1299,6 @@ const fetchAttendanceData = async (
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
                   S.No.
                 </th>
-                <th className="px-4 py-3.5 text-center text-xs font-semibold text-white uppercase tracking-wider">
-                  Edit
-                </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
                   Type
                 </th>
@@ -1375,20 +1372,6 @@ const fetchAttendanceData = async (
                     <tr className="hover:bg-indigo-50/50 transition-colors duration-200">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-500">
                         {idx + 1}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                          checked={selectedEditItem && selectedEditItem.type === item.type && selectedEditItem.employee === item.employee && selectedEditItem.date === item.date}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              handleOpenEditModal(item);
-                            } else {
-                              handleCloseEditModal();
-                            }
-                          }}
-                        />
                       </td>
                       <td className="px-4 py-3">
                         <span
