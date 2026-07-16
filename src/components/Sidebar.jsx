@@ -199,6 +199,12 @@ const Sidebar = ({ onClose }) => {
       label: "After Payment",
       color: "from-emerald-500 to-teal-700",
     },
+    {
+      path: "/birthday-wish",
+      icon: "🎂",
+      label: "Birthday Wish",
+      color: "from-pink-500 to-rose-600",
+    },
 
     {
       path: "/add_users",

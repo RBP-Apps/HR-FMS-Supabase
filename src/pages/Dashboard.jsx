@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import supabase from "../utils/supabase";
 import { Users, UserCheck, UserPlus, FileText, } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, } from "recharts";
@@ -561,7 +562,7 @@ const Dashboard = () => {
       const { data, error } = await supabase
         .from('joining')
         .select(
-          'rbp_joining_id, status, firm_name, name_as_per_aadhar, date_of_joining, work_location, designation, gender, employee_category'
+          'rbp_joining_id, status, firm_name, name_as_per_aadhar, date_of_joining, work_location, designation, gender, employee_category, date_of_birth'
         );
 
       if (error) {
@@ -584,6 +585,7 @@ const Dashboard = () => {
           designation: row.designation?.toString().trim() || "-",
           gender: row.gender?.toString().trim() || "-",
           employeeCategory: row.employee_category?.toString().trim() || "-",
+          dateOfBirth: row.date_of_birth || null,
         }));
 
       console.log("Filtered Active Employees:", tableData.length);
@@ -735,6 +737,54 @@ const Dashboard = () => {
     Other: "#6B7280",          // Gray
   };
 
+  // Robust DOB parsing supporting DD/MM/YYYY, YYYY-MM-DD, and ISO strings
+  const parseDOB = (dobStr) => {
+    if (!dobStr) return null;
+    const str = String(dobStr).trim();
+    const slashParts = str.split('/');
+    if (slashParts.length === 3) {
+      const day = parseInt(slashParts[0], 10);
+      const month = parseInt(slashParts[1], 10) - 1;
+      const year = parseInt(slashParts[2], 10);
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        const fullYear = year < 100 ? (year > 30 ? 1900 + year : 2000 + year) : year;
+        return new Date(fullYear, month, day);
+      }
+    }
+    const hyphenParts = str.split('-');
+    if (hyphenParts.length === 3) {
+      if (hyphenParts[0].length === 4) {
+        const year = parseInt(hyphenParts[0], 10);
+        const month = parseInt(hyphenParts[1], 10) - 1;
+        const day = parseInt(hyphenParts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          return new Date(year, month, day);
+        }
+      } else {
+        const day = parseInt(hyphenParts[0], 10);
+        const month = parseInt(hyphenParts[1], 10) - 1;
+        const year = parseInt(hyphenParts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          const fullYear = year < 100 ? (year > 30 ? 1900 + year : 2000 + year) : year;
+          return new Date(fullYear, month, day);
+        }
+      }
+    }
+    const parsed = new Date(str);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  // Filter employees whose birthday is today
+  const todaysBirthdays = useMemo(() => {
+    const today = new Date();
+    return joiningTableData.filter((emp) => {
+      if (!emp.dateOfBirth) return false;
+      const dob = parseDOB(emp.dateOfBirth);
+      if (!dob) return false;
+      return dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth();
+    });
+  }, [joiningTableData]);
+
   return (
     <div className="p-6 space-y-6 bg-slate-50 page-content">
       <div className="flex justify-between items-center">
@@ -817,6 +867,169 @@ const Dashboard = () => {
         </div>
 
       </div>
+
+      {/* Today's Birthdays Panel */}
+     <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden">
+
+  {/* Background Decoration */}
+  <div className="absolute -top-10 -right-10 w-40 h-40 bg-pink-100 rounded-full blur-3xl opacity-40"></div>
+  <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-rose-100 rounded-full blur-3xl opacity-40"></div>
+
+  {/* Header */}
+  <div className="flex justify-between items-center mb-8 relative z-10">
+
+    <div className="flex items-center gap-4">
+
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg">
+        <span className="text-2xl">🎂</span>
+      </div>
+
+      <div>
+
+        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+          Today's Birthdays
+
+          {todaysBirthdays.length > 0 && (
+            <span className="px-3 py-1 text-xs font-semibold bg-pink-100 text-pink-600 rounded-full">
+              {todaysBirthdays.length} Celebration
+              {todaysBirthdays.length > 1 ? "s" : ""}
+            </span>
+          )}
+        </h2>
+
+        <p className="text-sm text-slate-500 mt-1">
+          Celebrate your amazing teammates 🎉
+        </p>
+
+      </div>
+
+    </div>
+
+    <Link
+      to="/birthday-wish"
+      className="px-5 py-2.5 rounded-xl bg-[#0F766E] text-white text-sm font-semibold hover:bg-[#0d625b] transition"
+    >
+      More Details →
+    </Link>
+
+  </div>
+
+  {/* Employee Cards */}
+
+  {todaysBirthdays.length > 0 ? (
+
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 relative z-10">
+
+      {todaysBirthdays.map((emp, index) => {
+
+        const initials = emp.nameAadhar
+          ? emp.nameAadhar
+              .split(" ")
+              .filter(Boolean)
+              .map((n) => n[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()
+          : "EE";
+
+        const gradients = [
+          "from-pink-500 to-rose-500",
+          "from-purple-500 to-indigo-500",
+          "from-teal-500 to-emerald-500",
+          "from-blue-500 to-indigo-600",
+          "from-orange-500 to-amber-500",
+        ];
+
+        const charSum = emp.nameAadhar
+          ? emp.nameAadhar
+              .split("")
+              .reduce((acc, char) => acc + char.charCodeAt(0), 0)
+          : 0;
+
+        const gradient = gradients[charSum % gradients.length];
+
+        return (
+
+          <div
+            key={index}
+            className="group bg-white border border-slate-200 rounded-2xl p-5 hover:border-[#0F766E]/40 hover:shadow-xl transition-all duration-300 min-h-[135px]"
+          >
+
+            <div className="flex items-center gap-5">
+
+              {/* Avatar */}
+
+              <div
+                className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white text-lg font-bold shadow`}
+              >
+                {initials}
+              </div>
+
+              {/* Details */}
+
+              <div className="flex-1 min-w-0">
+
+                <h3 className="text-lg font-bold text-slate-800 truncate group-hover:text-[#0F766E] transition">
+                  {emp.nameAadhar}
+                </h3>
+
+                <p className="text-sm text-slate-600 mt-1 truncate">
+                  💼 {emp.designation}
+                </p>
+
+                <p className="text-xs text-slate-400 truncate mt-1">
+                  🏢 {emp.firmName}
+                </p>
+
+                <div className="flex items-center justify-between mt-4">
+
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-pink-50 text-pink-600 text-xs font-semibold border border-pink-100">
+                    🎂 Happy Birthday
+                  </span>
+
+                  <span className="text-xl opacity-40 group-hover:opacity-100 transition">
+                    🎉
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        );
+
+      })}
+
+    </div>
+
+  ) : (
+
+    <div className="relative z-10 rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-16">
+
+      <div className="flex flex-col items-center">
+
+        <div className="text-6xl mb-4">
+          🎂
+        </div>
+
+        <h3 className="text-xl font-bold text-slate-700">
+          No Birthdays Today
+        </h3>
+
+        <p className="text-sm text-slate-500 mt-2">
+          Click on <span className="font-semibold text-[#0F766E]">More Details</span> to see upcoming birthdays.
+        </p>
+
+      </div>
+
+    </div>
+
+  )}
+
+</div>
 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">

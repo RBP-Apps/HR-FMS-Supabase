@@ -27,6 +27,7 @@ import Master from "./pages/Master";
 import OfferLetter from "./pages/OfferLetter";
 
 import AfterPayment from "./pages/AfterPayment";
+import BirthdayWish from "./pages/BirthdayWish";
 
 import AttendancedailyManagement from "./pages/AttendancedailyManagement";
 
@@ -54,6 +55,7 @@ function App() {
             <Route path="joining" element={<Joining />} />
             <Route path="offer-letter" element={<OfferLetter />} />
             <Route path="after-payment" element={<AfterPayment />} />
+            <Route path="birthday-wish" element={<BirthdayWish />} />
             <Route path="after-joining-work" element={<AfterJoiningWork />} />
             <Route path="after-resignation-work" element={<AfterResignatyionWork />} />
             <Route path="employee" element={<Employee />} />
