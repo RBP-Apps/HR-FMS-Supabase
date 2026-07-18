@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import supabase from "../utils/supabase";
 import {
 
   Globe,
@@ -16,10 +17,204 @@ import {
 
 const Sidebar = ({ onClose }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [currentLang, setCurrentLang] = useState("en");
   const [showLanguageHint, setShowLanguageHint] = useState(false);
+  const [pendingEnquiryCount, setPendingEnquiryCount] = useState(0);
+  const [pendingCallCount, setPendingCallCount] = useState(0);
+  const [pendingJoiningCount, setPendingJoiningCount] = useState(0);
+  const [pendingOnboardingCount, setPendingOnboardingCount] = useState(0);
+  const [pendingLeavingCount, setPendingLeavingCount] = useState(0);
+  const [pendingOfferCount, setPendingOfferCount] = useState(0);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+
+  const pendingCountForPath = (path) => {
+    switch (path) {
+      case "/find-enquiry":
+        return pendingEnquiryCount;
+      case "/call-tracker":
+        return pendingCallCount;
+      case "/joining":
+        return pendingJoiningCount;
+      case "/after-joining-work":
+        return pendingOnboardingCount;
+      case "/after-resignation-work":
+        return pendingLeavingCount;
+      case "/offer-letter":
+        return pendingOfferCount;
+      case "/leave-management":
+        return pendingApprovalCount;
+      default:
+        return 0;
+    }
+  };
+
+  const fetchPendingCounts = async () => {
+    try {
+      // 1. Find Enquiry
+      const { data: indentRows, error: indentError } = await supabase
+        .from("indent")
+        .select("id, indent_number, number_of_posts, status");
+
+      if (indentError) throw indentError;
+
+      const { data: enquiryRows, error: enquiryError } = await supabase
+        .from("enquiry")
+        .select("indent_number, tracker_status, candidate_enquiry_number, planned_1, actual_1, actual_2");
+
+      if (enquiryError) throw enquiryError;
+
+      const needMoreIndents = indentRows.filter(row => row.status === "NeedMore");
+
+      const completedEnquiriesCount = {};
+      enquiryRows.forEach(row => {
+        if (row.indent_number && row.tracker_status === "Complete") {
+          completedEnquiriesCount[row.indent_number] = (completedEnquiriesCount[row.indent_number] || 0) + 1;
+        }
+      });
+
+      const enquiryPending = needMoreIndents.filter(task => {
+        const requiredPosts = parseInt(task.number_of_posts) || 0;
+        const completed = completedEnquiriesCount[task.indent_number] || 0;
+        return completed < requiredPosts;
+      }).length;
+
+      setPendingEnquiryCount(enquiryPending);
+
+      // 2. Call Tracker & Joining
+      const { data: followUps, error: followError } = await supabase
+        .from("follow_up")
+        .select("enquiry_number, status");
+      if (followError) throw followError;
+
+      const callPending = (enquiryRows || [])
+        .filter((row) => row.planned_1 && !row.actual_1)
+        .filter(item => {
+          const hasFinalStatus = (followUps || []).some(followUp =>
+            followUp.enquiry_number === item.candidate_enquiry_number &&
+            (followUp.status?.includes('Joining') || followUp.status?.includes('Reject'))
+          );
+          return !hasFinalStatus;
+        }).length;
+
+      setPendingCallCount(callPending);
+
+      const itemsWithJoiningStatus = (enquiryRows || [])
+        .filter((row) => row.actual_1 && row.actual_1.toString().trim() !== "")
+        .filter((item) => {
+          return (followUps || []).some(
+            (followUp) =>
+              followUp.enquiry_number === item.candidate_enquiry_number &&
+              followUp.status?.includes("Joining"),
+          );
+        });
+
+      const joiningPending = itemsWithJoiningStatus.filter(
+        (item) => !item.actual_2 || item.actual_2.toString().trim() === ""
+      ).length;
+
+      setPendingJoiningCount(joiningPending);
+
+      // 3. On Boarding (After Joining Work)
+      const { data: onboardingRows, error: onboardingError } = await supabase
+        .from("joining")
+        .select("rbp_joining_id, planned_date, actual_date");
+      if (onboardingError) throw onboardingError;
+
+      const onboardingPending = (onboardingRows || []).filter(
+        (task) => task.planned_date && !task.actual_date
+      ).length;
+
+      setPendingOnboardingCount(onboardingPending);
+
+      // 4. After Resignation Work
+      const { data: leavingRows, error: leavingError } = await supabase
+        .from("employee_leaving")
+        .select("resignation_letter_received, resignation_acceptance, handover_of_assets, cancellation_of_email_id, remove_benefit_enrollment, final_release_date");
+      if (leavingError) throw leavingError;
+
+      const leavingPending = (leavingRows || []).filter(
+        (task) =>
+          !(
+            task.resignation_letter_received &&
+            task.resignation_acceptance &&
+            task.handover_of_assets &&
+            task.cancellation_of_email_id &&
+            task.remove_benefit_enrollment &&
+            task.final_release_date
+          )
+      ).length;
+
+      setPendingLeavingCount(leavingPending);
+
+      // 5. Offer & Confirmation Letter Management (Offer Letter Pending)
+      const { data: followUpsJoining, error: followJoinErr } = await supabase
+        .from("follow_up")
+        .select("id")
+        .eq("status", "Joining");
+      if (followJoinErr) throw followJoinErr;
+
+      const { data: offerLettersList, error: offerLettersErr } = await supabase
+        .from("offer_letters")
+        .select("follow_up_id, status");
+      if (offerLettersErr) throw offerLettersErr;
+
+      const offerPending = (followUpsJoining || []).filter(followUp => {
+        const matchingOffer = (offerLettersList || []).find(o => o.follow_up_id === followUp.id);
+        return !matchingOffer || matchingOffer.status === "Pending" || matchingOffer.status === "Draft";
+      }).length;
+
+      setPendingOfferCount(offerPending);
+
+      // 6. Approval Management (Leave, Attendance, Resignation Pending)
+      const { data: leaves, error: leavesErr } = await supabase
+        .from('emp_leaving_holiday')
+        .select('status');
+      if (leavesErr) throw leavesErr;
+      const leavePending = (leaves || []).filter(leave =>
+        leave.status?.toString().toLowerCase() === 'pending'
+      ).length;
+
+      const { data: punchRows, error: punchErr } = await supabase
+        .from("offline_biometric_punch")
+        .select("employee_id, attendance_date, approval_status")
+        .not("approval_status", "is", null);
+      if (punchErr) throw punchErr;
+
+      const uniquePunchData = Object.values(
+        (punchRows || []).reduce((acc, item) => {
+          const key = `${item.employee_id}_${item.attendance_date}`;
+          acc[key] = item;
+          return acc;
+        }, {})
+      );
+      const attendancePending = uniquePunchData.filter(x => x.approval_status === "pending").length;
+
+      const { data: resignationRows, error: resignationErr } = await supabase
+        .from('employee_leaving')
+        .select('resignation_acceptance');
+      if (resignationErr) throw resignationErr;
+
+      const resignationPending = (resignationRows || []).filter(item =>
+        !item.resignation_acceptance
+      ).length;
+
+      setPendingApprovalCount(leavePending + attendancePending + resignationPending);
+
+    } catch (error) {
+      console.error("Error fetching pending counts:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingCounts();
+    
+    // Periodically fetch counts to handle changes on the same page
+    const interval = setInterval(fetchPendingCounts, 5000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
@@ -383,7 +578,7 @@ const Sidebar = ({ onClose }) => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 ${isActive
+                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 relative ${isActive
                   ? `bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white shadow-md shadow-emerald-950/10 font-semibold`
                   : "text-slate-600 hover:bg-emerald-50/60 hover:text-[#0F766E]"
                 }`
@@ -393,23 +588,39 @@ const Sidebar = ({ onClose }) => {
                 setIsOpen(false);
               }}
             >
-              <span
-                className={`
-    ${isCollapsed ? "mx-auto" : "mr-3"}
-    text-xl flex items-center justify-center
-  `}
-              >
-                {typeof item.icon === "string" ? (
-                  item.icon
-                ) : (
-                  React.createElement(item.icon, { size: 18 })
+              <div className="relative flex items-center justify-center">
+                <span
+                  className={`
+                    ${isCollapsed ? "mx-auto" : "mr-3"}
+                    text-xl flex items-center justify-center
+                  `}
+                >
+                  {typeof item.icon === "string" ? (
+                    item.icon
+                  ) : (
+                    React.createElement(item.icon, { size: 18 })
+                  )}
+                </span>
+                {isCollapsed && pendingCountForPath(item.path) > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm">
+                    {pendingCountForPath(item.path)}
+                  </span>
                 )}
-              </span>
+              </div>
 
               {!isCollapsed && (
-                <span className="text-sm font-medium tracking-wide">
-                  {item.label}
-                </span>
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-sm font-medium tracking-wide">
+                    {item.label}
+                  </span>
+                  {pendingCountForPath(item.path) > 0 && (
+                    <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-sm transition-all duration-200 ${
+                      location.pathname === item.path ? "bg-white text-[#0F766E]" : "bg-red-500 text-white"
+                    }`}>
+                      {pendingCountForPath(item.path)}
+                    </span>
+                  )}
+                </div>
               )}
             </NavLink>
           );

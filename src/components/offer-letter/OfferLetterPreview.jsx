@@ -26,8 +26,18 @@ const OfferLetterPreview = ({ formData }) => {
         }}
       >
         {/* HEADER */}
-        <div>
-          <h1 style={{ color: "#482971", fontSize: "26px", fontWeight: "bold", letterSpacing: "0.3px", textAlign: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "15px" }}>
+            <img
+              src="/Logo.PNG"
+              alt="Logo"
+              style={{
+                height: "60px",
+                objectFit: "contain"
+              }}
+            />
+          </div>
+          <h1 style={{ color: "#482971", fontSize: "26px", fontWeight: "bold", letterSpacing: "0.3px" }}>
             {formData.companyName}
           </h1>
 
@@ -274,7 +284,17 @@ const OfferLetterPreview = ({ formData }) => {
         }}
       >
         {/* HEADER */}
-        <div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "10px" }}>
+            <img
+              src="/Logo.PNG"
+              alt="Logo"
+              style={{
+                height: "45px",
+                objectFit: "contain"
+              }}
+            />
+          </div>
           <h1
             style={{
               color: "#5b6f9a",

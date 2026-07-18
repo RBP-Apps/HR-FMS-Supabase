@@ -6,6 +6,13 @@ const ConfirmationLetterPreview = ({ formData }) => {
       <div id="confirmation-page" className="max-w-3xl mx-auto bg-white shadow-2xl p-8 space-y-4 min-h-[600px] border border-gray-200">
         {/* Company Header */}
         <div className="text-center border-b border-red-500 pb-4">
+          <div className="flex justify-center mb-4">
+            <img
+              src="/Logo.PNG"
+              alt="Logo"
+              className="h-16 object-contain"
+            />
+          </div>
           <h1 className="text-2xl font-bold text-gray-800">{formData.companyName}</h1>
         </div>
 
