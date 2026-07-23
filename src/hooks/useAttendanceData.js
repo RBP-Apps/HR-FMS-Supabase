@@ -1333,8 +1333,10 @@ export default function useAttendanceData() {
   // Derived/computed properties
   const filtered = useMemo(() => {
     let list = employees.filter(e =>
-      e.name?.toLowerCase().includes(search.toLowerCase()) ||
-      e.code?.toLowerCase().includes(search.toLowerCase())
+      (e.name?.toLowerCase().includes(search.toLowerCase()) ||
+       e.code?.toLowerCase().includes(search.toLowerCase())) &&
+      e.status?.toLowerCase() !== "inactive" &&
+      e.status?.toLowerCase() !== "in-active"
     );
 
     if (selectedCompany !== "All Companies") {

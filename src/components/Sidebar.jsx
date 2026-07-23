@@ -424,241 +424,27 @@ const Sidebar = ({ onClose }) => {
   ];
 
   const menuItems = adminMenuItems;
-  const SidebarContent = ({ onClose, isCollapsed = false }) => (
-    <div
-      className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"} bg-white border-r border-slate-200/80 text-slate-800`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-100">
-        {!isCollapsed && (
-          <h1 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-            <div className="w-12 h-12 overflow-hidden rounded-xl border border-slate-100 shadow-sm p-1.5 bg-white">
-              <img
-                src="/Logo.PNG"
-                alt="RBP Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
 
-            <span className="text-[#0F766E] font-extrabold tracking-tight">HR FMS</span>
-            <div className="relative">
-              <button
-                onClick={toggleLanguage}
-                className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-[#0F766E] transition relative"
-                aria-label="Toggle language"
-                title={
-                  currentLang === "en" ? "Switch to Hindi" : "Switch to English"
-                }
-              >
-                <Globe size={18} />
-              </button>
+  const handleScroll = (e) => {
+    if (e.target && e.target.scrollTop !== undefined) {
+      sessionStorage.setItem("sidebar_scroll_position", e.target.scrollTop);
+    }
+  };
 
-              {/* Language hint tooltip */}
-              {showLanguageHint && currentLang === "en" && (
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50">
-                  {/* Arrow pointing up */}
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                    <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-orange-500"></div>
-                  </div>
-
-                  {/* Tooltip content */}
-                  <div className="bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg whitespace-nowrap text-sm font-medium">
-                    हिंदी के लिए क्लिक करें
-                    <button
-                      onClick={() => {
-                        setShowLanguageHint(false);
-                        localStorage.setItem("hasSeenLanguageHint", "true");
-                      }}
-                      className="ml-2 text-orange-200 hover:text-white"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div id="google_translate_element" style={{ display: "none" }} />
-            {user?.role === "employee" && (
-              <span className="text-xs bg-emerald-50 text-[#0F766E] px-2 py-1 rounded-md border border-emerald-100 font-semibold">
-                Employee
-              </span>
-            )}
-          </h1>
-        )}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none"
-          >
-            <span className="sr-only">Close sidebar</span>
-            <X className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Menu */}
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide">
-        {menuItems.map((item) => {
-          if (item.type === "dropdown") {
-            return (
-              <div key={item.label}>
-                <button
-                  onClick={item.toggle}
-                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-xl transition-all duration-200 ${item.isOpen
-                    ? "bg-slate-100 text-slate-800 font-semibold"
-                    : "text-slate-600 hover:bg-emerald-50/50 hover:text-[#0F766E]"
-                    }`}
-                >
-                  <div className="flex items-center">
-                    <span
-                      className={`
-      ${isCollapsed ? "mx-auto" : "mr-3"}
-      text-xl flex items-center justify-center
-    `}
-                    >
-                      {typeof item.icon === "string" ? (
-                        item.icon
-                      ) : (
-                        <item.icon size={18} />
-                      )}
-                    </span>
-
-                    {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
-                  </div>
-                  {!isCollapsed &&
-                    (item.isOpen ? (
-                      <ChevronUp size={14} />
-                    ) : (
-                      <ChevronDown size={14} />
-                    ))}
-                </button>
-
-                {item.isOpen && !isCollapsed && (
-                  <div className="ml-6 mt-1 space-y-1">
-                    {item.items.map((subItem) => (
-                      <NavLink
-                        key={subItem.path}
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `flex items-center py-2 px-3 rounded-xl transition-all duration-200
-    ${isActive
-                             ? `bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white shadow-md shadow-emerald-950/10 font-semibold`
-                             : "text-slate-500 hover:bg-emerald-50/50 hover:text-[#0F766E] text-sm font-medium"
-                          }`
-                        }
-                        onClick={() => {
-                          onClose?.();
-                          setIsOpen(false);
-                        }}
-                      >
-                        <span
-                          className={`
-      ${isCollapsed ? "mx-auto" : "mr-3"}
-      text-xl flex items-center justify-center
-    `}
-                        >
-                          {item.icon}
-                        </span>
-
-                        {!isCollapsed && (
-                          <span className="font-medium tracking-wide">
-                            {item.label}
-                          </span>
-                        )}
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          }
-
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 relative ${isActive
-                  ? `bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white shadow-md shadow-emerald-950/10 font-semibold`
-                  : "text-slate-600 hover:bg-emerald-50/60 hover:text-[#0F766E]"
-                }`
-              }
-              onClick={() => {
-                onClose?.();
-                setIsOpen(false);
-              }}
-            >
-              <div className="relative flex items-center justify-center">
-                <span
-                  className={`
-                    ${isCollapsed ? "mx-auto" : "mr-3"}
-                    text-xl flex items-center justify-center
-                  `}
-                >
-                  {typeof item.icon === "string" ? (
-                    item.icon
-                  ) : (
-                    React.createElement(item.icon, { size: 18 })
-                  )}
-                </span>
-                {isCollapsed && pendingCountForPath(item.path) > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm">
-                    {pendingCountForPath(item.path)}
-                  </span>
-                )}
-              </div>
-
-              {!isCollapsed && (
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-sm font-medium tracking-wide">
-                    {item.label}
-                  </span>
-                  {pendingCountForPath(item.path) > 0 && (
-                    <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-sm transition-all duration-200 ${
-                      location.pathname === item.path ? "bg-white text-[#0F766E]" : "bg-red-500 text-white"
-                    }`}>
-                      {pendingCountForPath(item.path)}
-                    </span>
-                  )}
-                </div>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Footer - Always visible */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="flex items-center space-x-2 cursor-pointer">
-            <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-              <User size={18} className="text-[#0F766E]" />
-            </div>
-            {/* Show user info in mobile view regardless of collapsed state */}
-            <div className={`${isCollapsed ? "hidden" : "block"} md:block`}>
-              <p className="text-sm font-semibold text-slate-700">
-                {user?.Name || user?.Username || "Guest"}
-              </p>
-              <p className="text-xs text-slate-500">
-                {user?.role === "ADMIN" ? "Administrator" : "Employee"}
-              </p>
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            handleLogout();
-            onClose?.();
-            setIsOpen(false);
-          }}
-          className="flex items-center justify-center py-2 px-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer font-semibold transition-colors duration-200 w-full text-sm border border-red-100"
-        >
-          <LogOutIcon className={isCollapsed ? "mx-auto" : "mr-2"} size={16} />
-          {!isCollapsed && <span>Logout</span>}
-        </button>
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem("sidebar_scroll_position");
+    const navElements = document.querySelectorAll("nav.scrollbar-hide");
+    navElements.forEach((nav) => {
+      if (savedScroll !== null) {
+        nav.scrollTop = parseInt(savedScroll, 10);
+      } else {
+        const activeLink = nav.querySelector(".bg-gradient-to-r");
+        if (activeLink) {
+          activeLink.scrollIntoView({ block: "nearest" });
+        }
+      }
+    });
+  }, [location.pathname]);
 
   return (
     <>
@@ -680,7 +466,19 @@ const Sidebar = ({ onClose }) => {
 
       {/* Desktop Sidebar - full width on desktop */}
       <div className="hidden lg:block fixed left-0 top-0 h-full">
-        <SidebarContent />
+        <SidebarContent
+          currentLang={currentLang}
+          showLanguageHint={showLanguageHint}
+          setShowLanguageHint={setShowLanguageHint}
+          toggleLanguage={toggleLanguage}
+          user={user}
+          handleLogout={handleLogout}
+          menuItems={menuItems}
+          pendingCountForPath={pendingCountForPath}
+          location={location}
+          handleScroll={handleScroll}
+          setIsOpen={setIsOpen}
+        />
       </div>
 
       {/* Tablet Sidebar - collapsible */}
@@ -694,7 +492,20 @@ const Sidebar = ({ onClose }) => {
         <div
           className={`fixed left-0 top-0 h-full z-50 transform ${isOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}
         >
-          <SidebarContent onClose={() => setIsOpen(false)} />
+          <SidebarContent
+            onClose={() => setIsOpen(false)}
+            currentLang={currentLang}
+            showLanguageHint={showLanguageHint}
+            setShowLanguageHint={setShowLanguageHint}
+            toggleLanguage={toggleLanguage}
+            user={user}
+            handleLogout={handleLogout}
+            menuItems={menuItems}
+            pendingCountForPath={pendingCountForPath}
+            location={location}
+            handleScroll={handleScroll}
+            setIsOpen={setIsOpen}
+          />
         </div>
       </div>
 
@@ -709,7 +520,20 @@ const Sidebar = ({ onClose }) => {
         <div
           className={`fixed left-0 top-0 h-full z-50 transform ${isOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}
         >
-          <SidebarContent onClose={() => setIsOpen(false)} />
+          <SidebarContent
+            onClose={() => setIsOpen(false)}
+            currentLang={currentLang}
+            showLanguageHint={showLanguageHint}
+            setShowLanguageHint={setShowLanguageHint}
+            toggleLanguage={toggleLanguage}
+            user={user}
+            handleLogout={handleLogout}
+            menuItems={menuItems}
+            pendingCountForPath={pendingCountForPath}
+            location={location}
+            handleScroll={handleScroll}
+            setIsOpen={setIsOpen}
+          />
         </div>
       </div>
 
@@ -718,5 +542,259 @@ const Sidebar = ({ onClose }) => {
     </>
   );
 };
+
+// SidebarContent defined outside Sidebar to ensure stable component reference
+const SidebarContent = ({
+  onClose,
+  isCollapsed = false,
+  currentLang,
+  showLanguageHint,
+  setShowLanguageHint,
+  toggleLanguage,
+  user,
+  handleLogout,
+  menuItems,
+  pendingCountForPath,
+  location,
+  handleScroll,
+  setIsOpen
+}) => (
+  <div
+    className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"} bg-white border-r border-slate-200/80 text-slate-800`}
+  >
+    {/* Header */}
+    <div className="flex items-center justify-between p-4 border-b border-slate-100">
+      {!isCollapsed && (
+        <h1 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+          <div className="w-12 h-12 overflow-hidden rounded-xl border border-slate-100 shadow-sm p-1.5 bg-white">
+            <img
+              src="/Logo.PNG"
+              alt="RBP Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+
+          <span className="text-[#0F766E] font-extrabold tracking-tight">HR FMS</span>
+          <div className="relative">
+            <button
+              onClick={toggleLanguage}
+              className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-[#0F766E] transition relative"
+              aria-label="Toggle language"
+              title={
+                currentLang === "en" ? "Switch to Hindi" : "Switch to English"
+              }
+            >
+              <Globe size={18} />
+            </button>
+
+            {/* Language hint tooltip */}
+            {showLanguageHint && currentLang === "en" && (
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50">
+                {/* Arrow pointing up */}
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                  <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-orange-500"></div>
+                </div>
+
+                {/* Tooltip content */}
+                <div className="bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg whitespace-nowrap text-sm font-medium">
+                  हिंदी के लिए क्लिक करें
+                  <button
+                    onClick={() => {
+                      setShowLanguageHint(false);
+                      localStorage.setItem("hasSeenLanguageHint", "true");
+                    }}
+                    className="ml-2 text-orange-200 hover:text-white"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div id="google_translate_element" style={{ display: "none" }} />
+          {user?.role === "employee" && (
+            <span className="text-xs bg-emerald-50 text-[#0F766E] px-2 py-1 rounded-md border border-emerald-100 font-semibold">
+              Employee
+            </span>
+          )}
+        </h1>
+      )}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none"
+        >
+          <span className="sr-only">Close sidebar</span>
+          <X className="h-5 w-5" />
+        </button>
+      )}
+    </div>
+
+    {/* Menu */}
+    <nav
+      onScroll={handleScroll}
+      className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide"
+    >
+      {menuItems.map((item) => {
+        if (item.type === "dropdown") {
+          return (
+            <div key={item.label}>
+              <button
+                onClick={item.toggle}
+                className={`flex items-center justify-between w-full py-2.5 px-4 rounded-xl transition-all duration-200 ${item.isOpen
+                  ? "bg-slate-100 text-slate-800 font-semibold"
+                  : "text-slate-600 hover:bg-emerald-50/50 hover:text-[#0F766E]"
+                  }`}
+              >
+                <div className="flex items-center">
+                  <span
+                    className={`
+    ${isCollapsed ? "mx-auto" : "mr-3"}
+    text-xl flex items-center justify-center
+  `}
+                  >
+                    {typeof item.icon === "string" ? (
+                      item.icon
+                    ) : (
+                      <item.icon size={18} />
+                    )}
+                  </span>
+
+                  {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+                </div>
+                {!isCollapsed &&
+                  (item.isOpen ? (
+                    <ChevronUp size={14} />
+                  ) : (
+                    <ChevronDown size={14} />
+                  ))}
+              </button>
+
+              {item.isOpen && !isCollapsed && (
+                <div className="ml-6 mt-1 space-y-1">
+                  {item.items.map((subItem) => (
+                    <NavLink
+                      key={subItem.path}
+                      to={subItem.path}
+                      className={({ isActive }) =>
+                        `flex items-center py-2 px-3 rounded-xl transition-all duration-200
+  ${isActive
+                           ? `bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white shadow-md shadow-emerald-950/10 font-semibold`
+                           : "text-slate-500 hover:bg-emerald-50/50 hover:text-[#0F766E] text-sm font-medium"
+                        }`
+                      }
+                      onClick={() => {
+                        onClose?.();
+                        setIsOpen?.(false);
+                      }}
+                    >
+                      <span
+                        className={`
+    ${isCollapsed ? "mx-auto" : "mr-3"}
+    text-xl flex items-center justify-center
+  `}
+                      >
+                        {item.icon}
+                      </span>
+
+                      {!isCollapsed && (
+                        <span className="font-medium tracking-wide">
+                          {item.label}
+                        </span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 relative ${isActive
+                ? `bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white shadow-md shadow-emerald-950/10 font-semibold`
+                : "text-slate-600 hover:bg-emerald-50/60 hover:text-[#0F766E]"
+              }`
+            }
+            onClick={() => {
+              onClose?.();
+              setIsOpen?.(false);
+            }}
+          >
+            <div className="relative flex items-center justify-center">
+              <span
+                className={`
+                  ${isCollapsed ? "mx-auto" : "mr-3"}
+                  text-xl flex items-center justify-center
+                `}
+              >
+                {typeof item.icon === "string" ? (
+                  item.icon
+                ) : (
+                  React.createElement(item.icon, { size: 18 })
+                )}
+              </span>
+              {isCollapsed && pendingCountForPath(item.path) > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm">
+                  {pendingCountForPath(item.path)}
+                </span>
+              )}
+            </div>
+
+            {!isCollapsed && (
+              <div className="flex items-center justify-between w-full">
+                <span className="text-sm font-medium tracking-wide">
+                  {item.label}
+                </span>
+                {pendingCountForPath(item.path) > 0 && (
+                  <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-sm transition-all duration-200 ${
+                    location.pathname === item.path ? "bg-white text-[#0F766E]" : "bg-red-500 text-white"
+                  }`}>
+                    {pendingCountForPath(item.path)}
+                  </span>
+                )}
+              </div>
+            )}
+          </NavLink>
+        );
+      })}
+    </nav>
+
+    {/* Footer - Always visible */}
+    <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+      <div className="flex items-center space-x-4 mb-4">
+        <div className="flex items-center space-x-2 cursor-pointer">
+          <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+            <User size={18} className="text-[#0F766E]" />
+          </div>
+          {/* Show user info in mobile view regardless of collapsed state */}
+          <div className={`${isCollapsed ? "hidden" : "block"} md:block`}>
+            <p className="text-sm font-semibold text-slate-700">
+              {user?.Name || user?.Username || "Guest"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {user?.role === "ADMIN" ? "Administrator" : "Employee"}
+            </p>
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          handleLogout();
+          onClose?.();
+          setIsOpen?.(false);
+        }}
+        className="flex items-center justify-center py-2 px-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer font-semibold transition-colors duration-200 w-full text-sm border border-red-100"
+      >
+        <LogOutIcon className={isCollapsed ? "mx-auto" : "mr-2"} size={16} />
+        {!isCollapsed && <span>Logout</span>}
+      </button>
+    </div>
+  </div>
+);
 
 export default Sidebar;

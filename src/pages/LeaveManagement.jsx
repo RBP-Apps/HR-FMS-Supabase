@@ -45,21 +45,27 @@ const ApprovalManagement = () => {
 
 
 
-const [resignationFormData, setResignationFormData] = useState({
-  employee_id: "",
-  name: "",
-  reason_of_leaving: "",
-  mobile_number: "",
-  firm_name: "",
-  father_name: "",
-  date_of_joining: "",
-  work_location: "",
-  designation: "",
-  department: "",
-});
-const [resignationEmployeeOptions, setResignationEmployeeOptions] = useState([]);
-const [resignationSubmitting, setResignationSubmitting] = useState(false);
-const [resignationFetching, setResignationFetching] = useState(false);
+  const [resignationSearchTimeout, setResignationSearchTimeout] = useState(null);
+  const [isSearchingEmployee, setIsSearchingEmployee] = useState(false);
+
+
+
+
+  const [resignationFormData, setResignationFormData] = useState({
+    employee_id: "",
+    name: "",
+    reason_of_leaving: "",
+    mobile_number: "",
+    firm_name: "",
+    father_name: "",
+    date_of_joining: "",
+    work_location: "",
+    designation: "",
+    department: "",
+  });
+  const [resignationEmployeeOptions, setResignationEmployeeOptions] = useState([]);
+  const [resignationSubmitting, setResignationSubmitting] = useState(false);
+  const [resignationFetching, setResignationFetching] = useState(false);
 
   // Resignation approval modal states
   const [showApproveModal, setShowApproveModal] = useState(false);
@@ -143,7 +149,7 @@ const [resignationFetching, setResignationFetching] = useState(false);
         key: row.id // For Ant Design Table
       }));
 
-      
+
 
       setPendingLeaves(processedData.filter(leave =>
         leave.status?.toString().toLowerCase() === 'pending'
@@ -199,24 +205,24 @@ const [resignationFetching, setResignationFetching] = useState(false);
     }));
 
     const uniqueData = Object.values(
-  processedData.reduce((acc, item) => {
-    const key = `${item.employeeId}_${item.date}`;
-    acc[key] = item;
-    return acc;
-  }, {})
-);
+      processedData.reduce((acc, item) => {
+        const key = `${item.employeeId}_${item.date}`;
+        acc[key] = item;
+        return acc;
+      }, {})
+    );
 
     setPendingAttendance(
-  uniqueData.filter(x => x.approval_status === "pending")
-);
+      uniqueData.filter(x => x.approval_status === "pending")
+    );
 
-setApprovedAttendance(
-  uniqueData.filter(x => x.approval_status === "approved")
-);
+    setApprovedAttendance(
+      uniqueData.filter(x => x.approval_status === "approved")
+    );
 
-setRejectedAttendance(
-  uniqueData.filter(x => x.approval_status === "rejected")
-);
+    setRejectedAttendance(
+      uniqueData.filter(x => x.approval_status === "rejected")
+    );
   };
 
 
@@ -1138,20 +1144,20 @@ setRejectedAttendance(
   };
 
   // Fetch employees for resignation form
-const fetchResignationEmployees = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("joining")
-      .select("rbp_joining_id, name_as_per_aadhar, mobile_number, firm_name, father_name, date_of_joining, work_location, designation, department")
-      .eq("status", "Active");
+  const fetchResignationEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("joining")
+        .select("rbp_joining_id, name_as_per_aadhar, mobile_number, firm_name, father_name, date_of_joining, work_location, designation, department")
+        .eq("status", "Active");
 
-    if (!error && data) {
-      setResignationEmployeeOptions(data);
+      if (!error && data) {
+        setResignationEmployeeOptions(data);
+      }
+    } catch (error) {
+      console.error('Error fetching employees for resignation:', error);
     }
-  } catch (error) {
-    console.error('Error fetching employees for resignation:', error);
-  }
-};
+  };
 
   // Handle pagination change
   const handlePaginationChange = (page, size) => {
@@ -1165,119 +1171,237 @@ const fetchResignationEmployees = async () => {
     return getFilteredData(currentData, searchTerm);
   };
 
- // Handle resignation employee name selection
-const handleResignationNameSelect = async (selectedName) => {
-  if (!selectedName) return;
+  // Handle resignation employee name selection
+  // const handleResignationNameSelect = async (selectedName) => {
+  //   if (!selectedName) return;
 
-  const selectedEmp = resignationEmployeeOptions.find(
-    (emp) => emp.name_as_per_aadhar === selectedName
-  );
+  //   const selectedEmp = resignationEmployeeOptions.find(
+  //     (emp) => emp.name_as_per_aadhar === selectedName
+  //   );
 
-  if (!selectedEmp) {
-    toast.error("Employee not found");
-    return;
-  }
+  //   if (!selectedEmp) {
+  //     toast.error("Employee not found");
+  //     return;
+  //   }
 
-  try {
-    setResignationFetching(true);
+  //   try {
+  //     setResignationFetching(true);
 
-    const { data, error } = await supabase
-      .from("joining")
-      .select("*")
-      .eq("rbp_joining_id", selectedEmp.rbp_joining_id)
-      .maybeSingle();
+  //     const { data, error } = await supabase
+  //       .from("joining")
+  //       .select("*")
+  //       .eq("rbp_joining_id", selectedEmp.rbp_joining_id)
+  //       .maybeSingle();
 
-    if (error || !data) {
-      toast.error("Employee details not found");
+  //     if (error || !data) {
+  //       toast.error("Employee details not found");
+  //       return;
+  //     }
+
+  //     if (data.status === "Inactive") {
+  //       toast.error("This employee is already inactive");
+  //       setResignationFormData(prev => ({ ...prev, name: selectedName }));
+  //       return;
+  //     }
+
+  //     setResignationFormData({
+  //       employee_id: data.rbp_joining_id || "",
+  //       name: data.name_as_per_aadhar || "",
+  //       mobile_number: data.mobile_number || "",
+  //       firm_name: data.firm_name || "",
+  //       father_name: data.father_name || "",
+  //       date_of_joining: data.date_of_joining || "",
+  //       work_location: data.work_location || "",
+  //       designation: data.designation || "",
+  //       department: data.department || "",
+  //       reason_of_leaving: resignationFormData.reason_of_leaving || "",
+  //     });
+  //   } catch (err) {
+  //     toast.error("Fetch failed: " + err.message);
+  //   } finally {
+  //     setResignationFetching(false);
+  //   }
+  // };
+
+  const handleResignationNameSelect = async (selectedName) => {
+    if (!selectedName) {
+      setResignationFormData(prev => ({
+        ...prev,
+        name: selectedName || "",
+        employee_id: "",
+        mobile_number: "",
+        firm_name: "",
+        father_name: "",
+        date_of_joining: "",
+        work_location: "",
+        designation: "",
+        department: "",
+      }));
       return;
     }
 
-    if (data.status === "Inactive") {
-      toast.error("This employee is already inactive");
-      setResignationFormData(prev => ({ ...prev, name: selectedName }));
+    // Clear any pending timeout
+    if (resignationSearchTimeout) {
+      clearTimeout(resignationSearchTimeout);
+    }
+
+    // Set a timeout to search after 500ms of no typing
+    const timeout = setTimeout(async () => {
+      try {
+        setIsSearchingEmployee(true);
+
+        const selectedEmp = resignationEmployeeOptions.find(
+          (emp) => emp.name_as_per_aadhar === selectedName
+        );
+
+        if (!selectedEmp) {
+          // Don't show toast here, just clear the form
+          setResignationFormData(prev => ({
+            ...prev,
+            name: selectedName,
+            employee_id: "",
+            mobile_number: "",
+            firm_name: "",
+            father_name: "",
+            date_of_joining: "",
+            work_location: "",
+            designation: "",
+            department: "",
+          }));
+          setIsSearchingEmployee(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("joining")
+          .select("*")
+          .eq("rbp_joining_id", selectedEmp.rbp_joining_id)
+          .maybeSingle();
+
+        if (error || !data) {
+          setResignationFormData(prev => ({
+            ...prev,
+            name: selectedName,
+            employee_id: "",
+            mobile_number: "",
+            firm_name: "",
+            father_name: "",
+            date_of_joining: "",
+            work_location: "",
+            designation: "",
+            department: "",
+          }));
+          setIsSearchingEmployee(false);
+          return;
+        }
+
+        if (data.status === "Inactive") {
+          toast.error("This employee is already inactive");
+          setResignationFormData(prev => ({
+            ...prev,
+            name: selectedName,
+            employee_id: data.rbp_joining_id || "",
+            mobile_number: data.mobile_number || "",
+            firm_name: data.firm_name || "",
+            father_name: data.father_name || "",
+            date_of_joining: data.date_of_joining || "",
+            work_location: data.work_location || "",
+            designation: data.designation || "",
+            department: data.department || "",
+            reason_of_leaving: prev.reason_of_leaving || "",
+          }));
+          setIsSearchingEmployee(false);
+          return;
+        }
+
+        setResignationFormData({
+          employee_id: data.rbp_joining_id || "",
+          name: data.name_as_per_aadhar || "",
+          mobile_number: data.mobile_number || "",
+          firm_name: data.firm_name || "",
+          father_name: data.father_name || "",
+          date_of_joining: data.date_of_joining || "",
+          work_location: data.work_location || "",
+          designation: data.designation || "",
+          department: data.department || "",
+          reason_of_leaving: resignationFormData.reason_of_leaving || "",
+        });
+
+      } catch (err) {
+        console.error("Fetch error:", err);
+        // Don't show toast for fetch errors, just log them
+      } finally {
+        setIsSearchingEmployee(false);
+      }
+    }, 500); // 500ms delay after user stops typing
+
+    setResignationSearchTimeout(timeout);
+  };
+
+
+
+
+  // Handle resignation form change
+  const handleResignationChange = (e) => {
+    const { name, value } = e.target;
+    setResignationFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle resignation form submit
+  const handleResignationSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!resignationFormData.employee_id || !resignationFormData.name || !resignationFormData.reason_of_leaving) {
+      toast.error("Employee Name and Reason of Leaving are required");
       return;
     }
 
-    setResignationFormData({
-      employee_id: data.rbp_joining_id || "",
-      name: data.name_as_per_aadhar || "",
-      mobile_number: data.mobile_number || "",
-      firm_name: data.firm_name || "",
-      father_name: data.father_name || "",
-      date_of_joining: data.date_of_joining || "",
-      work_location: data.work_location || "",
-      designation: data.designation || "",
-      department: data.department || "",
-      reason_of_leaving: resignationFormData.reason_of_leaving || "",
-    });
-  } catch (err) {
-    toast.error("Fetch failed: " + err.message);
-  } finally {
-    setResignationFetching(false);
-  }
-};
+    try {
+      setResignationSubmitting(true);
 
-// Handle resignation form change
-const handleResignationChange = (e) => {
-  const { name, value } = e.target;
-  setResignationFormData(prev => ({
-    ...prev,
-    [name]: value
-  }));
-};
+      const { error } = await supabase.from("employee_leaving").insert([
+        {
+          employee_id: resignationFormData.employee_id,
+          name: resignationFormData.name,
+          reason_of_leaving: resignationFormData.reason_of_leaving,
+          mobile_number: resignationFormData.mobile_number,
+          firm_name: resignationFormData.firm_name,
+          father_name: resignationFormData.father_name,
+          date_of_joining: resignationFormData.date_of_joining,
+          work_location: resignationFormData.work_location,
+          designation: resignationFormData.designation,
+          department: resignationFormData.department,
+          date_of_leaving: new Date().toISOString().split("T")[0],
+          resignation_acceptance: false,
+        },
+      ]);
 
-// Handle resignation form submit
-const handleResignationSubmit = async (e) => {
-  e.preventDefault();
+      if (error) throw error;
 
-  if (!resignationFormData.employee_id || !resignationFormData.name || !resignationFormData.reason_of_leaving) {
-    toast.error("Employee Name and Reason of Leaving are required");
-    return;
-  }
-
-  try {
-    setResignationSubmitting(true);
-
-    const { error } = await supabase.from("employee_leaving").insert([
-      {
-        employee_id: resignationFormData.employee_id,
-        name: resignationFormData.name,
-        reason_of_leaving: resignationFormData.reason_of_leaving,
-        mobile_number: resignationFormData.mobile_number,
-        firm_name: resignationFormData.firm_name,
-        father_name: resignationFormData.father_name,
-        date_of_joining: resignationFormData.date_of_joining,
-        work_location: resignationFormData.work_location,
-        designation: resignationFormData.designation,
-        department: resignationFormData.department,
-        date_of_leaving: new Date().toISOString().split("T")[0],
-        resignation_acceptance: false,
-      },
-    ]);
-
-    if (error) throw error;
-
-    toast.success("Resignation application submitted successfully!");
-    setShowResignationModal(false);
-    setResignationFormData({
-      employee_id: "",
-      name: "",
-      reason_of_leaving: "",
-      mobile_number: "",
-      firm_name: "",
-      father_name: "",
-      date_of_joining: "",
-      work_location: "",
-      designation: "",
-      department: "",
-    });
-    fetchResignationData();
-  } catch (err) {
-    toast.error(err.message || "Something went wrong");
-  } finally {
-    setResignationSubmitting(false);
-  }
-};
+      toast.success("Resignation application submitted successfully!");
+      setShowResignationModal(false);
+      setResignationFormData({
+        employee_id: "",
+        name: "",
+        reason_of_leaving: "",
+        mobile_number: "",
+        firm_name: "",
+        father_name: "",
+        date_of_joining: "",
+        work_location: "",
+        designation: "",
+        department: "",
+      });
+      fetchResignationData();
+    } catch (err) {
+      toast.error(err.message || "Something went wrong");
+    } finally {
+      setResignationSubmitting(false);
+    }
+  };
 
   // Fetch data on tab change
   useEffect(() => {
@@ -1336,16 +1460,16 @@ const handleResignationSubmit = async (e) => {
             New Leave Request
           </Button>
         )}
-     {activeMainTab === 'resignation' && (
-  <Button
-    type="primary"
-    icon={<Plus size={16} />}
-    onClick={() => setShowResignationModal(true)}
-    className="bg-red-600 hover:bg-red-700"
-  >
-    New Resignation Request
-  </Button>
-)}
+        {activeMainTab === 'resignation' && (
+          <Button
+            type="primary"
+            icon={<Plus size={16} />}
+            onClick={() => setShowResignationModal(true)}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            New Resignation Request
+          </Button>
+        )}
       </div>
 
       {/* Main Tabs */}
@@ -1914,228 +2038,250 @@ const handleResignationSubmit = async (e) => {
 
 
       {/* Resignation Request Modal */}
-{showResignationModal && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto scrollbar-hide border border-gray-100">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 py-5 flex items-center justify-between rounded-t-3xl">
-        <div>
-          <h3 className="text-2xl font-black bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
-            New Resignation Request
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Search employee and submit resignation application
-          </p>
+      {showResignationModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto scrollbar-hide border border-gray-100">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 py-5 flex items-center justify-between rounded-t-3xl">
+              <div>
+                <h3 className="text-2xl font-black bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
+                  New Resignation Request
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Search employee and submit resignation application
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowResignationModal(false);
+                  setResignationFormData({
+                    employee_id: "",
+                    name: "",
+                    reason_of_leaving: "",
+                    mobile_number: "",
+                    firm_name: "",
+                    father_name: "",
+                    date_of_joining: "",
+                    work_location: "",
+                    designation: "",
+                    department: "",
+                  });
+                }}
+                className="h-10 w-10 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleResignationSubmit} className="p-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Employee Name */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Search Employee Name *
+                  </label>
+                  <div className="relative">
+                    <input
+                      list="resignationEmployeeNames"
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-500 transition-all bg-gray-50"
+                      placeholder="Type to search employee..."
+                      value={resignationFormData.name}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setResignationFormData({
+                          ...resignationFormData,
+                          name: value
+                        });
+                        // Clear the previous timeout and start a new one
+                        if (resignationSearchTimeout) {
+                          clearTimeout(resignationSearchTimeout);
+                        }
+                        // Set a timeout to search after 500ms
+                        const timeout = setTimeout(() => {
+                          handleResignationNameSelect(value);
+                        }, 500);
+                        setResignationSearchTimeout(timeout);
+                      }}
+                    />
+                    {isSearchingEmployee && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <svg className="animate-spin h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <datalist id="resignationEmployeeNames">
+                    {resignationEmployeeOptions.map((emp, index) => (
+                      <option key={index} value={emp.name_as_per_aadhar} />
+                    ))}
+                  </datalist>
+                </div>
+
+                {/* Employee ID */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Employee ID
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.employee_id}
+                    readOnly
+                  />
+                </div>
+
+                {/* Mobile */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Mobile Number
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.mobile_number}
+                    readOnly
+                  />
+                </div>
+
+                {/* Firm Name */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Firm Name
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.firm_name}
+                    readOnly
+                  />
+                </div>
+
+                {/* Father Name */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Father Name
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.father_name}
+                    readOnly
+                  />
+                </div>
+
+                {/* Joining Date */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Date of Joining
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.date_of_joining || '-'}
+                    readOnly
+                  />
+                </div>
+
+                {/* Work Location */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Work Location
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.work_location || '-'}
+                    readOnly
+                  />
+                </div>
+
+                {/* Designation */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Designation
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.designation || '-'}
+                    readOnly
+                  />
+                </div>
+
+                {/* Department */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
+                    Department
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
+                    value={resignationFormData.department || '-'}
+                    readOnly
+                  />
+                </div>
+
+                {/* Reason */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-extrabold uppercase tracking-wide text-red-600 mb-2">
+                    Reason of Leaving *
+                  </label>
+                  <textarea
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-500 transition-all resize-none min-h-[100px]"
+                    placeholder="Please provide reason for resignation..."
+                    name="reason_of_leaving"
+                    value={resignationFormData.reason_of_leaving}
+                    onChange={handleResignationChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResignationModal(false);
+                    setResignationFormData({
+                      employee_id: "",
+                      name: "",
+                      reason_of_leaving: "",
+                      mobile_number: "",
+                      firm_name: "",
+                      father_name: "",
+                      date_of_joining: "",
+                      work_location: "",
+                      designation: "",
+                      department: "",
+                    });
+                  }}
+                  className="px-5 py-3 rounded-2xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resignationSubmitting || resignationFetching}
+                  className={`px-6 py-3 rounded-2xl text-white font-bold shadow-lg transition-all bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 flex items-center gap-2 ${resignationSubmitting || resignationFetching ? "opacity-70 cursor-not-allowed" : ""}`}
+                >
+                  {resignationSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                      </svg>
+                      Submitting...
+                    </>
+                  ) : resignationFetching ? (
+                    "Loading Data..."
+                  ) : (
+                    <>
+                      <Send size={18} />
+                      Submit Resignation
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            setShowResignationModal(false);
-            setResignationFormData({
-              employee_id: "",
-              name: "",
-              reason_of_leaving: "",
-              mobile_number: "",
-              firm_name: "",
-              father_name: "",
-              date_of_joining: "",
-              work_location: "",
-              designation: "",
-              department: "",
-            });
-          }}
-          className="h-10 w-10 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-all"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleResignationSubmit} className="p-6 space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Employee Name */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Search Employee Name *
-            </label>
-            <input
-              list="resignationEmployeeNames"
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-500 transition-all bg-gray-50"
-              placeholder="Type to search employee..."
-              value={resignationFormData.name}
-              onChange={(e) => {
-                setResignationFormData({ ...resignationFormData, name: e.target.value });
-                handleResignationNameSelect(e.target.value);
-              }}
-            />
-            <datalist id="resignationEmployeeNames">
-              {resignationEmployeeOptions.map((emp, index) => (
-                <option key={index} value={emp.name_as_per_aadhar} />
-              ))}
-            </datalist>
-          </div>
-
-          {/* Employee ID */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Employee ID
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.employee_id}
-              readOnly
-            />
-          </div>
-
-          {/* Mobile */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Mobile Number
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.mobile_number}
-              readOnly
-            />
-          </div>
-
-          {/* Firm Name */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Firm Name
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.firm_name}
-              readOnly
-            />
-          </div>
-
-          {/* Father Name */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Father Name
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.father_name}
-              readOnly
-            />
-          </div>
-
-          {/* Joining Date */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Date of Joining
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.date_of_joining || '-'}
-              readOnly
-            />
-          </div>
-
-          {/* Work Location */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Work Location
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.work_location || '-'}
-              readOnly
-            />
-          </div>
-
-          {/* Designation */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Designation
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.designation || '-'}
-              readOnly
-            />
-          </div>
-
-          {/* Department */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-600 mb-2">
-              Department
-            </label>
-            <input
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-50 cursor-not-allowed"
-              value={resignationFormData.department || '-'}
-              readOnly
-            />
-          </div>
-
-          {/* Reason */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-extrabold uppercase tracking-wide text-red-600 mb-2">
-              Reason of Leaving *
-            </label>
-            <textarea
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-500 transition-all resize-none min-h-[100px]"
-              placeholder="Please provide reason for resignation..."
-              name="reason_of_leaving"
-              value={resignationFormData.reason_of_leaving}
-              onChange={handleResignationChange}
-              required
-            />
-          </div>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={() => {
-              setShowResignationModal(false);
-              setResignationFormData({
-                employee_id: "",
-                name: "",
-                reason_of_leaving: "",
-                mobile_number: "",
-                firm_name: "",
-                father_name: "",
-                date_of_joining: "",
-                work_location: "",
-                designation: "",
-                department: "",
-              });
-            }}
-            className="px-5 py-3 rounded-2xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition-all"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={resignationSubmitting || resignationFetching}
-            className={`px-6 py-3 rounded-2xl text-white font-bold shadow-lg transition-all bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 flex items-center gap-2 ${resignationSubmitting || resignationFetching ? "opacity-70 cursor-not-allowed" : ""}`}
-          >
-            {resignationSubmitting ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                Submitting...
-              </>
-            ) : resignationFetching ? (
-              "Loading Data..."
-            ) : (
-              <>
-                <Send size={18} />
-                Submit Resignation
-              </>
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Support Document Image Lightbox */}
       {previewImage && (
