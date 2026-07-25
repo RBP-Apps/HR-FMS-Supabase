@@ -1,9 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Search, X, XCircle } from "lucide-react";
+import { Search, X, XCircle, UserPlus, Users, Key, Shield, CheckCircle, Smartphone } from "lucide-react";
 import supabase from "../utils/supabase";
 
 export default function UserRegistration() {
+  // ========== TAB STATE ==========
+  const [activeTab, setActiveTab] = useState("hr_users"); // "hr_users" | "employee_users"
+
+  // ========== HR USERS STATE (`users_hr` table) ==========
   const [users, setUsers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editUserId, setEditUserId] = useState(null);
@@ -18,41 +22,11 @@ export default function UserRegistration() {
   const [filterPost, setFilterPost] = useState("");
   const [filterName, setFilterName] = useState("");
 
-  const renderField = (value) => {
-    if (value) {
-      return <span>{value}</span>;
-    }
-
-    return (
-      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
-        <XCircle size={14} />
-        Missing
-      </span>
-    );
-  };
-
-
-  // ========== PAGE OPTIONS को masterData से dynamic बनाएं ==========
   const [pageOptions, setPageOptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [pageAccess, setPageAccess] = useState([]);
   const [openPageBox, setOpenPageBox] = useState(false);
-
-  const togglePage = (page) => {
-    setPageAccess((prev) =>
-      prev.includes(page) ? prev.filter((p) => p !== page) : [...prev, page],
-    );
-  };
-
-  // ========== ALL PAGES TOGGLE UPDATE ==========
-  const toggleAllPages = () => {
-    if (pageAccess.length === pageOptions.length) {
-      setPageAccess([]);
-    } else {
-      setPageAccess([...pageOptions]);
-    }
-  };
 
   const [formData, setFormData] = useState({
     department: "",
@@ -67,7 +41,58 @@ export default function UserRegistration() {
 
   const [editData, setEditData] = useState(formData);
 
-  // ================= FETCH USERS =================
+  // ========== USERS EMPLOYEE STATE (`users_employee` table) ==========
+  const [employeeUsers, setEmployeeUsers] = useState([]);
+  const [empLoading, setEmpLoading] = useState(false);
+  const [openEmpModal, setOpenEmpModal] = useState(false);
+  const [editEmpId, setEditEmpId] = useState(null);
+  const [empSearchTerm, setEmpSearchTerm] = useState("");
+  const [joiningEmployees, setJoiningEmployees] = useState([]);
+
+  const [empFormData, setEmpFormData] = useState({
+    employee_id: "",
+    emp_name: "",
+    password: "",
+    access: "True",
+    field: "",
+  });
+
+  const [editEmpData, setEditEmpData] = useState({
+    employee_id: "",
+    emp_name: "",
+    password: "",
+    access: "",
+    field: "",
+  });
+
+  const renderField = (value) => {
+    if (value) {
+      return <span>{value}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-medium">
+        <XCircle size={14} />
+        Missing
+      </span>
+    );
+  };
+
+  const togglePage = (page) => {
+    setPageAccess((prev) =>
+      prev.includes(page) ? prev.filter((p) => p !== page) : [...prev, page],
+    );
+  };
+
+  const toggleAllPages = () => {
+    if (pageAccess.length === pageOptions.length) {
+      setPageAccess([]);
+    } else {
+      setPageAccess([...pageOptions]);
+    }
+  };
+
+  // ================= FETCH FUNCTIONS =================
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
@@ -82,7 +107,6 @@ export default function UserRegistration() {
     }
   };
 
-  // ================= FETCH MASTER DATA =================
   const fetchMasterData = async () => {
     try {
       const { data, error } = await supabase
@@ -94,7 +118,6 @@ export default function UserRegistration() {
       setMasterData(data || []);
       setLoading(false);
 
-      // Master data से unique departments निकालें
       const departments = [...new Set(data.map((item) => item.department))];
       setPageOptions(departments.sort());
     } catch (error) {
@@ -103,15 +126,47 @@ export default function UserRegistration() {
     }
   };
 
+  const fetchEmployeeUsers = async () => {
+    try {
+      setEmpLoading(true);
+      const { data, error } = await supabase
+        .from("users_employee")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (error) throw error;
+      setEmployeeUsers(data || []);
+    } catch (error) {
+      console.error("Error fetching employee users:", error);
+    } finally {
+      setEmpLoading(false);
+    }
+  };
+
+  const fetchJoiningEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("joining")
+        .select("id, rbp_joining_id, name_as_per_aadhar, department")
+        .order("name_as_per_aadhar", { ascending: true });
+      if (!error && data) {
+        setJoiningEmployees(data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching joining employees:", err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchMasterData();
+    fetchEmployeeUsers();
+    fetchJoiningEmployees();
   }, []);
 
+  // ================= HR USERS HANDLERS =================
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    // WhatsApp number special handling
     if (name === "wa_number") {
       const digitsOnly = value.replace(/\D/g, "");
       if (digitsOnly.length <= 10) {
@@ -122,8 +177,6 @@ export default function UserRegistration() {
       }
       return;
     }
-
-    // Normal fields
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -139,12 +192,10 @@ export default function UserRegistration() {
     setEditData(user);
   };
 
-  // ========== HANDLE SUBMIT UPDATE ==========
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const payload = {
-      username: formData.doer_name, // Note: username field in users_hr
+      username: formData.doer_name,
       password: formData.password,
       name: formData.doer_name,
       department: formData.department,
@@ -159,7 +210,6 @@ export default function UserRegistration() {
 
     try {
       const { error } = await supabase.from("users_hr").insert([payload]);
-
       if (error) throw error;
 
       setOpen(false);
@@ -178,7 +228,6 @@ export default function UserRegistration() {
       fetchUsers();
     } catch (error) {
       console.error("Error adding user:", error);
-
       if (error.code === "23505") {
         alert("⚠️ Username already exists! Please use a different username.");
       } else {
@@ -189,10 +238,8 @@ export default function UserRegistration() {
 
   const handleUpdate = async (id) => {
     const payload = {};
-
     Object.keys(editData).forEach((key) => {
       if (editData[key] !== "" && editData[key] !== undefined) {
-        // Map the field names if needed
         if (key === "doer_name") {
           payload.username = editData[key];
           payload.name = editData[key];
@@ -209,7 +256,6 @@ export default function UserRegistration() {
         .eq("id", id);
 
       if (error) throw error;
-
       setEditUserId(null);
       fetchUsers();
     } catch (error) {
@@ -219,68 +265,154 @@ export default function UserRegistration() {
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this user?")) return;
-
     try {
       const { error } = await supabase.from("users_hr").delete().eq("id", id);
-
       if (error) throw error;
-
       fetchUsers();
     } catch (error) {
       console.error("Error deleting user:", error);
     }
   };
 
-  const handleMasterSubmit = async (e) => {
+  // ================= USERS EMPLOYEE HANDLERS =================
+  const handleEmpChange = (e) => {
+    const { name, value } = e.target;
+    setEmpFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectJoiningEmp = (e) => {
+    const selectedCode = e.target.value;
+    if (!selectedCode) return;
+    const emp = joiningEmployees.find(
+      (j) => (j.rbp_joining_id || j.id?.toString()) === selectedCode
+    );
+    if (emp) {
+      setEmpFormData((prev) => ({
+        ...prev,
+        employee_id: emp.rbp_joining_id || emp.id?.toString() || "",
+        emp_name: emp.name_as_per_aadhar || "",
+        field: emp.department || prev.field || "",
+      }));
+    }
+  };
+
+  const handleEmpSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const { error } = await supabase.from("master_hr").insert([masterForm]);
+    if (!empFormData.employee_id || !empFormData.emp_name) {
+      alert("Employee ID and Employee Name are required!");
+      return;
+    }
 
+    const payload = {
+      employee_id: empFormData.employee_id.trim(),
+      emp_name: empFormData.emp_name.trim(),
+      password: empFormData.password,
+      access: empFormData.access || "True",
+      field: empFormData.field || "",
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      const { error } = await supabase.from("users_employee").insert([payload]);
       if (error) throw error;
 
-      setMasterForm({ department: "", given_by: "" });
-      fetchMasterData(); // Refresh the list
+      alert("Employee user registered successfully!");
+      setOpenEmpModal(false);
+      setEmpFormData({
+        employee_id: "",
+        emp_name: "",
+        password: "",
+        access: "True",
+        field: "",
+      });
+      fetchEmployeeUsers();
     } catch (error) {
-      console.error("Error adding master data:", error);
+      console.error("Error adding employee user:", error);
+      if (error.code === "23505") {
+        alert("⚠️ Employee ID already exists! Please use a unique Employee ID.");
+      } else {
+        alert(error.message || "Failed to create employee user!");
+      }
     }
   };
 
-  const handleMasterChange = (e) => {
-    setMasterForm({ ...masterForm, [e.target.name]: e.target.value });
+  const handleEmpEdit = (empUser) => {
+    setEditEmpId(empUser.id);
+    setEditEmpData(empUser);
   };
 
-  const handleDeleteMaster = async (id) => {
-    if (!confirm("Delete this entry?")) return;
+  const handleEmpEditChange = (e) => {
+    setEditEmpData({ ...editEmpData, [e.target.name]: e.target.value });
+  };
+
+  const handleEmpUpdate = async (id) => {
+    const payload = {
+      employee_id: editEmpData.employee_id,
+      emp_name: editEmpData.emp_name,
+      password: editEmpData.password,
+      access: editEmpData.access,
+      field: editEmpData.field,
+      timestamp: new Date().toISOString(),
+    };
 
     try {
-      const { error } = await supabase.from("master_hr").delete().eq("id", id);
+      const { error } = await supabase
+        .from("users_employee")
+        .update(payload)
+        .eq("id", id);
 
       if (error) throw error;
 
-      fetchMasterData(); // Refresh the list
+      setEditEmpId(null);
+      fetchEmployeeUsers();
     } catch (error) {
-      console.error("Error deleting master data:", error);
+      console.error("Error updating employee user:", error);
+      alert(error.message || "Failed to update employee user!");
     }
   };
 
-  const uniqueIndents = Array.from(new Set(users.map(u => u.id).filter(Boolean)));
-  const uniquePosts = Array.from(new Set(users.map(u => u.role).filter(Boolean)));
-  // const uniqueNames = Array.from(new Set(users.map(u => u.doer_name).filter(Boolean)));
-  const uniqueNames = Array.from(
-  new Set(users.map(u => u.username).filter(Boolean))
-);
+  const handleEmpDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this employee user?")) return;
+
+    try {
+      const { error } = await supabase.from("users_employee").delete().eq("id", id);
+      if (error) throw error;
+      fetchEmployeeUsers();
+    } catch (error) {
+      console.error("Error deleting employee user:", error);
+      alert(error.message || "Failed to delete employee user!");
+    }
+  };
+
+  // ================= FILTERS =================
+  const uniqueIndents = Array.from(new Set(users.map((u) => u.id).filter(Boolean)));
+  const uniquePosts = Array.from(new Set(users.map((u) => u.role).filter(Boolean)));
+  const uniqueNames = Array.from(new Set(users.map((u) => u.username).filter(Boolean)));
 
   const filteredUsers = users.filter((u) => {
-    const matchesSearch = searchTerm === "" ||
-u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch =
+      searchTerm === "" ||
+      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.id?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.role?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesIndent = filterIndentNo === "" || u.id?.toString() === filterIndentNo?.toString();
+    const matchesIndent =
+      filterIndentNo === "" || u.id?.toString() === filterIndentNo?.toString();
     const matchesPost = filterPost === "" || u.role === filterPost;
     const matchesName = filterName === "" || u.username === filterName;
 
     return matchesSearch && matchesIndent && matchesPost && matchesName;
+  });
+
+  const filteredEmpUsers = employeeUsers.filter((u) => {
+    const term = empSearchTerm.toLowerCase();
+    return (
+      empSearchTerm === "" ||
+      u.emp_name?.toLowerCase().includes(term) ||
+      u.employee_id?.toLowerCase().includes(term) ||
+      u.field?.toLowerCase().includes(term) ||
+      u.access?.toLowerCase().includes(term)
+    );
   });
 
   // ================= UI =================
@@ -290,803 +422,751 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#065F46] to-[#0F766E] tracking-tight">
-            User Registration & Access
+            User Registration & Access Management
           </h1>
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">
-            Create user credentials and configure role-based department access
+            Manage HR App Credentials (`users_hr`) and Employee App Accounts (`users_employee`)
           </p>
         </div>
 
         <div className="flex gap-3">
-          {/* Add Settings Button here */}
-
-          <button
-            onClick={() => setOpen(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white px-5 py-2.5 rounded-xl font-semibold shadow-md shadow-emerald-950/10 hover:shadow-lg transition-all duration-200"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+          {activeTab === "hr_users" ? (
+            <button
+              onClick={() => setOpen(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white px-5 py-2.5 rounded-xl font-semibold shadow-md shadow-emerald-950/10 hover:shadow-lg transition-all duration-200"
             >
-              <path
-                fillRule="evenodd"
-                d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Add New User
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Add New HR User
+            </button>
+          ) : (
+            <button
+              onClick={() => setOpenEmpModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white px-5 py-2.5 rounded-xl font-semibold shadow-md shadow-emerald-950/10 hover:shadow-lg transition-all duration-200"
+            >
+              <UserPlus className="h-5 w-5" />
+              Add Employee User
+            </button>
+          )}
         </div>
       </div>
 
-      {/* STATS CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Total Users</p>
-              <p className="text-2xl font-extrabold text-slate-800">{users.length}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-emerald-50 text-[#0F766E]">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0c-.553 0-1 .447-1 1s.447 1 1 1 1-.447 1-1-.447-1-1-1z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
+      {/* TAB NAVIGATION BAR */}
+      <div className="flex border-b border-slate-200 gap-2 font-bold text-sm bg-white rounded-t-2xl px-3 pt-2 border border-slate-200/60 shadow-sm">
+        <button
+          onClick={() => setActiveTab("hr_users")}
+          className={`py-3 px-5 border-b-2 flex items-center gap-2 transition-all rounded-t-xl ${
+            activeTab === "hr_users"
+              ? "border-[#0F766E] text-[#0F766E] bg-emerald-50/60"
+              : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          <span>👥</span>
+          <span>HR App Users (users_hr)</span>
+          <span className="bg-emerald-100 text-[#0F766E] text-xs px-2 py-0.5 rounded-full ml-1 font-extrabold">
+            {users.length}
+          </span>
+        </button>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Admin</p>
-              <p className="text-2xl font-extrabold text-slate-800">
-                {users.filter((u) => u.role === "ADMIN").length}
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-100 text-slate-700">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Users</p>
-              <p className="text-2xl font-extrabold text-slate-800">
-                {users.filter((u) => u.role === "USER").length}
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-emerald-50 text-[#065F46]">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Active Today</p>
-              <p className="text-2xl font-extrabold text-slate-850">-</p>
-            </div>
-            <div className="p-3 rounded-xl bg-amber-50 text-amber-700">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => setActiveTab("employee_users")}
+          className={`py-3 px-5 border-b-2 flex items-center gap-2 transition-all rounded-t-xl ${
+            activeTab === "employee_users"
+              ? "border-[#0F766E] text-[#0F766E] bg-emerald-50/60"
+              : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          <span>🪪</span>
+          <span>Employee Users (users_employee)</span>
+          <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full ml-1 font-extrabold">
+            {employeeUsers.length}
+          </span>
+        </button>
       </div>
 
-      {/* Dynamic Filters Section */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Indent Number Filter (Mapped to User ID) */}
-          <div className="flex flex-col">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Indent Number (ID)</label>
-            <div className="relative">
-              <input
-                type="text"
-                list="auIndentList"
-                placeholder="Select/Search ID"
-                value={filterIndentNo}
-                onChange={(e) => setFilterIndentNo(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
-              />
-              <datalist id="auIndentList">
-                {uniqueIndents.map(indent => (
-                  <option key={indent} value={indent} />
-                ))}
-              </datalist>
+      {/* ================= TAB 1: HR USERS (users_hr) ================= */}
+      {activeTab === "hr_users" && (
+        <div className="space-y-6">
+          {/* STATS CARDS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Total HR Users
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">{users.length}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-50 text-[#0F766E]">
+                  <Users className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Admin Role
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">
+                    {users.filter((u) => u.role === "ADMIN").length}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-100 text-slate-700">
+                  <Shield className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    User Role
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">
+                    {users.filter((u) => u.role === "USER").length}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-50 text-[#065F46]">
+                  <Users className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Active Departments
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">
+                    {pageOptions.length}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-700">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Post Filter (Mapped to Role) */}
-          <div className="flex flex-col">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Post (Role)</label>
-            <div className="relative">
-              <input
-                type="text"
-                list="auPostList"
-                placeholder="Select/Search Role"
-                value={filterPost}
-                onChange={(e) => setFilterPost(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
-              />
-              <datalist id="auPostList">
-                {uniquePosts.map(post => (
-                  <option key={post} value={post} />
-                ))}
-              </datalist>
-            </div>
-          </div>
+          {/* Dynamic Filters Section */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="flex flex-col">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">
+                  Indent Number (ID)
+                </label>
+                <input
+                  type="text"
+                  list="auIndentList"
+                  placeholder="Select/Search ID"
+                  value={filterIndentNo}
+                  onChange={(e) => setFilterIndentNo(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
+                />
+                <datalist id="auIndentList">
+                  {uniqueIndents.map((indent) => (
+                    <option key={indent} value={indent} />
+                  ))}
+                </datalist>
+              </div>
 
-          {/* Name As Per Aadhaar Filter (Mapped to doer_name) */}
-          <div className="flex flex-col">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Name</label>
-            <div className="relative">
-              <input
-                type="text"
-                list="auNameList"
-                placeholder="Select/Search Name"
-                value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
-              />
-              <datalist id="auNameList">
-                {uniqueNames.map(name => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            </div>
-          </div>
+              <div className="flex flex-col">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">
+                  Filter by Role
+                </label>
+                <input
+                  type="text"
+                  list="auPostList"
+                  placeholder="Select/Search Role"
+                  value={filterPost}
+                  onChange={(e) => setFilterPost(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
+                />
+                <datalist id="auPostList">
+                  {uniquePosts.map((post) => (
+                    <option key={post} value={post} />
+                  ))}
+                </datalist>
+              </div>
 
-          {/* Global Search */}
-          <div className="flex flex-col">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">Global Search</label>
-            <div className="relative h-full flex items-center">
-              <input
-                type="text"
-                placeholder="Search all fields..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Search
-                size={16}
-                className="absolute left-3.5 text-slate-400 pointer-events-none"
-              />
-            </div>
-          </div>
-        </div>
+              <div className="flex flex-col">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-450 mb-1.5">
+                  Filter by Username
+                </label>
+                <input
+                  type="text"
+                  list="auNameList"
+                  placeholder="Select/Search Name"
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
+                />
+                <datalist id="auNameList">
+                  {uniqueNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </div>
 
-        {/* Clear Filters Button */}
-        <div className="flex justify-end pt-2 border-t border-slate-100">
-          <button
-            onClick={() => {
-              setFilterIndentNo("");
-              setFilterPost("");
-              setFilterName("");
-              setSearchTerm("");
-            }}
-            className="px-4 py-2 bg-red-50 text-red-650 hover:bg-red-100 border border-red-100 rounded-xl flex items-center gap-2 text-sm font-semibold transition-colors"
-          >
-            <X size={16} />
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      {/* ================= DESKTOP TABLE ================= */}
-      <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-slate-800">
-              User Directory
-            </h2>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-slate-500 font-medium">Sort by:</span>
-              <select className="border-0 bg-transparent text-[#0F766E] font-bold focus:outline-none cursor-pointer">
-                <option>Date Added</option>
-                <option>Name</option>
-                <option>Role</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto max-h-[400px]">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-30">
-              <tr className="bg-slate-50 text-slate-700 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
-                <th className="px-4 py-3.5 text-left font-semibold">
-                  User Info
-                </th>
-                <th className="px-4 py-3.5 text-center font-semibold">Contact</th>
-                <th className="px-4 py-3.5 text-center font-semibold">Credentials & Dept</th>
-                <th className="px-4 py-3.5 text-center font-semibold">Role</th>
-                <th className="px-4 py-3.5 text-center font-semibold">Access</th>
-                <th className="px-4 py-3.5 text-center font-semibold">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {filteredUsers.map((u) => (
-                <tr
-                  key={u.id}
-                  className="hover:bg-slate-50/50 transition-colors"
+              <div className="flex flex-col justify-end">
+                <button
+                  onClick={() => {
+                    setFilterIndentNo("");
+                    setFilterPost("");
+                    setFilterName("");
+                    setSearchTerm("");
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-sm transition-all flex items-center justify-center gap-2"
                 >
-                  {/* USER INFO COLUMN */}
-                  <td className="px-4 py-4">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-xl bg-[#0F766E]/5 border border-[#0F766E]/10 flex items-center justify-center mr-3">
-                        <span className="font-bold text-[#0F766E]">
-                         {u.username
-                          ? u.username.charAt(0).toUpperCase()
-                          : "U"}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="font-bold text-slate-800">
-                         {u.username}
+                  <X size={16} /> Reset Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP TABLE VIEW */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden hidden md:block">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-800">
+                HR User Accounts Directory
+              </h2>
+              <span className="bg-emerald-50 border border-emerald-100 text-[#0F766E] text-xs font-bold px-3 py-1 rounded-xl">
+                {filteredUsers.length} Users
+              </span>
+            </div>
+
+            <div className="max-h-[400px] overflow-auto border-t border-slate-100">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm">
+                  <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                    <th className="px-6 py-3.5 bg-slate-100">User Info</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Password</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Contact Details</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Role</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Department</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Page Access</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                  {filteredUsers.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-[#0F766E]/10 border border-[#0F766E]/20 flex items-center justify-center font-bold text-[#0F766E]">
+                            {u.username ? u.username.charAt(0).toUpperCase() : "U"}
+                          </div>
+                          <div>
+                            {editUserId === u.id ? (
+                              <input
+                                name="doer_name"
+                                value={editData.doer_name || editData.username || ""}
+                                onChange={handleEditChange}
+                                className="px-2 py-1 rounded-lg border border-slate-200 text-sm font-semibold"
+                              />
+                            ) : (
+                              <span className="font-bold text-slate-800 block">
+                                {u.username}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                              ID: #{u.id}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-slate-400 text-xs font-medium">ID: {u.id}</div>
-                      </div>
-                    </div>
-                  </td>
+                      </td>
 
-                  {/* CONTACT COLUMN */}
-                  <td className="px-4 py-4 text-center">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-center">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 text-slate-400 mr-2"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                          />
-                        </svg>
-                        {editUserId === u.id ? (
-                          <input
-                            name="email_id"
-                            value={editData.email_id}
-                            onChange={handleEditChange}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full"
-                          />
-                        ) : (
-                          <span className="text-slate-600 font-medium">{u.email_id}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-center">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 text-slate-400 mr-2"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-                          />
-                        </svg>
-                        {editUserId === u.id ? (
-                          <input
-                            name="wa_number"
-                            value={editData.wa_number}
-                            onChange={handleEditChange}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full"
-                          />
-                        ) : (
-                          <span className="text-slate-600 font-medium">{u.wa_number}</span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* DETAILS COLUMN */}
-                  <td className="px-4 py-4 text-center align-middle">
-                    <div className="space-y-2 text-sm">
-                      {/* Password */}
-                      <div className="flex justify-center items-center gap-2">
-                        <span className="text-slate-400 font-medium">Password:</span>
+                      <td className="px-4 py-4 text-center font-mono">
                         {editUserId === u.id ? (
                           <input
                             name="password"
-                            value={editData.password}
+                            value={editData.password || ""}
                             onChange={handleEditChange}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-40 text-center"
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-sm font-mono text-center"
                           />
                         ) : (
-                          <span className="font-mono bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200 text-slate-600 text-xs font-semibold">
+                          <span className="bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600">
                             {u.password}
                           </span>
                         )}
-                      </div>
+                      </td>
 
-                      {/* Dept */}
-                      <div className="flex justify-center items-center gap-2">
-                        <span className="text-slate-400 font-medium">Dept:</span>
+                      <td className="px-4 py-4 text-center text-xs">
+                        {editUserId === u.id ? (
+                          <div className="space-y-1">
+                            <input
+                              name="email_id"
+                              value={editData.email_id || ""}
+                              onChange={handleEditChange}
+                              placeholder="Email"
+                              className="px-2 py-1 rounded-lg border border-slate-200 text-xs w-full"
+                            />
+                            <input
+                              name="wa_number"
+                              value={editData.wa_number || ""}
+                              onChange={handleEditChange}
+                              placeholder="WhatsApp"
+                              className="px-2 py-1 rounded-lg border border-slate-200 text-xs w-full"
+                            />
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-semibold text-slate-700">{u.email_id || "-"}</div>
+                            <div className="text-slate-400 text-[11px]">{u.wa_number || "-"}</div>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-center">
+                        {editUserId === u.id ? (
+                          <select
+                            name="role"
+                            value={editData.role}
+                            onChange={handleEditChange}
+                            className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold"
+                          >
+                            <option value="USER">USER</option>
+                            <option value="ADMIN">ADMIN</option>
+                          </select>
+                        ) : (
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              u.role === "ADMIN"
+                                ? "bg-emerald-50 text-[#0F766E] border border-emerald-200"
+                                : "bg-slate-100 text-slate-600 border border-slate-200"
+                            }`}
+                          >
+                            {u.role}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-center font-semibold text-xs">
                         {editUserId === u.id ? (
                           <input
                             name="department"
-                            value={editData.department}
+                            value={editData.department || ""}
                             onChange={handleEditChange}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-40 text-center"
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs text-center"
                           />
                         ) : (
-                          <span className="text-slate-700 font-semibold">{u.department}</span>
+                          u.department || "-"
                         )}
-                      </div>
+                      </td>
 
-                      {/* Given By */}
-                      <div className="flex justify-center items-center gap-2">
-                        <span className="text-slate-400 font-medium">Given By:</span>
+                      <td className="px-4 py-4 text-center">
                         {editUserId === u.id ? (
                           <input
-                            name="given_by"
-                            value={editData.given_by}
+                            name="page"
+                            value={editData.page || ""}
                             onChange={handleEditChange}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-40 text-center"
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs text-center"
                           />
                         ) : (
-                          <span className="text-slate-600 font-medium">{u.given_by}</span>
+                          <span className="bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl text-xs font-semibold text-slate-600 truncate max-w-[150px] inline-block">
+                            {u.page || "Not set"}
+                          </span>
                         )}
-                      </div>
-                    </div>
-                  </td>
+                      </td>
 
-                  {/* ROLE COLUMN */}
-                  <td className="px-4 py-4 text-center">
-                    {editUserId === u.id ? (
-                      <select
-                        name="role"
-                        value={editData.role}
-                        onChange={handleEditChange}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full appearance-none font-semibold text-slate-700 text-center"
-                      >
-                        <option value="USER">USER</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </select>
-                    ) : (
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold border ${u.role === "ADMIN" ? "bg-emerald-50 border-emerald-100 text-[#0F766E]" : "bg-slate-100 border-slate-200 text-slate-700"}`}
-                      >
-                        {u.role}
-                      </span>
-                    )}
-                  </td>
-
-                  {/* PAGE ACCESS COLUMN */}
-                  <td className="px-4 py-4 text-center">
-                    {editUserId === u.id ? (
-                      <input
-                        name="page"
-                        value={editData.page}
-                        onChange={handleEditChange}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm transition-all hover:border-slate-355 w-full"
-                      />
-                    ) : u.page ? (
-                      <div className="text-xs bg-slate-50 border border-slate-200 text-slate-600 font-semibold px-3 py-1 rounded-xl truncate max-w-[150px] mx-auto">
-                        {u.page}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Not set</span>
-                    )}
-                  </td>
-
-                  {/* ACTIONS COLUMN */}
-                  <td className="px-4 py-4 text-center">
-                    {editUserId === u.id ? (
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={() => handleUpdate(u.id)}
-                          className="flex items-center gap-1 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-colors"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditUserId(null)}
-                          className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={() => handleEdit(u)}
-                          className="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-[#0F766E] border border-emerald-250/60 px-3 py-1.5 rounded-xl text-xs font-bold transition"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(u.id)}
-                          className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/60 px-3 py-1.5 rounded-xl text-xs font-bold transition"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      <td className="px-4 py-4 text-center">
+                        {editUserId === u.id ? (
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              onClick={() => handleUpdate(u.id)}
+                              className="bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditUserId(null)}
+                              className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              onClick={() => handleEdit(u)}
+                              className="bg-emerald-50 text-[#0F766E] border border-emerald-250/60 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-100 transition"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(u.id)}
+                              className="bg-red-50 text-red-600 border border-red-200/60 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100 transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
+      )}
 
-        <div className="px-6 py-4 border-t border-slate-100 text-sm text-slate-500 font-medium">
-          Showing {filteredUsers.length} of {users.length} users
-        </div>
-      </div>
+      {/* ================= TAB 2: EMPLOYEE USERS (users_employee) ================= */}
+      {activeTab === "employee_users" && (
+        <div className="space-y-6">
+          {/* STATS CARDS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Total Employee Users
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">
+                    {employeeUsers.length}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
+                  <Smartphone className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
 
-      {/* ================= MOBILE CARD VIEW ================= */}
-      <div className="md:hidden space-y-4">
-        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-slate-800">
-              User Directory
-            </h2>
-            <span className="bg-emerald-50 border border-emerald-100 text-[#0F766E] text-xs font-bold px-3 py-1 rounded-xl">
-              {filteredUsers.length} users
-            </span>
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Access Granted
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">
+                    {
+                      employeeUsers.filter(
+                        (u) =>
+                          u.access?.toString().toLowerCase() === "true" ||
+                          u.access?.toString().toLowerCase() === "yes" ||
+                          u.access?.toString().toLowerCase() === "full"
+                      ).length
+                    }
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-50 text-[#0F766E]">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Fields / Departments
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">
+                    {[...new Set(employeeUsers.map((u) => u.field).filter(Boolean))].length}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
+                  <Users className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Joining System Sync
+                  </p>
+                  <p className="text-2xl font-extrabold text-slate-800">
+                    {joiningEmployees.length}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
+                  <Shield className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {filteredUsers.map((u) => (
+          {/* SEARCH & FILTER BAR */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search Employee Name, ID, Field..."
+                value={empSearchTerm}
+                onChange={(e) => setEmpSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] text-sm bg-slate-50"
+              />
+            </div>
+
+            <div className="text-xs font-semibold text-slate-500">
+              Showing {filteredEmpUsers.length} of {employeeUsers.length} employee accounts
+            </div>
+          </div>
+
+          {/* DESKTOP TABLE VIEW FOR `users_employee` */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden hidden md:block">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-800">
+                Employee Users Directory (`users_employee`)
+              </h2>
+              <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-xl">
+                {filteredEmpUsers.length} Accounts
+              </span>
+            </div>
+
+            <div className="max-h-[400px] overflow-auto border-t border-slate-100">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm">
+                  <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                    <th className="px-6 py-3.5 bg-slate-100">ID</th>
+                    <th className="px-4 py-3.5 bg-slate-100">Employee ID</th>
+                    <th className="px-4 py-3.5 bg-slate-100">Employee Name</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Password</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Field / Dept</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Access Status</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Timestamp</th>
+                    <th className="px-4 py-3.5 text-center bg-slate-100">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                  {empLoading ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-slate-400">
+                        Loading employee users...
+                      </td>
+                    </tr>
+                  ) : filteredEmpUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-slate-400">
+                        No employee users found. Click "+ Add Employee User" to register one.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredEmpUsers.map((u) => (
+                      <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 text-xs font-mono font-bold text-slate-500">
+                          #{u.id}
+                        </td>
+
+                        <td className="px-4 py-4 font-bold text-indigo-700">
+                          {editEmpId === u.id ? (
+                            <input
+                              name="employee_id"
+                              value={editEmpData.employee_id || ""}
+                              onChange={handleEmpEditChange}
+                              className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold w-full"
+                            />
+                          ) : (
+                            u.employee_id || "-"
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4 font-semibold text-slate-800">
+                          {editEmpId === u.id ? (
+                            <input
+                              name="emp_name"
+                              value={editEmpData.emp_name || ""}
+                              onChange={handleEmpEditChange}
+                              className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-semibold w-full"
+                            />
+                          ) : (
+                            u.emp_name || "-"
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4 text-center font-mono">
+                          {editEmpId === u.id ? (
+                            <input
+                              name="password"
+                              value={editEmpData.password || ""}
+                              onChange={handleEmpEditChange}
+                              className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono text-center w-full"
+                            />
+                          ) : (
+                            <span className="bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600">
+                              {u.password || "-"}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4 text-center text-xs font-semibold">
+                          {editEmpId === u.id ? (
+                            <input
+                              name="field"
+                              value={editEmpData.field || ""}
+                              onChange={handleEmpEditChange}
+                              className="px-2 py-1 rounded-lg border border-slate-200 text-xs text-center w-full"
+                            />
+                          ) : (
+                            <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl text-slate-700">
+                              {u.field || "-"}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4 text-center">
+                          {editEmpId === u.id ? (
+                            <select
+                              name="access"
+                              value={editEmpData.access || "True"}
+                              onChange={handleEmpEditChange}
+                              className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold"
+                            >
+                              <option value="True">True / Granted</option>
+                              <option value="False">False / Denied</option>
+                              <option value="Full">Full Access</option>
+                              <option value="Read">Read Only</option>
+                            </select>
+                          ) : (
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                u.access?.toString().toLowerCase() === "true" ||
+                                u.access?.toString().toLowerCase() === "yes" ||
+                                u.access?.toString().toLowerCase() === "full"
+                                  ? "bg-emerald-50 text-[#0F766E] border border-emerald-200"
+                                  : "bg-red-50 text-red-600 border border-red-200"
+                              }`}
+                            >
+                              {u.access || "True"}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4 text-center text-[11px] text-slate-400">
+                          {u.timestamp ? new Date(u.timestamp).toLocaleString() : "-"}
+                        </td>
+
+                        <td className="px-4 py-4 text-center">
+                          {editEmpId === u.id ? (
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => handleEmpUpdate(u.id)}
+                                className="bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditEmpId(null)}
+                                className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => handleEmpEdit(u)}
+                                className="bg-emerald-50 text-[#0F766E] border border-emerald-250/60 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-100 transition"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleEmpDelete(u.id)}
+                                className="bg-red-50 text-red-600 border border-red-200/60 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100 transition"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* MOBILE CARD VIEW FOR `users_employee` */}
+          <div className="md:hidden space-y-4">
+            {filteredEmpUsers.map((u) => (
               <div
                 key={u.id}
-                className="border border-slate-100 rounded-2xl p-4 hover:border-slate-200 transition-all duration-200 bg-slate-50/30"
+                className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 space-y-3"
               >
-                {/* USER HEADER */}
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center">
-                    <div className="h-12 w-12 rounded-xl bg-[#0F766E]/5 border border-[#0F766E]/10 flex items-center justify-center mr-3">
-                      <span className="font-bold text-lg text-[#0F766E]">
-                       {u.username
-                        ? u.username.charAt(0).toUpperCase()
-                        : "U"}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800">
-                        {u.username}
-                      </h3>
-                      <div className="flex items-center mt-1 gap-2">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-xl text-[10px] font-bold border ${u.role === "ADMIN" ? "bg-emerald-50 border-emerald-100 text-[#0F766E]" : "bg-slate-100 border-slate-200 text-slate-700"}`}
-                        >
-                          {u.role}
-                        </span>
-                        <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                          ID: {u.id}
-                        </span>
-                      </div>
-                    </div>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-slate-800">{u.emp_name}</h3>
+                    <span className="text-xs font-bold text-indigo-600">ID: {u.employee_id}</span>
                   </div>
-
-                  {/* ACTIONS */}
-                  {editUserId === u.id ? (
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() => handleUpdate(u.id)}
-                        className="p-2 bg-gradient-to-r from-[#065F46] to-[#0F766E] text-white rounded-xl shadow-sm"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setEditUserId(null)}
-                        className="p-2 bg-slate-100 text-slate-600 rounded-xl"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() => handleEdit(u)}
-                        className="p-2 bg-emerald-50 text-[#0F766E] border border-emerald-250/60 rounded-xl"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(u.id)}
-                        className="p-2 bg-red-50 text-red-650 border border-red-200/60 rounded-xl"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
+                  <span
+                    className={`px-2.5 py-0.5 rounded-xl text-[10px] font-bold border ${
+                      u.access?.toString().toLowerCase() === "true"
+                        ? "bg-emerald-50 border-emerald-100 text-[#0F766E]"
+                        : "bg-slate-100 border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    Access: {u.access || "True"}
+                  </span>
                 </div>
 
-                {/* USER DETAILS */}
-                <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
                   <div>
-                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Email</p>
-                    {editUserId === u.id ? (
-                      <input
-                        name="email_id"
-                        value={editData.email_id}
-                        onChange={handleEditChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
-                      />
-                    ) : (
-                      <p className="text-sm font-medium text-slate-700">{u.email_id}</p>
-                    )}
+                    <span className="text-slate-400 block text-[10px]">Password:</span>
+                    <span className="font-mono bg-slate-100 px-2 py-0.5 rounded font-bold">
+                      {u.password}
+                    </span>
                   </div>
-
                   <div>
-                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">WhatsApp</p>
-                    {editUserId === u.id ? (
-                      <input
-                        name="wa_number"
-                        value={editData.wa_number}
-                        onChange={handleEditChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
-                      />
-                    ) : (
-                      <p className="text-sm font-medium text-slate-700">{u.wa_number}</p>
-                    )}
+                    <span className="text-slate-400 block text-[10px]">Field / Dept:</span>
+                    <span className="font-semibold">{u.field || "-"}</span>
                   </div>
+                </div>
 
-                  <div>
-                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Password</p>
-                    {editUserId === u.id ? (
-                      <input
-                        name="password"
-                        value={editData.password}
-                        onChange={handleEditChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
-                      />
-                    ) : (
-                      <p className="text-xs font-mono bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-block text-slate-600 font-semibold">
-                        {u.password}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Department</p>
-                    {editUserId === u.id ? (
-                      <input
-                        name="department"
-                        value={editData.department}
-                        onChange={handleEditChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
-                      />
-                    ) : (
-                      <p className="text-sm font-semibold text-slate-800">
-                        {u.department || "-"}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Given By</p>
-                    {editUserId === u.id ? (
-                      <input
-                        name="given_by"
-                        value={editData.given_by}
-                        onChange={handleEditChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
-                      />
-                    ) : (
-                      <p className="text-sm font-medium text-slate-700">{u.given_by || "-"}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Page Access</p>
-                    {editUserId === u.id ? (
-                      <input
-                        name="page"
-                        value={editData.page}
-                        onChange={handleEditChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-800 text-sm"
-                      />
-                    ) : (
-                      <p className="text-xs bg-slate-50 border border-slate-200 text-slate-650 font-semibold px-2 py-0.5 rounded-xl truncate">
-                        {u.page || "Not set"}
-                      </p>
-                    )}
-                  </div>
-
-                  {editUserId === u.id && (
-                    <div className="col-span-2">
-                      <p className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Role</p>
-                      <select
-                        name="role"
-                        value={editData.role}
-                        onChange={handleEditChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-white text-slate-850 text-sm appearance-none font-semibold text-slate-700"
-                      >
-                        <option value="USER">USER</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </select>
-                    </div>
-                  )}
+                <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => handleEmpEdit(u)}
+                    className="px-3 py-1 bg-emerald-50 text-[#0F766E] text-xs font-bold rounded-lg"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleEmpDelete(u.id)}
+                    className="px-3 py-1 bg-red-50 text-red-600 text-xs font-bold rounded-lg"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ================= ADD USER MODAL ================= */}
+      {/* ================= MODAL: ADD HR USER (`users_hr`) ================= */}
       {open && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-2 sm:p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md h-[90vh] flex flex-col overflow-hidden">
             <div className="bg-gradient-to-r from-[#065F46] to-[#0F766E] p-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white">Add New User</h2>
+                <h2 className="text-xl font-bold text-white">Add New HR User</h2>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   className="text-white hover:text-emerald-100 transition-colors"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                  <X size={24} />
                 </button>
               </div>
               <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider mt-1">
-                Fill in the user details below
+                Create system login for HR / Admin staff
               </p>
             </div>
 
@@ -1096,7 +1176,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   Username
                 </label>
                 <input
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm"
                   name="doer_name"
                   placeholder="Enter username"
                   onChange={handleChange}
@@ -1109,7 +1189,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   Email Address
                 </label>
                 <input
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm"
                   name="email_id"
                   type="email"
                   placeholder="user@example.com"
@@ -1130,7 +1210,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     maxLength={10}
                     pattern="[0-9]{10}"
                     inputMode="numeric"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm"
                     onChange={handleChange}
                   />
                 </div>
@@ -1140,7 +1220,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     Password
                   </label>
                   <input
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm transition-all hover:border-slate-355"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm"
                     name="password"
                     placeholder="Enter password"
                     onChange={handleChange}
@@ -1150,113 +1230,47 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Department Field */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                     Department
                   </label>
                   <select
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm transition-all hover:border-slate-355 appearance-none font-semibold text-slate-700"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm font-semibold"
                     name="department"
                     onChange={handleChange}
                     value={formData.department}
                   >
                     <option value="">Select Department</option>
-                    {Array.from(
-                      new Set(masterData.map((item) => item.department)),
-                    ).map((dept, index) => (
-                      <option key={index} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
+                    {Array.from(new Set(masterData.map((item) => item.department))).map(
+                      (dept, index) => (
+                        <option key={index} value={dept}>
+                          {dept}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
 
-                {/* Given By Field */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
                     Given By
                   </label>
                   <select
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm transition-all hover:border-slate-355 appearance-none font-semibold text-slate-700"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm font-semibold"
                     name="given_by"
                     onChange={handleChange}
                     value={formData.given_by}
                   >
                     <option value="">Select Given By</option>
-                    {Array.from(
-                      new Set(masterData.map((item) => item.given_by)),
-                    ).map((given, index) => (
-                      <option key={index} value={given}>
-                        {given}
-                      </option>
-                    ))}
+                    {Array.from(new Set(masterData.map((item) => item.given_by))).map(
+                      (given, index) => (
+                        <option key={index} value={given}>
+                          {given}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
-              </div>
-
-              <div className="relative">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-455 mb-1.5">
-                  Page Access (Departments)
-                </label>
-
-                {/* Select box */}
-                <div
-                  onClick={() => setOpenPageBox(!openPageBox)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 cursor-pointer bg-slate-50 text-slate-700 text-sm flex justify-between items-center hover:border-slate-355 font-semibold"
-                >
-                  <span>
-                    {pageAccess.length === 0
-                      ? "Select departments"
-                      : `${pageAccess.length} selected`}
-                  </span>
-                  <span className="text-slate-400">▾</span>
-                </div>
-
-                {/* Dropdown */}
-                {openPageBox && (
-                  <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto border border-slate-200 bg-white rounded-xl shadow-lg p-3 space-y-2">
-                    {loading ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0F766E] mx-auto"></div>
-                        <p className="text-slate-500 text-xs mt-2">
-                          Loading departments...
-                        </p>
-                      </div>
-                    ) : pageOptions.length === 0 ? (
-                      <p className="text-slate-500 text-center text-xs py-4">
-                        No departments found
-                      </p>
-                    ) : (
-                      <>
-                        {/* All Departments */}
-                        <label className="flex items-center gap-2 font-bold text-emerald-650 text-xs uppercase tracking-wider cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="rounded text-[#0F766E] focus:ring-[#0F766E]/20"
-                            checked={pageAccess.length === pageOptions.length}
-                            onChange={toggleAllPages}
-                          />
-                          All Departments
-                        </label>
-
-                        <hr className="border-slate-100" />
-
-                        {pageOptions.map((page) => (
-                          <label key={page} className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-800">
-                            <input
-                              type="checkbox"
-                              className="rounded text-[#0F766E] focus:ring-[#0F766E]/20"
-                              checked={pageAccess.includes(page)}
-                              onChange={() => togglePage(page)}
-                            />
-                            {page}
-                          </label>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
 
               <div>
@@ -1264,7 +1278,7 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   User Role
                 </label>
                 <select
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm transition-all hover:border-slate-355 appearance-none font-semibold text-slate-700"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm font-semibold"
                   name="role"
                   onChange={handleChange}
                 >
@@ -1283,9 +1297,143 @@ u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white rounded-xl font-bold shadow-md shadow-emerald-950/10 hover:shadow-lg transition-all text-sm"
+                  className="px-5 py-2.5 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white rounded-xl font-bold shadow-md text-sm"
                 >
                   Create User Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: ADD EMPLOYEE USER (`users_employee`) ================= */}
+      {openEmpModal && (
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-gradient-to-r from-[#065F46] to-[#0F766E] p-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Add Employee User Account</h2>
+                <button
+                  type="button"
+                  onClick={() => setOpenEmpModal(false)}
+                  className="text-white hover:text-emerald-100 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider mt-1">
+                Registers new entry in `users_employee` table
+              </p>
+            </div>
+
+            <form onSubmit={handleEmpSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              {/* Select from existing employees */}
+              {joiningEmployees.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-600 uppercase">
+                    ⚡ Quick Select Employee (Joining Table)
+                  </label>
+                  <select
+                    onChange={handleSelectJoiningEmp}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 bg-white"
+                  >
+                    <option value="">-- Choose Employee to Auto-fill --</option>
+                    {joiningEmployees.map((j) => (
+                      <option key={j.id} value={j.rbp_joining_id || j.id?.toString()}>
+                        {j.name_as_per_aadhar} ({j.rbp_joining_id || `ID:${j.id}`}) - {j.department || "No Dept"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Employee ID (Unique Key) *
+                </label>
+                <input
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm font-semibold"
+                  name="employee_id"
+                  value={empFormData.employee_id}
+                  placeholder="e.g. EMP001 or RBP001"
+                  onChange={handleEmpChange}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Employee Name *
+                </label>
+                <input
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm"
+                  name="emp_name"
+                  value={empFormData.emp_name}
+                  placeholder="Enter full employee name"
+                  onChange={handleEmpChange}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Password
+                </label>
+                <input
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm font-mono"
+                  name="password"
+                  value={empFormData.password}
+                  placeholder="Enter app login password"
+                  onChange={handleEmpChange}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Field / Department
+                  </label>
+                  <input
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 placeholder-slate-400 text-sm"
+                    name="field"
+                    value={empFormData.field}
+                    placeholder="e.g. Field / Office"
+                    onChange={handleEmpChange}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Access Status
+                  </label>
+                  <select
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] bg-slate-50 text-slate-800 text-sm font-semibold"
+                    name="access"
+                    value={empFormData.access}
+                    onChange={handleEmpChange}
+                  >
+                    <option value="True">True (Granted)</option>
+                    <option value="False">False (Denied)</option>
+                    <option value="Full">Full Access</option>
+                    <option value="Read">Read Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 sticky bottom-0 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setOpenEmpModal(false)}
+                  className="px-5 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-gradient-to-r from-[#065F46] to-[#0F766E] hover:from-[#054f3a] hover:to-[#0c625b] text-white rounded-xl font-bold shadow-md text-sm"
+                >
+                  Save Employee Account
                 </button>
               </div>
             </form>

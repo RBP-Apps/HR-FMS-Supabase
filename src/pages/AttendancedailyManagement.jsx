@@ -289,6 +289,8 @@ export default function HRMSAttendanceDashboard() {
                     bulkAction={bulkAction}
                     setBulkAction={setBulkAction}
                     handleApplyBulkAction={handleApplyBulkAction}
+                    filteredEmployees={filtered}
+                    loading={loading}
                   />
 
                   {/* FILTER BAR */}

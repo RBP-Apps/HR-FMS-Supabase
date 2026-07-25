@@ -38,7 +38,7 @@ export default function useAttendanceData() {
   const [adjustForm, setAdjustForm] = useState({ employee_id: "", leave_type: "CL", transaction_type: "CREDIT", amount: 1, remarks: "" });
 
   // Bulk action state
-  const [bulkAction, setBulkAction] = useState({ startDate: "", endDate: "", status: "P" });
+  const [bulkAction, setBulkAction] = useState({ employeeId: "ALL", startDate: "", endDate: "", status: "P", remark: "" });
 
   // Modals state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -1021,33 +1021,90 @@ export default function useAttendanceData() {
     }
   };
 
-  const handleApplyBulkAction = () => {
+  const handleApplyBulkAction = async () => {
     if (!bulkAction.startDate || !bulkAction.endDate) {
       alert("Please select both Start Date and End Date!");
       return;
     }
-    const start = new Date(bulkAction.startDate);
-    const end = new Date(bulkAction.endDate);
+    const start = new Date(bulkAction.startDate + "T00:00:00");
+    const end = new Date(bulkAction.endDate + "T00:00:00");
     if (start > end) {
       alert("Start Date cannot be after End Date!");
       return;
     }
 
-    const overrides = { ...manualOverrides };
+    if (!bulkAction.remark || !bulkAction.remark.trim()) {
+      alert("Please enter a remark for the bulk attendance override!");
+      return;
+    }
 
-    filtered.forEach(emp => {
-      if (!overrides[emp.code]) overrides[emp.code] = {};
+    let targetEmps = filtered;
+    if (bulkAction.employeeId && bulkAction.employeeId !== "ALL") {
+      targetEmps = employees.filter(e => e.code === bulkAction.employeeId || String(e.id) === String(bulkAction.employeeId));
+    }
 
-      const temp = new Date(start);
-      while (temp <= end) {
-        const dateStr = temp.toISOString().split("T")[0];
-        overrides[emp.code][dateStr] = bulkAction.status;
-        temp.setDate(temp.getDate() + 1);
+    if (!targetEmps || targetEmps.length === 0) {
+      alert("No employees selected for bulk update!");
+      return;
+    }
+
+    const dates = [];
+    let curr = new Date(start);
+    while (curr <= end) {
+      const yyyy = curr.getFullYear();
+      const mm = String(curr.getMonth() + 1).padStart(2, "0");
+      const dd = String(curr.getDate()).padStart(2, "0");
+      dates.push(`${yyyy}-${mm}-${dd}`);
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    try {
+      setLoading(true);
+      const rowsToInsert = [];
+      const overrides = { ...manualOverrides };
+      const remarkText = bulkAction.remark.trim();
+
+      targetEmps.forEach(emp => {
+        if (!overrides[emp.code]) overrides[emp.code] = {};
+
+        dates.forEach(dateStr => {
+          overrides[emp.code][dateStr] = bulkAction.status;
+
+          rowsToInsert.push({
+            person_name: emp.name,
+            employee_code: emp.code,
+            date: dateStr,
+            status: bulkAction.status,
+            approved_status: "corrected",
+            remark: remarkText,
+            timestamp: new Date().toISOString()
+          });
+        });
+      });
+
+      const CHUNK_SIZE = 500;
+      for (let i = 0; i < rowsToInsert.length; i += CHUNK_SIZE) {
+        const chunk = rowsToInsert.slice(i, i + CHUNK_SIZE);
+        const { error: insertErr } = await supabase
+          .from("attendance")
+          .insert(chunk);
+
+        if (insertErr) throw insertErr;
       }
-    });
 
-    setManualOverrides(overrides);
-    alert(`Applied bulk status '${bulkAction.status}' to ${filtered.length} employees from ${bulkAction.startDate} to ${bulkAction.endDate} in-memory.`);
+      setManualOverrides(overrides);
+
+      alert(`Successfully saved bulk attendance for ${targetEmps.length} employee(s) over ${dates.length} day(s) (${rowsToInsert.length} record(s)) to Database!`);
+
+      await fetchFieldAttendance();
+      await fetchManualCorrections();
+      await loadDynamicData();
+    } catch (err) {
+      console.error("Error saving bulk attendance:", err);
+      alert(`Error saving to database: ${err.message || err}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFinalizeAttendance = async () => {

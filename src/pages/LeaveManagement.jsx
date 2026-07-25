@@ -1861,7 +1861,7 @@ const ApprovalManagement = () => {
                     name="toDate"
                     value={formData.toDate}
                     onChange={handleInputChange}
-                    required
+                    required 
                     className="w-full rounded-2xl border border-pink-100 bg-pink-50/40 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all"
                   />
                 </div>
