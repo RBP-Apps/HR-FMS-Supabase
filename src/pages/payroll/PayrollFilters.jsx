@@ -24,7 +24,7 @@ const SelectField = ({ label, value, onChange, children }) => (
   </div>
 );
 
-export default function PayrollFilters({ filters, onChange, onReset, onExcelExport, onPdfExport, onDownloadPayslip }) {
+export default function PayrollFilters({ filters, companies = [], onChange, onReset, onExcelExport, onPdfExport, onDownloadPayslip }) {
   const set = (key) => (e) => onChange(key, e.target.value);
   const [localSearch, setLocalSearch] = React.useState(filters.search || '');
 
@@ -41,13 +41,18 @@ export default function PayrollFilters({ filters, onChange, onReset, onExcelExpo
   return (
     <div className="bg-white/80 backdrop-blur border border-white/60 rounded-2xl shadow-sm p-4 space-y-4">
       {/* Row 1 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3">
         <SelectField label="Month" value={filters.month} onChange={set('month')}>
           {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
         </SelectField>
 
         <SelectField label="Year" value={filters.year} onChange={set('year')}>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </SelectField>
+
+        <SelectField label="Company" value={filters.company || 'All'} onChange={set('company')}>
+          <option value="All">All Companies</option>
+          {companies.map(c => <option key={c} value={c}>{c}</option>)}
         </SelectField>
 
         <SelectField label="Department" value={filters.department} onChange={set('department')}>

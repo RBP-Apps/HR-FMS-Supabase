@@ -657,32 +657,36 @@ export default function useAttendanceData() {
       }
     });
 
+    const selectedMonthNum = monthIndex + 1;
+    const fyStartYear = selectedMonthNum >= 4 ? parseInt(yearVal) : parseInt(yearVal) - 1;
+    const fyStartDateStr = `${fyStartYear}-04-01`;
+    const targetMonthEndStr = `${yearVal}-${String(selectedMonthNum).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+
     employeesList.forEach(emp => {
       const empLedger = ledgerMap.get(emp.id?.toString()) || [];
 
       const totalClCredits = empLedger
-        .filter(row => row.leave_type === "CL" && (row.transaction_type === "CREDIT" || row.transaction_type === "ADJUSTMENT" && row.earned > 0))
+        .filter(row =>
+          row.leave_type === "CL" &&
+          (row.transaction_type === "CREDIT" || (row.transaction_type === "ADJUSTMENT" && row.earned > 0)) &&
+          row.ledger_date >= fyStartDateStr &&
+          row.ledger_date <= targetMonthEndStr
+        )
         .reduce((sum, row) => sum + Number(row.earned || 0), 0);
 
       const totalClDebits = empLedger
-        .filter(row => row.leave_type === "CL" && (row.transaction_type === "DEBIT" || row.transaction_type === "ADJUSTMENT" && row.used > 0))
-        .reduce((sum, row) => sum + Number(row.used || 0), 0);
-
-      const totalElCredits = empLedger
-        .filter(row => row.leave_type === "EL" && (row.transaction_type === "CREDIT" || row.transaction_type === "ADJUSTMENT" && row.earned > 0))
-        .reduce((sum, row) => sum + Number(row.earned || 0), 0);
-
-      const totalElDebits = empLedger
-        .filter(row => row.leave_type === "EL" && (row.transaction_type === "DEBIT" || row.transaction_type === "ADJUSTMENT" && row.used > 0))
+        .filter(row =>
+          row.leave_type === "CL" &&
+          (row.transaction_type === "DEBIT" || (row.transaction_type === "ADJUSTMENT" && row.used > 0)) &&
+          row.ledger_date >= fyStartDateStr &&
+          row.ledger_date <= targetMonthEndStr
+        )
         .reduce((sum, row) => sum + Number(row.used || 0), 0);
 
       localBalances[emp.id] = {
         earnedCL: totalClCredits,
         usedCL: totalClDebits,
         remainingCL: totalClCredits - totalClDebits,
-        earnedEL: totalElCredits,
-        usedEL: totalElDebits,
-        remainingEL: totalElCredits - totalElDebits,
         lwpCount: 0
       };
     });
@@ -700,11 +704,6 @@ export default function useAttendanceData() {
         .filter(row => row.leave_type === "CL" && (row.transaction_type === "DEBIT" || row.used > 0) && row.ledger_date < targetMonthStartStr)
         .reduce((sum, row) => sum + Number(row.used || 0), 0);
       let runningCLBalance = localBalances[emp.id].earnedCL - clDebitsPrior;
-
-      const elDebitsPrior = empLedger
-        .filter(row => row.leave_type === "EL" && (row.transaction_type === "DEBIT" || row.used > 0) && row.ledger_date < targetMonthStartStr)
-        .reduce((sum, row) => sum + Number(row.used || 0), 0);
-      let runningELBalance = localBalances[emp.id].earnedEL - elDebitsPrior;
 
       let lateCount = 0;
       let lwpCount = 0;
@@ -752,8 +751,6 @@ export default function useAttendanceData() {
 
           if (status === "CL") {
             runningCLBalance--;
-          } else if (status === "EL") {
-            runningELBalance--;
           } else if (status === "LWP") {
             lwpCount++;
           }
@@ -763,10 +760,6 @@ export default function useAttendanceData() {
           if (holidayMatch) {
             status = "H";
             remarks = holidayMatch.holiday_name;
-          }
-          else if (dayOfWeek === 0) {
-            status = "WO";
-            remarks = "Weekly Off";
           }
           else {
             const empCodeLower = emp.code?.toString().trim().toLowerCase();
@@ -813,17 +806,16 @@ export default function useAttendanceData() {
                   remarks = "Punch Missing";
                 }
               } else {
-                status = "A";
-                remarks = "Absent";
+                if (dayOfWeek === 0) {
+                  status = "WO";
+                  remarks = "Weekly Off";
+                } else {
+                  status = "A";
+                  remarks = "Absent";
+                }
               }
             }
           }
-        }
-
-        let earnedEL = 0;
-        if (dayOfWeek === 0 && ["P", "HD", "PM"].includes(status)) {
-          earnedEL = 1;
-          remarks = `${remarks ? remarks + " + " : ""}Sunday Work EL Credit`;
         }
 
         empStatusArray[d - 1] = status;
@@ -836,7 +828,6 @@ export default function useAttendanceData() {
           isPunchMissing,
           remarks,
           source,
-          earnedEL,
           lateCountVal: status === "P" && isLate ? lateCount : (status === "HD" && isLate ? lateCount : 0)
         });
       }
@@ -925,21 +916,42 @@ export default function useAttendanceData() {
     const monthNum = getMonthNumber(month);
     const daysInMonth = new Date(parseInt(year), monthNum + 1, 0).getDate();
 
+    const getDefaultStatusForDay = (d) => {
+      const dayDate = new Date(parseInt(year), monthNum, d);
+      return dayDate.getDay() === 0 ? "WO" : "A";
+    };
+
     if (isFinalized) {
-      const arr = new Array(daysInMonth).fill("A");
+      const arr = new Array(daysInMonth);
+      for (let d = 1; d <= daysInMonth; d++) {
+        arr[d - 1] = getDefaultStatusForDay(d);
+      }
       const empFinalRecords = (employee.id && finalizedAttendanceMap.get(employee.id.toString())) || [];
 
       empFinalRecords.forEach(r => {
         if (r.attendance_date) {
           const d = new Date(r.attendance_date).getDate();
           if (d >= 1 && d <= daysInMonth) {
-            arr[d - 1] = r.status;
+            const dayDate = new Date(parseInt(year), monthNum, d);
+            const isSunday = dayDate.getDay() === 0;
+            if (isSunday && r.status === "A") {
+              arr[d - 1] = "WO";
+            } else {
+              arr[d - 1] = r.status;
+            }
           }
         }
       });
       return arr;
     } else {
-      return processedDraft[employee.id] || new Array(daysInMonth).fill("A");
+      if (processedDraft[employee.id]) {
+        return processedDraft[employee.id];
+      }
+      const arr = new Array(daysInMonth);
+      for (let d = 1; d <= daysInMonth; d++) {
+        arr[d - 1] = getDefaultStatusForDay(d);
+      }
+      return arr;
     }
   };
 
@@ -1167,28 +1179,6 @@ export default function useAttendanceData() {
               earned: 0,
               used: 1,
               remarks: `Casual Leave Taken - ${selectedMonth} ${selectedYear}`
-            });
-          } else if (status === "EL") {
-            ledgerEntries.push({
-              employee_id: emp.id,
-              ledger_date: dateStr,
-              leave_type: "EL",
-              transaction_type: "DEBIT",
-              earned: 0,
-              used: 1,
-              remarks: `Earned Leave Taken - ${selectedMonth} ${selectedYear}`
-            });
-          }
-
-          if (detail.earnedEL > 0) {
-            ledgerEntries.push({
-              employee_id: emp.id,
-              ledger_date: dateStr,
-              leave_type: "EL",
-              transaction_type: "CREDIT",
-              earned: 1,
-              used: 0,
-              remarks: `Earned Leave Credited - Sunday Work on ${dateStr}`
             });
           }
         }
@@ -1429,7 +1419,7 @@ export default function useAttendanceData() {
       const summary = calcSummary(attendance);
       present += summary.P;
       absent += summary.A;
-      onLeave += summary.CL + summary.EL;
+      onLeave += summary.CL;
     });
 
     return {

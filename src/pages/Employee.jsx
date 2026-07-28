@@ -14,6 +14,7 @@ const Employee = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [firmNames, setFirmNames] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(""); // "joining" | "leaving"
@@ -508,9 +509,32 @@ const Employee = () => {
       setTableLoading(false);
     }
   };
+  const fetchFirmNames = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("master_hr")
+        .select("firm_name")
+        .not("firm_name", "is", null)
+        .order("firm_name");
+
+      if (error) throw error;
+
+      const firms = (data || [])
+        .map((row) => row.firm_name)
+        .filter((firm) => firm && firm.trim() !== "")
+        .map((firm) => firm.trim());
+
+      const uniqueFirms = [...new Set(firms)].sort();
+      setFirmNames(uniqueFirms);
+    } catch (error) {
+      console.error("Error fetching firm names:", error);
+    }
+  };
+
   useEffect(() => {
     fetchJoiningData();
     fetchLeavingData();
+    fetchFirmNames();
   }, []);
 
   const uniqueCategories = Array.from(new Set([...joiningData, ...leavingData].map(i => i.employeeCategory).filter(Boolean)));
@@ -628,10 +652,7 @@ const Employee = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <Search
-                size={16}
-                className="absolute left-3 text-gray-500"
-              />
+             
             </div>
           </div>
         </div>
@@ -1298,7 +1319,23 @@ const Employee = () => {
                           <label className="text-xs font-medium text-gray-500 capitalize">
                             {key.replace(/([A-Z])/g, ' $1').trim()}
                           </label>
-                          {key === "employeeCategory" ? (
+                          {key === "firmName" ? (
+                            <select
+                              value={editData[key] || ""}
+                              onChange={(e) => handleChange(key, e.target.value)}
+                              className="border p-2 rounded w-full text-sm focus:ring-1 focus:ring-indigo-500 outline-none mt-1 bg-white"
+                            >
+                              <option value="">Select Firm Name</option>
+                              {firmNames.map((firm) => (
+                                <option key={firm} value={firm}>
+                                  {firm}
+                                </option>
+                              ))}
+                              {editData[key] && !firmNames.includes(editData[key]) && (
+                                <option value={editData[key]}>{editData[key]}</option>
+                              )}
+                            </select>
+                          ) : key === "employeeCategory" ? (
                             <select
                               value={editData[key] || ""}
                               onChange={(e) => handleChange(key, e.target.value)}

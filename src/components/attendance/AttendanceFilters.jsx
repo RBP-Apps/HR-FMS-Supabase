@@ -32,7 +32,6 @@ export default function AttendanceFilters({
   return (
     <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 shadow-sm flex flex-wrap items-center gap-2">
       <div className="relative flex-1 min-w-40">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
         <input
           type="text"
           placeholder="Search by name, code…"

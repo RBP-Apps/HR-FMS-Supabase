@@ -53,7 +53,6 @@ export default function AdjustmentModal({
                 className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none"
               >
                 <option value="CL">Casual Leave (CL)</option>
-                <option value="EL">Earned Leave (EL)</option>
               </select>
             </div>
             <div className="flex-1">

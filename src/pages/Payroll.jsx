@@ -36,6 +36,7 @@ const DEFAULT_FILTERS = {
   month: new Date().getMonth(),
   year: new Date().getFullYear(),
   search: '',
+  company: 'All',
   department: 'All',
   designation: 'All',
   payrollStatus: 'All',
@@ -115,6 +116,7 @@ export default function PayrollPage() {
       rbp_joining_id: emp.rbp_joining_id || '',
       employee_name: emp.name_as_per_aadhar || '',
       father_name: emp.father_name || '',
+      company: emp.firm_name || 'N/A',
       department: emp.department || 'Not Assigned',
       designation: emp.designation || '',
       joining_date: emp.date_of_joining || '',
@@ -153,7 +155,14 @@ export default function PayrollPage() {
           if (!empAttMap[row.employee_id]) {
             empAttMap[row.employee_id] = [];
           }
-          empAttMap[row.employee_id].push(row.status);
+          let st = row.status;
+          if (row.attendance_date) {
+            const dDate = new Date(row.attendance_date);
+            if (dDate.getDay() === 0 && st === 'A') {
+              st = 'WO';
+            }
+          }
+          empAttMap[row.employee_id].push(st);
         });
 
         return empList.map(emp => {
@@ -177,10 +186,12 @@ export default function PayrollPage() {
             }
           });
 
+          const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
+
           return {
             employee_id: emp.id,
-            working_days: daysInMonth - weekOffCount - holidayCount,
-            present_days: presentDays,
+            working_days: daysInMonth,
+            present_days: paidDaysTotal,
             week_off: weekOffCount,
             paid_leave: paidLeaves,
             holidays: holidayCount,
@@ -311,10 +322,12 @@ export default function PayrollPage() {
         }
       }
 
+      const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
+
       return {
         employee_id: emp.id,
-        working_days: daysInMonth - weekOffCount - holidayCount,
-        present_days: presentDays,
+        working_days: daysInMonth,
+        present_days: paidDaysTotal,
         week_off: weekOffCount,
         paid_leave: paidLeaves,
         holidays: holidayCount,
@@ -347,11 +360,17 @@ export default function PayrollPage() {
     }
   }, [filters.month, filters.year, mainTab]);
 
+  // ─── Unique companies list ─────────────────────────────────────────
+  const companies = useMemo(() => {
+    return [...new Set(employees.map(e => e.company).filter(Boolean))].sort();
+  }, [employees]);
+
   // ─── Build enriched records ───────────────────────────────────────
   const allRecords = useMemo(() => {
+    const daysInSelectedMonth = new Date(Number(filters.year), Number(filters.month) + 1, 0).getDate();
     return employees.map((emp, idx) => {
       const att = attendances.find(a => a.employee_id === emp.id) || {
-        working_days: 26, present_days: 0, week_off: 4, absent_days: 26
+        working_days: daysInSelectedMonth, present_days: 0, week_off: 0, absent_days: daysInSelectedMonth
       };
       const recordId = `PR${String(idx + 1).padStart(4, '0')}`;
       const empEdits = edits[recordId] || {};
@@ -397,6 +416,7 @@ export default function PayrollPage() {
       });
     }
 
+    if (filters.company && filters.company !== 'All') list = list.filter(r => r.employee.company === filters.company);
     if (filters.department !== 'All') list = list.filter(r => r.employee.department === filters.department);
     if (filters.designation !== 'All') list = list.filter(r => r.employee.designation === filters.designation);
     if (filters.payrollStatus !== 'All') list = list.filter(r => r.payroll_status === filters.payrollStatus);
@@ -815,6 +835,7 @@ export default function PayrollPage() {
             {/* Filters bar */}
             <PayrollFilters
               filters={filters}
+              companies={companies}
               onChange={handleFilterChange}
               onReset={handleFilterReset}
               onExcelExport={handleExcelExport}

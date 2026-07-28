@@ -180,9 +180,8 @@ export default function AttendanceTable({
                       return (
                         <td
                           key={di}
-                          className={`px-0.5 py-2 text-center transition-all duration-150 ${
-                            weekendCols.has(di) ? "bg-slate-50/60 group-hover:bg-violet-100/50" : "group-hover:bg-violet-50/30"
-                          } ${futureDate ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-indigo-50 hover:scale-110 active:scale-95"}`}
+                          className={`px-0.5 py-2 text-center transition-all duration-150 ${weekendCols.has(di) ? "bg-slate-50/60 group-hover:bg-violet-100/50" : "group-hover:bg-violet-50/30"
+                            } ${futureDate ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-indigo-50 hover:scale-110 active:scale-95"}`}
                           onClick={(e) => {
                             if (futureDate) return;
                             e.stopPropagation();
@@ -251,7 +250,7 @@ export default function AttendanceTable({
                               <span className="font-bold text-xs text-slate-700">Biometric Check-In</span>
                             </div>
                             <div className="text-lg font-black text-emerald-600">
-                              {biometricAttendance.find(b => 
+                              {biometricAttendance.find(b =>
                                 b.employeeCode?.trim().toLowerCase() === emp.code?.trim().toLowerCase() ||
                                 b.employeeName?.trim().toLowerCase() === emp.name?.trim().toLowerCase()
                               )?.inTime || "Not Available"}
@@ -283,7 +282,7 @@ export default function AttendanceTable({
                               <span className="font-bold text-xs text-slate-700">Check-Out</span>
                             </div>
                             <div className="text-lg font-black text-orange-600">
-                              {biometricAttendance.find(b => 
+                              {biometricAttendance.find(b =>
                                 b.employeeCode?.trim().toLowerCase() === emp.code?.trim().toLowerCase() ||
                                 b.employeeName?.trim().toLowerCase() === emp.name?.trim().toLowerCase()
                               )?.outTime || "Not Available"}

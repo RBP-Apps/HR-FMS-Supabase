@@ -53,11 +53,7 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   // Prorate weekly offs and holidays based on worked/paid days relative to working days in month
   // This ensures employees who only work a few days do not get full monthly weekly offs/holidays,
   // but full-month employees and those with small absences get their full/correct share.
-  const workedDaysCombined = presentDays + paidLeave;
-  const paidWeekOff = workingDays > 0 ? Math.round((weekOff * workedDaysCombined) / workingDays) : 0;
-  const paidHolidays = workingDays > 0 ? Math.round((holidays * workedDaysCombined) / workingDays) : 0;
-
-  const totalPaidDays = workedDaysCombined + paidWeekOff + paidHolidays;
+  const totalPaidDays = presentDays;
   const calendarDays = totalDaysInMonth || 30;
 
   // --- EARNED (paid-day prorated) ---

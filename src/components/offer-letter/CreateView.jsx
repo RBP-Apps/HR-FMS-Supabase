@@ -81,7 +81,6 @@ const CreateView = ({
               </p>
 
               <div className="relative mt-8">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450" size={18} />
                 <input
                   type="text"
                   placeholder={isConfirmationMode ? "Search by name or department..." : "Search by name or joining ID..."}

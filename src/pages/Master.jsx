@@ -298,10 +298,7 @@ export default function MasterDataManagement() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <Search
-                size={16}
-                className="absolute left-3.5 text-slate-450"
-              />
+             
             </div>
           </div>
         </div>

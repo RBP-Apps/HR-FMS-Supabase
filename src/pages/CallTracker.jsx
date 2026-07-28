@@ -571,10 +571,7 @@ const CallTracker = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <Search
-                size={16}
-                className="absolute left-3 text-gray-500"
-              />
+            
             </div>
           </div>
 
