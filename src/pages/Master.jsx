@@ -115,18 +115,13 @@ export default function MasterDataManagement() {
 
   // ================= HANDLE UPDATE =================
   const handleUpdate = async (id) => {
-    const payload = {};
-
-    Object.keys(editData).forEach((key) => {
-      if (editData[key] !== "" && editData[key] !== undefined && editData[key] !== null) {
-        payload[key] = editData[key];
-      }
-    });
-
     try {
+      // Remove id and created_at so primary key and system fields are not updated
+      const { id: _id, created_at: _created_at, ...updatePayload } = editData;
+
       const { error } = await supabase
         .from("master_hr")
-        .update(payload)
+        .update(updatePayload)
         .eq("id", id);
 
       if (error) throw error;

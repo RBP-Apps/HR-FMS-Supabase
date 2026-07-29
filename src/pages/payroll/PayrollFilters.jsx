@@ -92,7 +92,6 @@ export default function PayrollFilters({ filters, companies = [], onChange, onRe
         <div className="flex flex-col gap-1 sm:col-span-2">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Search</label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Name, Code, UAN, ESIC..."
@@ -149,7 +148,7 @@ export default function PayrollFilters({ filters, companies = [], onChange, onRe
       <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-100">
         <button
           onClick={onReset}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold
             hover:bg-gray-200 transition-all duration-200 hover:scale-105"
         >
           <RotateCcw className="w-4 h-4" />

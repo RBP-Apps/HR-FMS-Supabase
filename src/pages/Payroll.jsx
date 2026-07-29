@@ -104,6 +104,7 @@ export default function PayrollPage() {
   }, [filters.month, filters.year]);
 
   // ─── Fetch employees ──────────────────────────────────────────────
+  // ─── Fetch employees ──────────────────────────────────────────────
   const fetchEmployees = useCallback(async () => {
     const { data, error } = await supabase
       .from('joining')
@@ -120,6 +121,7 @@ export default function PayrollPage() {
       department: emp.department || 'Not Assigned',
       designation: emp.designation || '',
       joining_date: emp.date_of_joining || '',
+      leaving_date: emp.leaving_date || '',
       uan_number: emp.past_pf_id || '',
       esic_number: emp.past_esic_number || '',
       gross_salary: Number(emp.salary || 0),
@@ -132,7 +134,7 @@ export default function PayrollPage() {
     }));
   }, [addToast]);
 
-  // ─── Fetch attendances (optimized O(1) lookups) ────────────────────
+  // ─── Fetch attendances (optimized O(1) lookups aligned with Attendance Management) ───
   const fetchAttendances = useCallback(async (empList, month, year) => {
     const mVal = Number(month);
     const yVal = Number(year);
@@ -140,82 +142,111 @@ export default function PayrollPage() {
     const daysInMonth = new Date(yVal, monthNum, 0).getDate();
     const prefix = `${yVal}-${String(monthNum).padStart(2, '0')}`;
 
-    // 1. First check if finalized attendance exists in final_attendance
+    // 1. First check if attendance is finalized in attendance_finalization_log
     try {
-      const { data: finalAtt, error: finalAttErr } = await supabase
-        .from('final_attendance')
-        .select('employee_id,attendance_date,status')
+      const { data: finLog, error: logErr } = await supabase
+        .from('attendance_finalization_log')
+        .select('*')
         .eq('month', monthNum)
         .eq('year', yVal);
 
-      if (!finalAttErr && finalAtt && finalAtt.length > 0) {
-        // Group by employee_id
-        const empAttMap = {};
-        finalAtt.forEach(row => {
-          if (!empAttMap[row.employee_id]) {
-            empAttMap[row.employee_id] = [];
-          }
-          let st = row.status;
-          if (row.attendance_date) {
-            const dDate = new Date(row.attendance_date);
-            if (dDate.getDay() === 0 && st === 'A') {
-              st = 'WO';
-            }
-          }
-          empAttMap[row.employee_id].push(st);
-        });
+      if (!logErr && finLog && finLog.length > 0) {
+        const { data: finalAtt, error: finalAttErr } = await supabase
+          .from('final_attendance')
+          .select('employee_id,attendance_date,status')
+          .eq('month', monthNum)
+          .eq('year', yVal);
 
-        return empList.map(emp => {
-          const statuses = empAttMap[emp.id] || [];
-          let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
-
-          statuses.forEach(status => {
-            if (status === 'P') {
-              presentDays++;
-            } else if (status === 'HD') {
-              presentDays += 0.5;
-              absentDays += 0.5;
-            } else if (status === 'WO') {
-              weekOffCount++;
-            } else if (status === 'CL' || status === 'EL') {
-              paidLeaves++;
-            } else if (status === 'H') {
-              holidayCount++;
-            } else {
-              absentDays++;
+        if (!finalAttErr && finalAtt && finalAtt.length > 0) {
+          const empAttMap = {};
+          finalAtt.forEach(row => {
+            if (!row.employee_id) return;
+            const k = String(row.employee_id).trim().toLowerCase();
+            if (!empAttMap[k]) empAttMap[k] = [];
+            let st = row.status;
+            if (row.attendance_date) {
+              const dDate = new Date(row.attendance_date);
+              if (dDate.getDay() === 0 && st === 'A') st = 'WO';
             }
+            empAttMap[k].push(st);
           });
 
-          const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
+          return empList.map(emp => {
+            const empIdKey = emp.id ? String(emp.id).trim().toLowerCase() : '';
+            const empCodeKey = emp.rbp_joining_id ? String(emp.rbp_joining_id).trim().toLowerCase() : '';
+            const empNameKey = emp.employee_name ? String(emp.employee_name).trim().toLowerCase() : '';
 
-          return {
-            employee_id: emp.id,
-            working_days: daysInMonth,
-            present_days: paidDaysTotal,
-            week_off: weekOffCount,
-            paid_leave: paidLeaves,
-            holidays: holidayCount,
-            absent_days: absentDays,
-          };
-        });
+            const statuses = empAttMap[empIdKey] || empAttMap[empCodeKey] || empAttMap[empNameKey] || [];
+            let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
+
+            statuses.forEach(status => {
+              if (status === 'P') presentDays++;
+              else if (status === 'HD') { presentDays += 0.5; absentDays += 0.5; }
+              else if (status === 'WO') weekOffCount++;
+              else if (status === 'CL' || status === 'EL') paidLeaves++;
+              else if (status === 'H') holidayCount++;
+              else absentDays++;
+            });
+
+            const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
+
+            return {
+              employee_id: emp.id,
+              working_days: daysInMonth,
+              present_days: paidDaysTotal,
+              week_off: weekOffCount,
+              paid_leave: paidLeaves,
+              holidays: holidayCount,
+              absent_days: absentDays,
+            };
+          });
+        }
       }
     } catch (err) {
-      console.warn("Error fetching from final_attendance, falling back to live calculation", err);
+      console.warn("Error checking attendance_finalization_log", err);
     }
 
+    // 2. Live calculation if not finalized
     let bioLogs = [], attLogs = [], holidayLogs = [];
     try {
-      const [{ data: bioData, error: bioErr }, { data: attData, error: attErr }] = await Promise.all([
-        supabase.from('offline_biometric_punch')
+      // Paginated fetch for offline_biometric_punch (Supabase truncates at 1000 without range pagination)
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
+      const startDate = `${prefix}-01`;
+      const endDate = `${prefix}-${daysInMonth}`;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('offline_biometric_punch')
           .select('employee_id,employee_name,attendance_date,in_time,out_time')
-          .gte('attendance_date', `${prefix}-01`)
-          .lte('attendance_date', `${prefix}-${daysInMonth}`),
-        supabase.from('attendance')
-          .select('person_name,employee_code,date,status,approved_status')
-          .gte('date', `${prefix}-01`)
-          .lte('date', `${prefix}-${daysInMonth}`),
-      ]);
-      if (!bioErr) bioLogs = bioData || [];
+          .gte('attendance_date', startDate)
+          .lte('attendance_date', endDate)
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+        if (error) {
+          console.error("Error fetching biometric logs page", page, error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          bioLogs = [...bioLogs, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const { data: attData, error: attErr } = await supabase
+        .from('attendance')
+        .select('person_name,employee_code,date,status,approved_status')
+        .gte('date', startDate)
+        .lte('date', endDate);
+
       if (!attErr) attLogs = attData || [];
     } catch (err) {
       console.error("Error fetching attendance/biometric logs", err);
@@ -231,36 +262,66 @@ export default function PayrollPage() {
       console.warn("holiday_master fetch error", err);
     }
 
-    // Create O(1) indexes
-    const bioMap = {};
+    // Process biometric punches exactly like useAttendanceData.js
+    const bioGrouped = {};
     bioLogs.forEach(b => {
-      const codeKey = b.employee_id ? `${b.employee_id.trim().toLowerCase()}_${b.attendance_date}` : null;
-      const nameKey = b.employee_name ? `${b.employee_name.trim().toLowerCase()}_${b.attendance_date}` : null;
-      const hasPunch = b.in_time || b.out_time;
-      if (hasPunch) {
-        const punchObj = { in_time: b.in_time, out_time: b.out_time };
-        if (codeKey) bioMap[codeKey] = punchObj;
-        if (nameKey) bioMap[nameKey] = punchObj;
+      if (!b.attendance_date) return;
+      const attDate = String(b.attendance_date).split('T')[0].split(' ')[0];
+      const empId = b.employee_id ? String(b.employee_id).trim().toUpperCase() : '';
+      const empName = b.employee_name ? String(b.employee_name).trim().toUpperCase() : '';
+
+      const keys = [];
+      if (empId) keys.push(`${empId}_${attDate}`);
+      if (empName) keys.push(`${empName}_${attDate}`);
+
+      keys.forEach(key => {
+        if (!bioGrouped[key]) {
+          bioGrouped[key] = { inTimes: [], outTimes: [] };
+        }
+        if (b.in_time) bioGrouped[key].inTimes.push(b.in_time);
+        if (b.out_time) bioGrouped[key].outTimes.push(b.out_time);
+      });
+    });
+
+    const bioMap = {};
+    Object.keys(bioGrouped).forEach(key => {
+      const g = bioGrouped[key];
+      const allTimes = [];
+      g.inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+      g.outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+      allTimes.sort((a, b) => a.localeCompare(b));
+
+      let finalIn = null, finalOut = null;
+      if (allTimes.length === 1) {
+        if (g.inTimes.length > 0) finalIn = g.inTimes[0];
+        else if (g.outTimes.length > 0) finalOut = g.outTimes[0];
+        else finalIn = allTimes[0];
+      } else if (allTimes.length > 1) {
+        finalIn = allTimes[0];
+        finalOut = allTimes[allTimes.length - 1];
       }
+
+      bioMap[key.toLowerCase()] = { finalIn, finalOut };
     });
 
     const manualMap = {};
     const leaveMap = {};
     const fieldMap = {};
     attLogs.forEach(a => {
-      const nameKey = a.person_name ? `${a.person_name.trim().toLowerCase()}_${a.date}` : null;
-      const codeKey = a.employee_code ? `${a.employee_code.trim().toLowerCase()}_${a.date}` : null;
-      
-      if (a.approved_status === 'corrected') {
-        if (nameKey) manualMap[nameKey] = a.status;
-        if (codeKey) manualMap[codeKey] = a.status;
-      } else if (a.status === 'CL') {
-        if (nameKey) leaveMap[nameKey] = 'CL';
-        if (codeKey) leaveMap[codeKey] = 'CL';
-      } else {
-        if (nameKey) fieldMap[nameKey] = true;
-        if (codeKey) fieldMap[codeKey] = true;
-      }
+      if (!a.date) return;
+      const nameKey = a.person_name ? `${String(a.person_name).trim().toLowerCase()}_${a.date}` : null;
+      const codeKey = a.employee_code ? `${String(a.employee_code).trim().toLowerCase()}_${a.date}` : null;
+
+      [nameKey, codeKey].forEach(key => {
+        if (!key) return;
+        if (a.approved_status === 'corrected') {
+          manualMap[key] = a.status;
+        } else if (a.status === 'CL') {
+          leaveMap[key] = 'CL';
+        } else {
+          fieldMap[key] = true;
+        }
+      });
     });
 
     const holidayMap = {};
@@ -274,33 +335,45 @@ export default function PayrollPage() {
       const empNameClean = emp.employee_name?.trim().toLowerCase();
       const empCodeClean = emp.rbp_joining_id?.trim().toLowerCase();
 
+      const doj = emp.joining_date ? new Date(emp.joining_date) : null;
+      const dol = emp.leaving_date ? new Date(emp.leaving_date) : null;
+
       let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         const dayStr = `${prefix}-${String(d).padStart(2, '0')}`;
-        const isSunday = new Date(yVal, mVal, d).getDay() === 0;
+        const dayDate = new Date(yVal, mVal, d);
+
+        const compareDate = new Date(dayDate);
+        compareDate.setHours(0, 0, 0, 0);
+        if ((doj && compareDate < new Date(doj).setHours(0, 0, 0, 0)) ||
+            (dol && compareDate > new Date(dol).setHours(0, 0, 0, 0))) {
+          continue;
+        }
+
+        const isSunday = dayDate.getDay() === 0;
         const isHoliday = holidayMap[dayStr];
         let status = isSunday ? 'WO' : (isHoliday ? 'H' : 'A');
 
         const nameKey = empNameClean ? `${empNameClean}_${dayStr}` : '';
         const codeKey = empCodeClean ? `${empCodeClean}_${dayStr}` : '';
 
-        const manualStatus = (nameKey && manualMap[nameKey]) || (codeKey && manualMap[codeKey]);
+        const manualStatus = (codeKey && manualMap[codeKey]) || (nameKey && manualMap[nameKey]);
         if (manualStatus) {
           status = manualStatus;
         } else {
-          const leaveStatus = (nameKey && leaveMap[nameKey]) || (codeKey && leaveMap[codeKey]);
+          const leaveStatus = (codeKey && leaveMap[codeKey]) || (nameKey && leaveMap[nameKey]);
           if (leaveStatus) {
             status = 'CL';
           } else {
             const bioEntry = (codeKey && bioMap[codeKey]) || (nameKey && bioMap[nameKey]);
-            if (bioEntry) {
-              if (bioEntry.in_time && bioEntry.out_time) {
+            if (bioEntry && (bioEntry.finalIn || bioEntry.finalOut)) {
+              if (bioEntry.finalIn && bioEntry.finalOut) {
                 status = 'P';
               } else {
                 status = 'HD';
               }
             } else {
-              const hasField = (nameKey && fieldMap[nameKey]) || (codeKey && fieldMap[codeKey]);
+              const hasField = (codeKey && fieldMap[codeKey]) || (nameKey && fieldMap[nameKey]);
               if (hasField) status = 'P';
             }
           }
@@ -565,6 +638,7 @@ export default function PayrollPage() {
       'SL': i + 1,
       'EMP CODE': r.employee.rbp_joining_id,
       'NAME': r.employee.employee_name,
+      'ACCOUNT NO': r.employee.bank_account_number || '',
       'DESIGNATION': r.employee.designation,
       'DEPARTMENT': r.employee.department,
       'PRESENT': r.attendance?.present_days ?? 0,
