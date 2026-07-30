@@ -1097,7 +1097,7 @@ Authorised Signatory`;
           reporting_manager: "HR Manager",
           notice_period: "30 Days",
           working_hours: "9 Hours",
-          leave_policy: "12 CL, 12 SL, 30 EL per annum",
+          leave_policy: "12 CL per annum",
           offer_date: new Date().toISOString().split("T")[0],
           status: "Sent",
           confirmation_sent: false,

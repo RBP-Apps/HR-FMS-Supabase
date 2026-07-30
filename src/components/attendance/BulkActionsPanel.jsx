@@ -73,7 +73,6 @@ export default function BulkActionsPanel({
             <option value="P">Present (P)</option>
             <option value="A">Absent (A)</option>
             <option value="CL">Casual Leave (CL)</option>
-            <option value="EL">Earned Leave (EL)</option>
             <option value="LWP">Leave Without Pay (LWP)</option>
             <option value="WO">Weekly Off (WO)</option>
             <option value="H">Holiday (H)</option>

@@ -6,7 +6,6 @@ const STATUS_STYLE = {
   CL: { bg: "bg-violet-100 text-violet-700 border-violet-200", label: "🌴 Casual Leave" },
   HD: { bg: "bg-orange-100 text-orange-700 border-orange-200", label: "⏰ Half Day" },
   WO: { bg: "bg-slate-100 text-slate-500 border-slate-200", label: "📅 Week Off" },
-  EL: { bg: "bg-teal-100 text-teal-700 border-teal-200", label: "🌴 Earned Leave" },
   LWP: { bg: "bg-rose-100 text-rose-700 border-rose-200", label: "💸 Leave Without Pay" },
   H: { bg: "bg-indigo-100 text-indigo-700 border-indigo-200", label: "🎉 Holiday" },
   PM: { bg: "bg-yellow-100 text-yellow-700 border-yellow-200", label: "⚠️ Punch Missing (PM)" },

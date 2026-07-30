@@ -103,7 +103,6 @@ export default function EditAttendanceModal({
                 <option value="A">A (Absent)</option>
                 <option value="HD">HD (Half Day)</option>
                 <option value="CL">CL (Casual Leave)</option>
-                <option value="EL">EL (Earned Leave)</option>
                 <option value="LWP">LWP (Leave Without Pay)</option>
                 <option value="WO">WO (Weekly Off)</option>
                 <option value="H">H (Holiday)</option>

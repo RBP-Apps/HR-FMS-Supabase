@@ -367,9 +367,6 @@ const ApprovalManagement = () => {
         if (empData) {
           const daysNum = calculateDays(fromDate, toDate);
           let leaveAbbr = 'CL';
-          if (selectedRow.leaveType === 'Earned Leave' || selectedRow.leaveType === 'EL') {
-            leaveAbbr = 'EL';
-          }
 
           const { error: ledgerError } = await supabase
             .from('leave_ledger')
@@ -556,9 +553,6 @@ const ApprovalManagement = () => {
           const numericEmpId = empMap[leave.employee_id];
           if (numericEmpId) {
             let leaveAbbr = 'CL';
-            if (leave.leave_category === 'Earned Leave' || leave.leave_category === 'EL') {
-              leaveAbbr = 'EL';
-            }
 
             missingEntries.push({
               employee_id: numericEmpId,

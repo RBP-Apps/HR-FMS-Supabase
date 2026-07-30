@@ -555,15 +555,16 @@ export default function useAttendanceData() {
       });
 
       for (const emp of employeesList) {
+        if (emp.status && emp.status.toLowerCase() !== "active") continue;
+
         const dojStr = emp.dateOfJoining;
-        if (!dojStr) continue;
-        const doj = new Date(dojStr);
+        const doj = dojStr ? new Date(dojStr) : null;
 
         for (const target of eligibleMonths) {
           const firstDayOfTarget = new Date(target.year, target.month - 1, 1);
 
-          if (firstDayOfTarget.getFullYear() < doj.getFullYear() ||
-            (firstDayOfTarget.getFullYear() === doj.getFullYear() && firstDayOfTarget.getMonth() < doj.getMonth())) {
+          if (doj && (firstDayOfTarget.getFullYear() < doj.getFullYear() ||
+            (firstDayOfTarget.getFullYear() === doj.getFullYear() && firstDayOfTarget.getMonth() < doj.getMonth()))) {
             continue;
           }
 

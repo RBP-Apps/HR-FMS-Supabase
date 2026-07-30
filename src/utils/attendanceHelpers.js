@@ -5,7 +5,6 @@ export function calcSummary(data) {
     CL: data.filter(d => d === "CL").length,
     WO: data.filter(d => d === "WO").length,
     HD: data.filter(d => d === "HD").length,
-    EL: data.filter(d => d === "EL").length,
     LWP: data.filter(d => d === "LWP").length,
     H: data.filter(d => d === "H").length,
     PM: data.filter(d => d === "PM").length,
@@ -13,7 +12,7 @@ export function calcSummary(data) {
 }
 
 export function paidDays(s) {
-  return s.P + s.CL + s.EL + s.WO + s.H + s.HD * 0.5;
+  return s.P + s.CL + s.WO + s.H + s.HD * 0.5;
 }
 
 export const getMonthNumber = (monthName) => {

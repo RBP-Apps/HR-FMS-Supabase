@@ -183,7 +183,7 @@ export default function PayrollPage() {
               if (status === 'P') presentDays++;
               else if (status === 'HD') { presentDays += 0.5; absentDays += 0.5; }
               else if (status === 'WO') weekOffCount++;
-              else if (status === 'CL' || status === 'EL') paidLeaves++;
+              else if (status === 'CL') paidLeaves++;
               else if (status === 'H') holidayCount++;
               else absentDays++;
             });
@@ -386,7 +386,7 @@ export default function PayrollPage() {
           absentDays += 0.5;
         } else if (status === 'WO') {
           weekOffCount++;
-        } else if (status === 'CL' || status === 'EL') {
+        } else if (status === 'CL') {
           paidLeaves++;
         } else if (status === 'H') {
           holidayCount++;
