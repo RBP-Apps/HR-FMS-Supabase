@@ -153,11 +153,19 @@ export default function LateApprovals({ employees }) {
               value={lateForm.employee_id || undefined}
               onChange={(value) => {
                 const selected = employees.find(e => e.id === value);
+                const genderVal = (selected?.gender || "").toString().trim().toLowerCase();
+                const isFemale = genderVal === "female" || genderVal === "f";
+
+                const defaultIn = "09:30";
+                const defaultOut = isFemale ? "18:00" : "18:30";
+
                 setLateForm({
                   ...lateForm,
                   employee_id: value,
                   employee_name: selected ? selected.name : "",
-                  employee_code: selected ? selected.code : ""
+                  employee_code: selected ? selected.code : "",
+                  actual_in_time: defaultIn,
+                  actual_out_time: defaultOut
                 });
               }}
               className="w-full h-9"

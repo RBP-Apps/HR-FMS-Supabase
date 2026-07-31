@@ -365,3 +365,69 @@ create table public.users_hr (
   constraint users_hr_username_key unique (username)
 ) TABLESPACE pg_default;
 
+
+create table public.leave_ledger (
+  id uuid not null default gen_random_uuid (),
+  employee_id bigint not null,
+  ledger_date date not null,
+  leave_type character varying(5) not null,
+  transaction_type character varying(10) not null,
+  earned numeric(5, 2) null default 0.00,
+  used numeric(5, 2) null default 0.00,
+  remarks character varying null,
+  created_at timestamp with time zone null default now(),
+  constraint leave_ledger_pkey primary key (id),
+  constraint leave_ledger_employee_id_fkey foreign KEY (employee_id) references joining (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+
+-- Trigger to prevent inactive employees from getting inserted into leave_ledger
+
+CREATE OR REPLACE FUNCTION public.prevent_inactive_leave_ledger_insert()
+RETURNS TRIGGER AS $$
+DECLARE
+    emp_status text;
+BEGIN
+    SELECT status INTO emp_status 
+    FROM public.joining 
+    WHERE id = NEW.employee_id;
+    
+    IF emp_status IS NULL OR LOWER(emp_status) != 'active' THEN
+        RETURN NULL; -- Cancel insertion silently for inactive users
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS trg_prevent_inactive_leave_ledger ON public.leave_ledger;
+
+CREATE TRIGGER trg_prevent_inactive_leave_ledger
+BEFORE INSERT OR UPDATE ON public.leave_ledger
+FOR EACH ROW
+EXECUTE FUNCTION public.prevent_inactive_leave_ledger_insert();
+
+
+-- Trigger to auto-delete leave_ledger records when employee becomes Inactive
+
+CREATE OR REPLACE FUNCTION public.cleanup_leave_ledger_on_inactive()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF LOWER(NEW.status) != 'active' THEN
+        DELETE FROM public.leave_ledger WHERE employee_id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS trg_cleanup_leave_ledger_on_inactive ON public.joining;
+
+
+CREATE TRIGGER trg_cleanup_leave_ledger_on_inactive
+AFTER UPDATE OF status ON public.joining
+FOR EACH ROW
+EXECUTE FUNCTION public.cleanup_leave_ledger_on_inactive();
+
+

@@ -100,7 +100,7 @@ export default function useAttendanceData() {
       while (hasMore) {
         const { data, error: joiningError } = await supabase
           .from("joining")
-          .select("id, name_as_per_aadhar, firm_name, attendance_type, rbp_joining_id, department, designation, status, employee_category, date_of_joining, leaving_date")
+          .select("id, name_as_per_aadhar, firm_name, attendance_type, rbp_joining_id, department, designation, status, employee_category, date_of_joining, leaving_date, gender")
           .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
         if (joiningError) throw joiningError;
@@ -135,7 +135,8 @@ export default function useAttendanceData() {
           employeeCategory: join.employee_category || "",
           dateOfJoining: join.date_of_joining || "",
           dateOfLeaving: join.leaving_date || "",
-          status: join.status || "Active"
+          status: join.status || "Active",
+          gender: join.gender || ""
         };
       });
 

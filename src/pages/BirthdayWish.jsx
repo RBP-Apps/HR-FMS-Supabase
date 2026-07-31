@@ -511,7 +511,6 @@ export default function BirthdayWish() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:border-teal-600 text-sm py-2.5"
               />
-              <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
             </div>
           </div>
 
@@ -794,7 +793,7 @@ export default function BirthdayWish() {
               <div className="flex items-center gap-2">
                 <History className="w-5 h-5 text-[#0F766E]" />
                 <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">
-                  Sent Birthday Wishes Log (`birthday_wish`)
+                  Sent Birthday Wishes Log
                 </h2>
                 <span className="bg-emerald-100 text-[#0F766E] text-xs px-2.5 py-0.5 rounded-full font-bold">
                   {filteredHistory.length} Sent Records
@@ -803,7 +802,6 @@ export default function BirthdayWish() {
 
               {/* History Search Box */}
               <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Filter sent history..."
@@ -811,7 +809,9 @@ export default function BirthdayWish() {
                   onChange={(e) => setHistorySearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20"
                 />
+                
               </div>
+
             </div>
 
             {/* Table Container - Fixed 400px height with sticky header */}
