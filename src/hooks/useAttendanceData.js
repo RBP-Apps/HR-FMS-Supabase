@@ -348,16 +348,34 @@ export default function useAttendanceData() {
 
   const fetchManualCorrections = async () => {
     try {
-      const { data, error: err } = await supabase
-        .from("attendance")
-        .select("*")
-        .eq("approved_status", "corrected")
-        .order("date", { ascending: false })
-        .limit(50);
+      let allData = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
 
-      if (err) throw err;
+      while (hasMore) {
+        const { data, error: err } = await supabase
+          .from("attendance")
+          .select("*")
+          .eq("approved_status", "corrected")
+          .order("date", { ascending: false })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-      const corrections = (data || []).map(record => ({
+        if (err) throw err;
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const corrections = (allData || []).map(record => ({
         emp: record.person_name,
         code: record.employee_code,
         date: record.date,
@@ -373,12 +391,20 @@ export default function useAttendanceData() {
 
       const overrides = {};
       corrections.forEach(c => {
-        if (!overrides[c.code]) overrides[c.code] = {};
-        overrides[c.code][c.date] = c.next;
+        if (c.code) {
+          if (!overrides[c.code]) overrides[c.code] = {};
+          overrides[c.code][c.date] = c.next;
+        }
+        if (c.emp) {
+          if (!overrides[c.emp]) overrides[c.emp] = {};
+          overrides[c.emp][c.date] = c.next;
+        }
       });
       setManualOverrides(prev => ({ ...prev, ...overrides }));
+      return overrides;
     } catch (err) {
       console.error("Error fetching corrections:", err);
+      return {};
     }
   };
 
@@ -605,7 +631,7 @@ export default function useAttendanceData() {
     }
   };
 
-  const processAttendanceEngine = (employeesList, biometricList, fieldList, holidaysList, ledgerList, yearVal, monthName) => {
+  const processAttendanceEngine = (employeesList, biometricList, fieldList, holidaysList, ledgerList, yearVal, monthName, currentOverrides = manualOverrides) => {
     const monthIndex = getMonthNumber(monthName);
     const daysInMonth = new Date(parseInt(yearVal), monthIndex + 1, 0).getDate();
 
@@ -744,7 +770,10 @@ export default function useAttendanceData() {
           continue;
         }
 
-        const manualOverride = manualOverrides[emp.code]?.[dateStr] || manualOverrides[emp.id]?.[dateStr];
+        const manualOverride =
+          (emp.code && currentOverrides[emp.code]?.[dateStr]) ||
+          (emp.id && currentOverrides[emp.id]?.[dateStr]) ||
+          (emp.name && currentOverrides[emp.name]?.[dateStr]);
 
         if (manualOverride) {
           status = manualOverride;
@@ -1002,15 +1031,32 @@ export default function useAttendanceData() {
 
       if (err) throw err;
 
+      if (isFinalized) {
+        await supabase
+          .from("final_attendance")
+          .update({ status: newStatus, remarks: editRemark })
+          .eq("employee_id", employee.id)
+          .eq("attendance_date", date);
+      }
+
       setManualOverrides(prev => {
         const next = { ...prev };
-        if (!next[employee.code]) next[employee.code] = {};
-        next[employee.code][date] = newStatus;
+        if (employee.code) {
+          if (!next[employee.code]) next[employee.code] = {};
+          next[employee.code][date] = newStatus;
+        }
+        if (employee.id) {
+          if (!next[employee.id]) next[employee.id] = {};
+          next[employee.id][date] = newStatus;
+        }
+        if (employee.name) {
+          if (!next[employee.name]) next[employee.name] = {};
+          next[employee.name][date] = newStatus;
+        }
         return next;
       });
 
-      await fetchFieldAttendance();
-      await fetchManualCorrections();
+      await loadDynamicData();
 
       alert(`Attendance updated to ${newStatus} for ${employee.name} on ${date}`);
 
@@ -1079,10 +1125,14 @@ export default function useAttendanceData() {
       const remarkText = bulkAction.remark.trim();
 
       targetEmps.forEach(emp => {
-        if (!overrides[emp.code]) overrides[emp.code] = {};
+        if (emp.code && !overrides[emp.code]) overrides[emp.code] = {};
+        if (emp.id && !overrides[emp.id]) overrides[emp.id] = {};
+        if (emp.name && !overrides[emp.name]) overrides[emp.name] = {};
 
         dates.forEach(dateStr => {
-          overrides[emp.code][dateStr] = bulkAction.status;
+          if (emp.code) overrides[emp.code][dateStr] = bulkAction.status;
+          if (emp.id) overrides[emp.id][dateStr] = bulkAction.status;
+          if (emp.name) overrides[emp.name][dateStr] = bulkAction.status;
 
           rowsToInsert.push({
             person_name: emp.name,
@@ -1110,8 +1160,6 @@ export default function useAttendanceData() {
 
       alert(`Successfully saved bulk attendance for ${targetEmps.length} employee(s) over ${dates.length} day(s) (${rowsToInsert.length} record(s)) to Database!`);
 
-      await fetchFieldAttendance();
-      await fetchManualCorrections();
       await loadDynamicData();
     } catch (err) {
       console.error("Error saving bulk attendance:", err);
@@ -1321,14 +1369,16 @@ export default function useAttendanceData() {
         holidaysList,
         ledgerList,
         logList,
-        finalizedList
+        finalizedList,
+        correctionsOverrides
       ] = await Promise.all([
         fetchBiometricAttendance(selectedYear, selectedMonth),
         fetchFieldAttendance(selectedYear, selectedMonth),
         fetchHolidays(),
         fetchLeaveLedger(empList),
         fetchFinalizationLogs(),
-        fetchFinalizedAttendance(selectedYear, selectedMonth, empList)
+        fetchFinalizedAttendance(selectedYear, selectedMonth, empList),
+        fetchManualCorrections()
       ]);
 
       const isMonthFinalized = logList.some(log =>
@@ -1341,7 +1391,7 @@ export default function useAttendanceData() {
 
       if (empList.length > 0) {
         await syncMonthlyCLCredits(empList, ledgerList, selectedYear, selectedMonth);
-        processAttendanceEngine(empList, biometricList, fieldList, holidaysList, ledgerList, selectedYear, selectedMonth);
+        processAttendanceEngine(empList, biometricList, fieldList, holidaysList, ledgerList, selectedYear, selectedMonth, correctionsOverrides);
       }
     } catch (err) {
       console.error("Error loading dynamic data:", err);
@@ -1352,7 +1402,6 @@ export default function useAttendanceData() {
     const loadAll = async () => {
       setLoading(true);
       await loadDynamicData();
-      await fetchManualCorrections();
       setLoading(false);
     };
     loadAll();

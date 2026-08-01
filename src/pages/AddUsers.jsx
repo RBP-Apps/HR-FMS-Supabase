@@ -905,7 +905,6 @@ export default function UserRegistration() {
           {/* SEARCH & FILTER BAR */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search Employee Name, ID, Field..."
@@ -924,7 +923,7 @@ export default function UserRegistration() {
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden hidden md:block">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-800">
-                Employee Users Directory (`users_employee`)
+                Employee Users Directory
               </h2>
               <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-xl">
                 {filteredEmpUsers.length} Accounts
