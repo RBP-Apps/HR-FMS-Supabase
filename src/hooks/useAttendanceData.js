@@ -346,7 +346,7 @@ export default function useAttendanceData() {
     }
   };
 
-  const fetchManualCorrections = async () => {
+  const fetchManualCorrections = async (employeesList = employees) => {
     try {
       let allData = [];
       let page = 0;
@@ -358,7 +358,7 @@ export default function useAttendanceData() {
           .from("attendance")
           .select("*")
           .eq("approved_status", "corrected")
-          .order("date", { ascending: false })
+          .order("id", { ascending: true })
           .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
         if (err) throw err;
@@ -391,15 +391,34 @@ export default function useAttendanceData() {
 
       const overrides = {};
       corrections.forEach(c => {
-        if (c.code) {
-          if (!overrides[c.code]) overrides[c.code] = {};
-          overrides[c.code][c.date] = c.next;
+        const status = c.next;
+        const dateStr = c.date;
+        if (!dateStr) return;
+
+        const codeStr = c.code ? String(c.code).trim() : "";
+        const empStr = c.emp ? String(c.emp).trim() : "";
+
+        // Find employee object in employeesList to map by id, code, and name
+        const matchedEmp = (employeesList || []).find(e =>
+          (codeStr && (String(e.code || "").trim().toLowerCase() === codeStr.toLowerCase() || String(e.id) === codeStr)) ||
+          (empStr && String(e.name || "").trim().toLowerCase() === empStr.toLowerCase())
+        );
+
+        const keysToSet = new Set();
+        if (codeStr) keysToSet.add(codeStr);
+        if (empStr) keysToSet.add(empStr);
+        if (matchedEmp) {
+          if (matchedEmp.id) keysToSet.add(String(matchedEmp.id));
+          if (matchedEmp.code) keysToSet.add(String(matchedEmp.code).trim());
+          if (matchedEmp.name) keysToSet.add(String(matchedEmp.name).trim());
         }
-        if (c.emp) {
-          if (!overrides[c.emp]) overrides[c.emp] = {};
-          overrides[c.emp][c.date] = c.next;
-        }
+
+        keysToSet.forEach(key => {
+          if (!overrides[key]) overrides[key] = {};
+          overrides[key][dateStr] = status;
+        });
       });
+
       setManualOverrides(prev => ({ ...prev, ...overrides }));
       return overrides;
     } catch (err) {
@@ -1378,7 +1397,7 @@ export default function useAttendanceData() {
         fetchLeaveLedger(empList),
         fetchFinalizationLogs(),
         fetchFinalizedAttendance(selectedYear, selectedMonth, empList),
-        fetchManualCorrections()
+        fetchManualCorrections(empList)
       ]);
 
       const isMonthFinalized = logList.some(log =>
@@ -1409,7 +1428,7 @@ export default function useAttendanceData() {
 
   useEffect(() => {
     if (employees.length > 0 && !isFinalized) {
-      processAttendanceEngine(employees, biometricAttendance, fieldAttendance, holidays, leaveLedger, selectedYear, selectedMonth);
+      processAttendanceEngine(employees, biometricAttendance, fieldAttendance, holidays, leaveLedger, selectedYear, selectedMonth, manualOverrides);
     }
   }, [manualOverrides]);
 
