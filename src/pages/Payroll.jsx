@@ -142,6 +142,22 @@ export default function PayrollPage() {
     const daysInMonth = new Date(yVal, monthNum, 0).getDate();
     const prefix = `${yVal}-${String(monthNum).padStart(2, '0')}`;
 
+    const parseTimeToMinutes = (timeStr) => {
+      if (!timeStr) return null;
+      const str = String(timeStr).trim().toUpperCase();
+      const isPM = str.includes("PM");
+      const isAM = str.includes("AM");
+      const cleanStr = str.replace(/(AM|PM|\s)/g, "");
+      const parts = cleanStr.split(":");
+      if (parts.length < 2) return null;
+      let hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      if (isNaN(hours) || isNaN(minutes)) return null;
+      if (isPM && hours < 12) hours += 12;
+      if (isAM && hours === 12) hours = 0;
+      return hours * 60 + minutes;
+    };
+
     // 1. First check if attendance is finalized in attendance_finalization_log
     try {
       const { data: finLog, error: logErr } = await supabase
@@ -153,7 +169,7 @@ export default function PayrollPage() {
       if (!logErr && finLog && finLog.length > 0) {
         const { data: finalAtt, error: finalAttErr } = await supabase
           .from('final_attendance')
-          .select('employee_id,attendance_date,status')
+          .select('employee_id,attendance_date,status,in_time')
           .eq('month', monthNum)
           .eq('year', yVal);
 
@@ -168,7 +184,7 @@ export default function PayrollPage() {
               const dDate = new Date(row.attendance_date);
               if (dDate.getDay() === 0 && st === 'A') st = 'WO';
             }
-            empAttMap[k].push(st);
+            empAttMap[k].push({ status: st, in_time: row.in_time });
           });
 
           return empList.map(emp => {
@@ -176,16 +192,30 @@ export default function PayrollPage() {
             const empCodeKey = emp.rbp_joining_id ? String(emp.rbp_joining_id).trim().toLowerCase() : '';
             const empNameKey = emp.employee_name ? String(emp.employee_name).trim().toLowerCase() : '';
 
-            const statuses = empAttMap[empIdKey] || empAttMap[empCodeKey] || empAttMap[empNameKey] || [];
+            const records = empAttMap[empIdKey] || empAttMap[empCodeKey] || empAttMap[empNameKey] || [];
             let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
+            let lateCycleCount = 0, lateDaysCount = 0;
 
-            statuses.forEach(status => {
+            records.forEach(item => {
+              const status = item.status;
               if (status === 'P') presentDays++;
               else if (status === 'HD') { presentDays += 0.5; absentDays += 0.5; }
               else if (status === 'WO') weekOffCount++;
               else if (status === 'CL') paidLeaves++;
               else if (status === 'H') holidayCount++;
               else absentDays++;
+
+              if (item.in_time && !['A', 'WO', 'H', 'CL', 'LWP'].includes(status)) {
+                const inMins = parseTimeToMinutes(item.in_time);
+                if (inMins !== null && inMins >= 585 && inMins <= 750) {
+                  lateCycleCount++;
+                  if (lateCycleCount === 4) {
+                    lateCycleCount = 0;
+                  } else {
+                    lateDaysCount++;
+                  }
+                }
+              }
             });
 
             const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
@@ -198,6 +228,7 @@ export default function PayrollPage() {
               paid_leave: paidLeaves,
               holidays: holidayCount,
               absent_days: absentDays,
+              late_days: lateDaysCount,
             };
           });
         }
@@ -243,7 +274,7 @@ export default function PayrollPage() {
 
       const { data: attData, error: attErr } = await supabase
         .from('attendance')
-        .select('person_name,employee_code,date,status,approved_status')
+        .select('person_name,employee_code,date,status,approved_status,in_time')
         .gte('date', startDate)
         .lte('date', endDate);
 
@@ -319,7 +350,7 @@ export default function PayrollPage() {
         } else if (a.status === 'CL') {
           leaveMap[key] = 'CL';
         } else {
-          fieldMap[key] = true;
+          fieldMap[key] = { status: a.status || 'P', inTime: a.in_time };
         }
       });
     });
@@ -339,6 +370,8 @@ export default function PayrollPage() {
       const dol = emp.leaving_date ? new Date(emp.leaving_date) : null;
 
       let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
+      let lateCycleCount = 0, lateDaysCount = 0;
+
       for (let d = 1; d <= daysInMonth; d++) {
         const dayStr = `${prefix}-${String(d).padStart(2, '0')}`;
         const dayDate = new Date(yVal, mVal, d);
@@ -358,6 +391,8 @@ export default function PayrollPage() {
         const codeKey = empCodeClean ? `${empCodeClean}_${dayStr}` : '';
 
         const manualStatus = (codeKey && manualMap[codeKey]) || (nameKey && manualMap[nameKey]);
+        let checkInTime = null;
+
         if (manualStatus) {
           status = manualStatus;
         } else {
@@ -367,14 +402,18 @@ export default function PayrollPage() {
           } else {
             const bioEntry = (codeKey && bioMap[codeKey]) || (nameKey && bioMap[nameKey]);
             if (bioEntry && (bioEntry.finalIn || bioEntry.finalOut)) {
+              checkInTime = bioEntry.finalIn;
               if (bioEntry.finalIn && bioEntry.finalOut) {
                 status = 'P';
               } else {
                 status = 'HD';
               }
             } else {
-              const hasField = (codeKey && fieldMap[codeKey]) || (nameKey && fieldMap[nameKey]);
-              if (hasField) status = 'P';
+              const fieldRec = (codeKey && fieldMap[codeKey]) || (nameKey && fieldMap[nameKey]);
+              if (fieldRec) {
+                status = 'P';
+                checkInTime = fieldRec.inTime;
+              }
             }
           }
         }
@@ -393,6 +432,18 @@ export default function PayrollPage() {
         } else {
           absentDays++;
         }
+
+        if (checkInTime && !['A', 'WO', 'H', 'CL', 'LWP'].includes(status)) {
+          const inMins = parseTimeToMinutes(checkInTime);
+          if (inMins !== null && inMins >= 585 && inMins <= 750) {
+            lateCycleCount++;
+            if (lateCycleCount === 4) {
+              lateCycleCount = 0;
+            } else {
+              lateDaysCount++;
+            }
+          }
+        }
       }
 
       const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
@@ -405,6 +456,7 @@ export default function PayrollPage() {
         paid_leave: paidLeaves,
         holidays: holidayCount,
         absent_days: absentDays,
+        late_days: lateDaysCount,
       };
     });
   }, []);
@@ -518,6 +570,7 @@ export default function PayrollPage() {
     totalPFAmount: filteredRecords.reduce((s, r) => s + r.calc.epfDed, 0),
     totalESICAmount: filteredRecords.reduce((s, r) => s + r.calc.esicDed, 0),
     totalAdvanceDeduction: filteredRecords.reduce((s, r) => s + r.calc.advance, 0),
+    totalLateDeduction: filteredRecords.reduce((s, r) => s + r.calc.lateDeduction, 0),
     totalPayrollAmount: filteredRecords.reduce((s, r) => s + r.calc.totalPayable, 0),
     payrollMonth: `${MONTHS[filters.month]} ${filters.year}`,
     payrollStatus: 'Processed',
@@ -605,6 +658,7 @@ export default function PayrollPage() {
         esic_ded: r.calc.esicDed,
         advance: r.calc.advance,
         security_dep: r.calc.securityDep,
+        late_deduction: r.calc.lateDeduction,
         other_ded: r.calc.otherDed,
         total_ded: r.calc.totalDed,
         reimbursement: r.calc.reimbursement,
@@ -652,6 +706,7 @@ export default function PayrollPage() {
       'ESIC 0.75%': r.calc.esicDed,
       'ADVANCE': r.calc.advance,
       'SECURITY DEP': r.calc.securityDep,
+      'LATE DEDUCTION': r.calc.lateDeduction,
       'OTHER DED': r.calc.otherDed,
       'TOTAL DED': r.calc.totalDed,
       'REIMBURSEMENT': r.calc.reimbursement,
@@ -690,6 +745,7 @@ export default function PayrollPage() {
       'ESIC 0.75%': r.calc.esicDed,
       'ADVANCE': r.calc.advance,
       'SECURITY DEP': r.calc.securityDep,
+      'LATE DEDUCTION': r.calc.lateDeduction,
       'OTHER DED': r.calc.otherDed,
       'TOTAL DED': r.calc.totalDed,
       'REIMBURSEMENT': r.calc.reimbursement,
@@ -774,6 +830,7 @@ export default function PayrollPage() {
           esicDed: Number(row.esic_ded),
           advance: Number(row.advance),
           securityDep: Number(row.security_dep),
+          lateDeduction: Number(row.late_deduction || 0),
           otherDed: Number(row.other_ded),
           totalDed: Number(row.total_ded),
           reimbursement: Number(row.reimbursement),

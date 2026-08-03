@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
+import { parseTimeToMinutes } from "../../utils/attendanceHelpers";
 
 const STATUS_STYLE = {
   P: { bg: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "P" },
@@ -37,6 +38,16 @@ function StatBadge({ status }) {
       {s.label}
     </span>
   );
+}
+
+function formatLateDate(dateStr) {
+  if (!dateStr) return "";
+  const [yyyy, mm, dd] = dateStr.split("-");
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const mIndex = parseInt(mm, 10) - 1;
+  const mName = monthNames[mIndex] || mm;
+  const pDay = String(dd).padStart(2, "0");
+  return `${pDay}-${mName}-${yyyy}`;
 }
 
 export default function AttendanceTable({
@@ -81,6 +92,73 @@ export default function AttendanceTable({
   setShowDayDetailModal,
   setDayDetailData
 }) {
+  const [lateModalData, setLateModalData] = useState(null);
+
+  const biometricMap = useMemo(() => {
+    const map = new Map();
+    (biometricAttendance || []).forEach(b => {
+      if (b && b.date) {
+        if (b.employeeCode) map.set(`${b.employeeCode.toString().trim().toLowerCase()}_${b.date}`, b);
+        if (b.employeeName) map.set(`${b.employeeName.toString().trim().toLowerCase()}_${b.date}`, b);
+      }
+    });
+    return map;
+  }, [biometricAttendance]);
+
+  const fieldMap = useMemo(() => {
+    const map = new Map();
+    (fieldAttendance || []).forEach(f => {
+      if (f && f.date) {
+        if (f.employeeCode) map.set(`${f.employeeCode.toString().trim().toLowerCase()}_${f.date}`, f);
+        if (f.employeeName) map.set(`${f.employeeName.toString().trim().toLowerCase()}_${f.date}`, f);
+      }
+    });
+    return map;
+  }, [fieldAttendance]);
+
+  const getLateHistoryForEmp = (emp, attendanceArray) => {
+    const monthNum = getMonthNumber(selectedMonth);
+    const daysInMonth = attendanceArray.length;
+    const empCodeLower = emp.code?.toString().trim().toLowerCase();
+    const empNameLower = emp.name?.toString().trim().toLowerCase();
+
+    let lateCycleCount = 0;
+    const genuineLateEntries = [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const status = attendanceArray[d - 1];
+      if (!status || ["A", "WO", "H", "CL", "LWP"].includes(status)) {
+        continue;
+      }
+
+      const dateStr = `${selectedYear}-${String(monthNum + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const codeKey = `${empCodeLower}_${dateStr}`;
+      const nameKey = `${empNameLower}_${dateStr}`;
+
+      const bioRecord = biometricMap.get(codeKey) || biometricMap.get(nameKey);
+      const fieldRecord = fieldMap.get(codeKey) || fieldMap.get(nameKey);
+
+      const inTime = bioRecord?.inTime || fieldRecord?.inTime;
+      if (!inTime) continue;
+
+      const inMins = parseTimeToMinutes(inTime);
+      if (inMins !== null && inMins >= 585 && inMins <= 750) {
+        lateCycleCount++;
+        if (lateCycleCount === 4) {
+          lateCycleCount = 0;
+        } else {
+          genuineLateEntries.push({
+            dateStr,
+            formattedDate: formatLateDate(dateStr),
+            inTime: inTime
+          });
+        }
+      }
+    }
+
+    return genuineLateEntries;
+  };
+
   return (
     <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
       {/* Section header */}
@@ -137,7 +215,7 @@ export default function AttendanceTable({
                   <div className="text-indigo-200 text-[9px] font-normal">{day}</div>
                 </th>
               ))}
-              {["P", "A", "CL", "WO", "Paid Days", "Actions"].map(h => (
+              {["P", "A", "CL", "WO", "Late Days", "Paid Days", "Actions"].map(h => (
                 <th key={h} className="sticky top-0 z-20 bg-indigo-600 px-2 py-2 whitespace-nowrap font-semibold border-b border-indigo-700">{h}</th>
               ))}
             </tr>
@@ -146,6 +224,7 @@ export default function AttendanceTable({
             {pageRows.map((emp, ri) => {
               const attendanceArray = generateMonthlyAttendance(emp, selectedYear, selectedMonth);
               const summary = calcSummary(attendanceArray);
+              const genuineLateEntries = getLateHistoryForEmp(emp, attendanceArray);
               const isExpanded = expandedRow === emp.id;
               const remainingCL = leaveBalances[emp.id]?.remainingCL ?? MAX_CL_DAYS;
 
@@ -198,8 +277,30 @@ export default function AttendanceTable({
                     <td className="px-2 py-2 text-center font-bold text-emerald-600">{summary.P}</td>
                     <td className="px-2 py-2 text-center font-bold text-red-500">{summary.A}</td>
                     <td className="px-2 py-2 text-center font-bold text-violet-600">{summary.CL}</td>
-
                     <td className="px-2 py-2 text-center font-bold text-slate-400">{summary.WO}</td>
+
+                    {/* LATE DAYS COLUMN */}
+                    <td className="px-2 py-2 text-center font-bold">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLateModalData({
+                            employee: emp,
+                            lateEntries: genuineLateEntries
+                          });
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-xs font-black transition-all ${
+                          genuineLateEntries.length > 0
+                            ? "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 cursor-pointer shadow-sm"
+                            : "text-slate-400 hover:text-slate-600 cursor-pointer hover:bg-slate-100"
+                        }`}
+                        title="Click to view Late History"
+                      >
+                        {genuineLateEntries.length}
+                      </button>
+                    </td>
+
                     <td className="px-2 py-2 text-center font-bold text-indigo-700">{paidDays(summary)}</td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-1 justify-center">
@@ -357,6 +458,84 @@ export default function AttendanceTable({
           </div>
         )}
       </div>
+
+      {/* LATE HISTORY MODAL */}
+      {lateModalData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] transition-opacity">
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 w-[450px] shadow-2xl max-h-[85vh] flex flex-col relative animate-in fade-in zoom-in-95 duration-200">
+            {/* Close Button */}
+            <button
+              onClick={() => setLateModalData(null)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors"
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div className="mb-4">
+              <span className="text-xs font-bold text-amber-600 uppercase tracking-widest block mb-1">Attendance History</span>
+              <h3 className="text-xl font-extrabold text-slate-800 leading-tight">
+                Late Attendance History
+              </h3>
+            </div>
+
+            {/* Summary Box */}
+            <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mb-4">
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Employee</span>
+                  <span className="text-sm font-extrabold text-slate-800">{lateModalData.employee.name}</span>
+                  <span className="text-xs text-slate-500 font-medium block">
+                    {lateModalData.employee.code} · {lateModalData.employee.dept}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">Total Late Days:</span>
+                  <span className="text-base font-black text-amber-700 bg-white px-3 py-0.5 rounded-full border border-amber-200 shadow-sm">
+                    {lateModalData.lateEntries.length}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Late Dates List */}
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-2.5 pr-1">
+              <span className="text-xs font-extrabold text-slate-700 block mb-1">Late Dates:</span>
+              {lateModalData.lateEntries.length > 0 ? (
+                lateModalData.lateEntries.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-slate-50 hover:bg-amber-50/50 border border-slate-200/80 rounded-xl p-3 transition-colors flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-500 text-sm font-black">•</span>
+                      <span className="font-extrabold text-slate-800 text-xs">{item.formattedDate}</span>
+                    </div>
+                    <div className="text-xs font-medium text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-xs">
+                      In Time : <span className="font-bold text-amber-800">{item.inTime}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-slate-400 text-xs font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  No late entries found for this month.
+                </div>
+              )}
+            </div>
+
+            {/* Footer Close Button */}
+            <div className="mt-5 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setLateModalData(null)}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

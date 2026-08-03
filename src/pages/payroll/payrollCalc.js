@@ -37,6 +37,7 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const weekOff = attendance?.week_off || 0;
   const paidLeave = attendance?.paid_leave || 0;
   const holidays = attendance?.holidays || 0;
+  const lateDays = attendance?.late_days || 0;
 
   const monthNum = (month ?? new Date().getMonth()) + 1;
   const totalDaysInMonth = new Date(year ?? new Date().getFullYear(), monthNum, 0).getDate();
@@ -51,8 +52,6 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const grossReal      = grossSalary;
 
   // Prorate weekly offs and holidays based on worked/paid days relative to working days in month
-  // This ensures employees who only work a few days do not get full monthly weekly offs/holidays,
-  // but full-month employees and those with small absences get their full/correct share.
   const totalPaidDays = presentDays;
   const calendarDays = totalDaysInMonth || 30;
 
@@ -73,8 +72,12 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const esicDed        = basicEarned * 0.0075;
   const advance        = Number(edits.advance        ?? 0);
   const securityDep    = Number(edits.security_deposit ?? 0);
+  const autoLateDed    = lateDays * (perDaySalary * 0.5);
+  const lateDeduction  = edits.late_deduction !== undefined && edits.late_deduction !== ''
+    ? Number(edits.late_deduction)
+    : autoLateDed;
   const otherDed       = Number(edits.other_deduction  ?? 0);
-  const totalDed       = epfDed + esicDed + advance + securityDep + otherDed;
+  const totalDed       = epfDed + esicDed + advance + securityDep + lateDeduction + otherDed;
 
   // --- EXTRAS ---
   const reimbursement  = Number(edits.reimbursement   ?? 0);
@@ -95,10 +98,11 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
     basicReal, hraReal, convReal, medReal, specialReal, grossReal,
     basicEarned, hraEarned, convEarned, medEarned, specialEarned, grossEarned,
     otAmount, epfDed, esicDed,
-    advance, securityDep, otherDed, totalDed,
+    advance, securityDep, lateDeduction, otherDed, totalDed,
     reimbursement, salaryArrears, taDA, remark,
     netSalary, totalPayable,
     employerEPF, employerESIC, ctc,
   };
 }
+
 

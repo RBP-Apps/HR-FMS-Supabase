@@ -175,6 +175,7 @@ const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, 
             <div className="flex justify-between"><span className="text-gray-500">EPF 12%:</span> <span className="font-semibold text-gray-700">{fmt(c.epfDed)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">ESIC 0.75%:</span> <span className="font-semibold text-gray-700">{fmt(c.esicDed)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Advance:</span> <span className="font-semibold text-gray-700">{fmt(c.advance)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Late Ded:</span> <span className="font-semibold text-gray-700">{fmt(c.lateDeduction)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Other Ded:</span> <span className="font-semibold text-gray-700">{fmt(c.otherDed)}</span></div>
           </div>
         </div>
@@ -343,6 +344,9 @@ export default function PayrollTable({
                 <TH className="!bg-yellow-200 !text-yellow-900 border-x border-yellow-300">
                   SECURITY DEP.
                 </TH>
+                <TH className="!bg-red-600 !text-white border-x border-yellow-300">
+                  LATE DEDUCTION
+                </TH>
                 <TH className="!bg-yellow-200 !text-yellow-900 border-x border-yellow-300">
                   OTHER DED.
                 </TH>
@@ -495,6 +499,7 @@ export default function PayrollTable({
                         <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.esicDed)}</TD>
                         <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.advance)}</TD>
                         <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.securityDep)}</TD>
+                        <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.lateDeduction)}</TD>
                         <TD even={even} className="text-yellow-900 font-semibold !bg-yellow-50/50">{fmt(c.otherDed)}</TD>
                         <TD even={even} className="font-bold text-red-600 !bg-yellow-100/50">{fmt(c.totalDed)}</TD>
 

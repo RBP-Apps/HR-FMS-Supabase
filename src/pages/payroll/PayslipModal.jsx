@@ -99,6 +99,7 @@ export default function PayslipModal({ record, selectedMonth, selectedYear, onCl
                   ['ESIC (0.75%)', c.esicDed],
                   ['Advance', c.advance],
                   ['Security Deposit', c.securityDep],
+                  ['Late Deduction', c.lateDeduction],
                   ['Other Deduction', c.otherDed],
                 ].map(([label, val]) => (
                   <div key={label} className="flex justify-between">

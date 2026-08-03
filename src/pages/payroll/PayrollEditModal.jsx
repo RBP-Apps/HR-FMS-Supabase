@@ -32,6 +32,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
   const [form, setForm] = useState({
     advance: 0,
     security_deposit: 0,
+    late_deduction: 0,
     other_deduction: 0,
     reimbursement: 0,
     salary_arrears: 0,
@@ -47,6 +48,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
       setForm({
         advance:          record.calc?.advance        ?? 0,
         security_deposit: record.calc?.securityDep    ?? 0,
+        late_deduction:   record.calc?.lateDeduction  ?? 0,
         other_deduction:  record.calc?.otherDed       ?? 0,
         reimbursement:    record.calc?.reimbursement  ?? 0,
         salary_arrears:   record.calc?.salaryArrears  ?? 0,
@@ -65,7 +67,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
 
   const validate = () => {
     const errs = {};
-    const numFields = ['advance','security_deposit','other_deduction','reimbursement','salary_arrears','ta_da','ot'];
+    const numFields = ['advance','security_deposit','late_deduction','other_deduction','reimbursement','salary_arrears','ta_da','ot'];
     numFields.forEach(f => {
       if (form[f] < 0) errs[f] = 'Cannot be negative';
     });
@@ -110,6 +112,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
               <ReadonlyField label="Gross Earned" value={fmt(c.grossEarned)} />
               <ReadonlyField label="EPF 12%" value={fmt(c.epfDed)} />
               <ReadonlyField label="ESIC 0.75%" value={fmt(c.esicDed)} />
+              <ReadonlyField label="Late Deduction" value={fmt(c.lateDeduction)} />
               <ReadonlyField label="Total Deduction" value={fmt(c.totalDed)} />
               <ReadonlyField label="Net Salary" value={fmt(c.netSalary)} highlight />
               <ReadonlyField label="Total Payable" value={fmt(c.totalPayable)} highlight />
@@ -125,6 +128,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
                 hint="Days worked overtime" />
               <Field label="Advance (₹)" name="advance" value={form.advance} onChange={handleChange} />
               <Field label="Security Deposit (₹)" name="security_deposit" value={form.security_deposit} onChange={handleChange} />
+              <Field label="Late Deduction (₹)" name="late_deduction" value={form.late_deduction} onChange={handleChange} />
               <Field label="Other Deduction (₹)" name="other_deduction" value={form.other_deduction} onChange={handleChange} />
               <Field label="Reimbursement (₹)" name="reimbursement" value={form.reimbursement} onChange={handleChange} />
               <Field label="Salary Arrears (₹)" name="salary_arrears" value={form.salary_arrears} onChange={handleChange} />
