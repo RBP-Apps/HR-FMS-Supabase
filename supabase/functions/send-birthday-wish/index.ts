@@ -57,11 +57,11 @@ serve(async (req) => {
               parameters: [
                 {
                   type: "text",
-                  text: name || "Employee"
+                  text: (name || "Employee").replace(/[\r\n]+/g, " ").trim()
                 },
                 {
                   type: "text",
-                  text: message
+                  text: (message || "").replace(/[\r\n]+/g, " ").trim()
                 }
               ]
             }

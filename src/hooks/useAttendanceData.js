@@ -10,7 +10,6 @@ import {
 export default function useAttendanceData() {
   // States for real data
   const [employees, setEmployees] = useState([]);
-  const [companies, setCompanies] = useState([]);
   const [fieldAttendance, setFieldAttendance] = useState([]);
   const [biometricAttendance, setBiometricAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,8 +116,6 @@ export default function useAttendanceData() {
         }
       }
 
-      const uniqueCompanies = [...new Set((joiningData || []).map(j => j.firm_name).filter(Boolean))];
-      setCompanies(uniqueCompanies);
 
       const empList = (joiningData || []).map((join, idx) => {
         return {
@@ -1448,6 +1445,22 @@ export default function useAttendanceData() {
   }, [finalizedAttendance]);
 
   // Derived/computed properties
+  const companies = useMemo(() => {
+    let list = employees.filter(e =>
+      e.status?.toLowerCase() !== "inactive" &&
+      e.status?.toLowerCase() !== "in-active"
+    );
+
+    if (activeTab === "biometric") {
+      list = list.filter(e => e.employeeCategory?.trim() === "Office Staff");
+    } else if (activeTab === "field") {
+      list = list.filter(e => e.employeeCategory?.trim() === "Field Staff");
+    }
+
+    const unique = [...new Set(list.map(e => e.company).filter(c => c && c !== "N/A"))];
+    return unique.sort();
+  }, [employees, activeTab]);
+
   const filtered = useMemo(() => {
     let list = employees.filter(e =>
       (e.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -1510,7 +1523,7 @@ export default function useAttendanceData() {
 
   return {
     employees, setEmployees,
-    companies, setCompanies,
+    companies,
     fieldAttendance, setFieldAttendance,
     biometricAttendance, setBiometricAttendance,
     loading, setLoading,

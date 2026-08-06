@@ -86,7 +86,6 @@ const ListView = ({
       {/* Filters */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-450" size={16} />
           <input
             type="text"
             placeholder="Search employee..."

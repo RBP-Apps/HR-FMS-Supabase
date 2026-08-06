@@ -158,9 +158,11 @@ export default function BirthdayWish() {
 
   // Templates definition
   const messageTemplates = {
-    professional: (name) => `wishing you a very Happy Birthday on behalf of the entire team! Thank you for your hard work and dedication. May this year bring you continued success, good health, and happiness. Have a wonderful day!`,
+    simple: (name) => `On behalf of the *RBP Group*, we extend our warmest wishes to you on your special day. May this birthday bring you good health, happiness, success, and many new opportunities in the year ahead. We truly appreciate your dedication and valuable contributions to our organization, and we wish you continued growth and achievement. Have a wonderful birthday and a fantastic year ahead!`,
+    professional: (name) => `Wishing you a very Happy Birthday on behalf of the entire team! Thank you for your hard work and dedication. May this year bring you continued success, good health, and happiness. Have a wonderful day!`,
     warm: (name) => `Happy Birthday, Wishing you a day filled with laughter, joy, and all your favorite things. We are so glad to have you in our team. Have an amazing year ahead!`,
     creative: (name) => `Cheers to another fantastic trip around the sun! May your special day be as bright, inspiring, and awesome as you are to work with. Have a blast celebrating!`,
+    funny: (name) => `Happy Birthday! 🎂🎉 Don't count the candles, just enjoy the cake! 🍰 We promise not to tell anyone your real age as long as we get a slice! 🍕🥳 Have an awesome day and a fantastic year ahead! 🚀✨`,
   };
 
   const fetchEmployees = async () => {
@@ -395,7 +397,7 @@ export default function BirthdayWish() {
           phone: targetPhone,
           name: selectedEmp.name,
           message: message,
-          templateName: "birthday_wish_template",
+          templateName: "birthday_new",
           languageCode: "en_US"
         },
       });
@@ -965,7 +967,7 @@ export default function BirthdayWish() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Message Tone</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {Object.keys(messageTemplates).map((tone) => (
                     <button
                       key={tone}

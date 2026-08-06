@@ -44,7 +44,7 @@ export default function AttendanceFilters({
       {/* Company Filter */}
       <select value={selectedCompany} onChange={e => { setSelectedCompany(e.target.value); setCurrentPage(1); }} className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50">
         <option>All Companies</option>
-        {companies.map(c => <option key={c}>{c}</option>)}
+        {(companies || []).map(c => <option key={c} value={c}>{c}</option>)}
       </select>
 
       <select value={selectedYear} onChange={e => { setSelectedYear(e.target.value); setCurrentPage(1); }} className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50">
