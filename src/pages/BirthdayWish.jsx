@@ -397,7 +397,7 @@ export default function BirthdayWish() {
           phone: targetPhone,
           name: selectedEmp.name,
           message: message,
-          templateName: "birthday_new",
+          templateName: "employee_birthday_wish",
           languageCode: "en_US"
         },
       });
