@@ -1,4 +1,4 @@
-// Deno Edge Function for sending WhatsApp Birthday wishes using Meta WhatsApp Business API
+// Deno Edge Function for sending WhatsApp Work Anniversary wishes using Meta WhatsApp Business API
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -20,11 +20,11 @@ serve(async (req) => {
 
   try {
     const bodyData = await req.json().catch(() => ({}));
-    const { phone, name, message, templateName, languageCode, imageUrl, autoCron } = bodyData;
+    const { phone, name, years, message, templateName, languageCode, imageUrl, autoCron } = bodyData;
 
-    // Handle 12:01 AM Daily Automated Cron Trigger
+    // Handle 12:01 AM Daily Automated Cron Trigger for Work Anniversaries
     if (autoCron) {
-      console.log("Executing 12:01 AM Daily Automated Birthday Wish Dispatch Job...");
+      console.log("Executing 12:01 AM Daily Automated Work Anniversary Wish Dispatch Job...");
       if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
         throw new Error("Supabase service credentials missing for autoCron execution.");
       }
@@ -40,47 +40,48 @@ serve(async (req) => {
       const today = new Date();
       const currentMonth = today.getMonth() + 1;
       const currentDate = today.getDate();
+      const currentYear = today.getFullYear();
 
-      const todayBdayEmps = (employees || []).filter((emp) => {
-        if (!emp.date_of_birth) return false;
-        const str = String(emp.date_of_birth).trim();
-        let dobMonth = null;
-        let dobDate = null;
+      const todayAnnivEmps = (employees || []).filter((emp) => {
+        if (!emp.date_of_joining) return false;
+        const str = String(emp.date_of_joining).trim();
+        let dojMonth = null;
+        let dojDate = null;
 
         if (str.includes("/")) {
           const parts = str.split("/");
           if (parts.length === 3) {
-            dobDate = parseInt(parts[0], 10);
-            dobMonth = parseInt(parts[1], 10);
+            dojDate = parseInt(parts[0], 10);
+            dojMonth = parseInt(parts[1], 10);
           }
         } else if (str.includes("-")) {
           const parts = str.split("-");
           if (parts.length === 3) {
             if (parts[0].length === 4) {
-              dobMonth = parseInt(parts[1], 10);
-              dobDate = parseInt(parts[2], 10);
+              dojMonth = parseInt(parts[1], 10);
+              dojDate = parseInt(parts[2], 10);
             } else {
-              dobDate = parseInt(parts[0], 10);
-              dobMonth = parseInt(parts[1], 10);
+              dojDate = parseInt(parts[0], 10);
+              dojMonth = parseInt(parts[1], 10);
             }
           }
         } else {
           const d = new Date(str);
           if (!isNaN(d.getTime())) {
-            dobMonth = d.getMonth() + 1;
-            dobDate = d.getDate();
+            dojMonth = d.getMonth() + 1;
+            dojDate = d.getDate();
           }
         }
 
-        return dobMonth === currentMonth && dobDate === currentDate;
+        return dojMonth === currentMonth && dojDate === currentDate;
       });
 
-      console.log(`Found ${todayBdayEmps.length} birthday(s) today.`);
+      console.log(`Found ${todayAnnivEmps.length} Work Anniversary milestone(s) today.`);
 
       const results = [];
-      const activeTemplate = templateName || "new_emp_birthday_wish";
+      const activeTemplate = templateName || "work_anniversary_wish";
 
-      for (const emp of todayBdayEmps) {
+      for (const emp of todayAnnivEmps) {
         const empName = emp.name_as_per_aadhar || "Employee";
         let targetPhone = emp.mobile_number || emp.family_number || "";
         targetPhone = targetPhone.replace(/\D/g, "");
@@ -94,7 +95,15 @@ serve(async (req) => {
           targetPhone = "91" + targetPhone;
         }
 
-        const customMessage = `Happy Birthday, ${empName}!\nOn your special day, the entire Team RBP wishes you joy, good health and a year that shines as bright as the energy you bring every day. Thank you for being part of our journey.\nWarm wishes, Team RBP — Committed to Empower & Shine`;
+        // Calculate completed years
+        let dojYear = currentYear;
+        const str = String(emp.date_of_joining);
+        if (str.includes("/")) dojYear = parseInt(str.split("/")[2], 10) || currentYear;
+        else if (str.includes("-")) dojYear = parseInt(str.split("-")[0], 10) || currentYear;
+
+        const yrs = Math.max(1, currentYear - dojYear);
+
+        const customMessage = `🎉 Happy Work Anniversary, ${empName}!\n${yrs} years of shining together — thank you for your dedication, energy and commitment to RBP.\nHere’s to many more milestones ahead.\nWarm wishes, Team RBP — Committed to Empower & Shine`;
 
         const payload = {
           messaging_product: "whatsapp",
@@ -106,7 +115,10 @@ serve(async (req) => {
             components: [
               {
                 type: "body",
-                parameters: [{ type: "text", text: empName }]
+                parameters: [
+                  { type: "text", text: empName },
+                  { type: "text", text: String(yrs) }
+                ]
               }
             ]
           }
@@ -127,11 +139,13 @@ serve(async (req) => {
         const respData = await resp.json();
         results.push({ name: empName, phone: targetPhone, success: resp.ok, respData });
 
-        // Log to database table `birthday_wish`
-        await supabaseAdmin.from("birthday_wish").insert([{
+        // Log to database table `work_anniversary_wish`
+        await supabaseAdmin.from("work_anniversary_wish").insert([{
           employee_name: empName,
           employee_code: emp.rbp_joining_id || "",
           mobile_number: targetPhone,
+          joining_date: emp.date_of_joining || "",
+          years_completed: yrs,
           wish_date: today.toISOString().split("T")[0],
           message: customMessage,
           template_name: activeTemplate,
@@ -162,14 +176,15 @@ serve(async (req) => {
       cleanPhone = "91" + cleanPhone;
     }
 
-    const activeTemplate = templateName || "new_emp_birthday_wish";
-    console.log(`Sending WhatsApp to ${cleanPhone} (Name: ${name || "N/A"}, Template: ${activeTemplate}, Image: ${imageUrl ? "Yes" : "No"})`);
+    const activeTemplate = templateName || "work_anniversary_wish";
+    const yrsCount = years || "1";
+    console.log(`Sending Work Anniversary WhatsApp to ${cleanPhone} (Name: ${name || "N/A"}, Years: ${yrsCount}, Template: ${activeTemplate}, Image: ${imageUrl ? "Yes" : "No"})`);
 
     let payload: any;
     if (activeTemplate) {
       const components: any[] = [];
 
-      // If template contains image header
+      // Image header component if provided
       if (imageUrl) {
         components.push({
           type: "header",
@@ -182,13 +197,17 @@ serve(async (req) => {
         });
       }
 
-      // Body parameter {{1}} = Employee Name
+      // Body parameters {{1}} = Employee Name, {{2}} = Years Completed
       components.push({
         type: "body",
         parameters: [
           {
             type: "text",
             text: (name || "Valued Team Member").replace(/[\r\n]+/g, " ").trim()
+          },
+          {
+            type: "text",
+            text: String(yrsCount).trim()
           }
         ]
       });
@@ -206,14 +225,13 @@ serve(async (req) => {
         }
       };
     } else if (imageUrl) {
-      // Direct image message with caption fallback
       payload = {
         messaging_product: "whatsapp",
         to: cleanPhone,
         type: "image",
         image: {
           link: imageUrl,
-          caption: message || `Happy Birthday, ${name || "Team Member"}!`
+          caption: message || `Happy Work Anniversary, ${name || "Team Member"}!`
         }
       };
     } else {
@@ -253,7 +271,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Error sending WhatsApp message:", error);
+    console.error("Error sending Work Anniversary WhatsApp message:", error);
     return new Response(
       JSON.stringify({ error: (error as any).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

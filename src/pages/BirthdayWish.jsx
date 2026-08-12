@@ -1,27 +1,9 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { 
-  Search, 
-  Filter, 
-  Cake, 
-  Gift, 
-  Users, 
-  Calendar, 
-  MessageSquare, 
-  Send, 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
-  Sparkles, 
-  Mail, 
-  AlertCircle,
-  Clock,
-  PartyPopper,
-  History,
-  Trash2,
-  CheckCircle2
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { Search, Filter, Cake, Gift, Users, Calendar, MessageSquare, Send, X, ChevronLeft, ChevronRight, Sparkles, Mail, AlertCircle,Clock,PartyPopper,History,Trash2,CheckCircle2,Download,Image as ImageIcon,Eye,Share2, Award
 } from "lucide-react";
 import toast from "react-hot-toast";
 import supabase from "../utils/supabase";
+import WorkAnniversary from "./WorkAnniversary";
 
 // Robust DOB parsing supporting DD/MM/YYYY, YYYY-MM-DD, and ISO strings
 const parseDOB = (dobStr) => {
@@ -130,7 +112,306 @@ const InitialAvatar = ({ name, size = "w-16 h-16 text-xl" }) => {
   );
 };
 
-export default function BirthdayWish() {
+// Draws high-definition 1000x1300 RBP Birthday Card matching exact template image
+const drawBirthdayCardCanvas = (canvas, employeeName, logoImg = null) => {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const width = 1000;
+  const height = 1300;
+  canvas.width = width;
+  canvas.height = height;
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+  bgGrad.addColorStop(0, "#FAF7EE");
+  bgGrad.addColorStop(1, "#F4EFE3");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, width, height);
+
+  // Outer Gold Metallic Border
+  ctx.strokeStyle = "#C9A050";
+  ctx.lineWidth = 14;
+  ctx.strokeRect(28, 28, width - 56, height - 56);
+
+  // Inner Thin Gold Accent Frame
+  ctx.strokeStyle = "rgba(201, 160, 80, 0.4)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(42, 42, width - 84, height - 84);
+
+  // Decorative Corner Brackets
+  const pad = 48;
+  const bracketLen = 22;
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#C9A050";
+
+  // Top Left
+  ctx.beginPath();
+  ctx.moveTo(pad - 8, pad + bracketLen);
+  ctx.lineTo(pad - 8, pad - 8);
+  ctx.lineTo(pad + bracketLen, pad - 8);
+  ctx.stroke();
+
+  // Top Right
+  ctx.beginPath();
+  ctx.moveTo(width - pad + 8 - bracketLen, pad - 8);
+  ctx.lineTo(width - pad + 8, pad - 8);
+  ctx.lineTo(width - pad + 8, pad + bracketLen);
+  ctx.stroke();
+
+  // Bottom Left
+  ctx.beginPath();
+  ctx.moveTo(pad - 8, height - pad - bracketLen);
+  ctx.lineTo(pad - 8, height - pad + 8);
+  ctx.lineTo(pad + bracketLen, height - pad + 8);
+  ctx.stroke();
+
+  // Bottom Right
+  ctx.beginPath();
+  ctx.moveTo(width - pad + 8 - bracketLen, height - pad + 8);
+  ctx.lineTo(width - pad + 8, height - pad + 8);
+  ctx.lineTo(width - pad + 8, height - pad - bracketLen);
+  ctx.stroke();
+
+  // Faint Sunburst Light Rays radiating down
+  ctx.save();
+  const rayCenterX = width / 2;
+  const rayCenterY = 280;
+  ctx.strokeStyle = "rgba(201, 160, 80, 0.14)";
+  ctx.lineWidth = 1.5;
+  const numRays = 15;
+  const startAngle = Math.PI * 0.12;
+  const endAngle = Math.PI * 0.88;
+  for (let i = 0; i < numRays; i++) {
+    const angle = startAngle + (i / (numRays - 1)) * (endAngle - startAngle);
+    const length = 230;
+    ctx.beginPath();
+    ctx.moveTo(rayCenterX, rayCenterY);
+    ctx.lineTo(
+      rayCenterX + Math.cos(angle) * length,
+      rayCenterY + Math.sin(angle) * length
+    );
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // RBP Logo Image (from public/logo_2.jpg)
+  const logoY = 145;
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+    const imgWidth = 240;
+    const imgHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * imgWidth;
+    ctx.drawImage(
+      logoImg,
+      width / 2 - imgWidth / 2,
+      logoY - imgHeight / 2,
+      imgWidth,
+      imgHeight
+    );
+  } else {
+    const img = new Image();
+    img.src = "/logo_2.jpg";
+    if (img.complete && img.naturalWidth > 0) {
+      const imgWidth = 240;
+      const imgHeight = (img.naturalHeight / img.naturalWidth) * imgWidth;
+      ctx.drawImage(
+        img,
+        width / 2 - imgWidth / 2,
+        logoY - imgHeight / 2,
+        imgWidth,
+        imgHeight
+      );
+    }
+  }
+  ctx.restore();
+
+  // Reset alignment for header text elements
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Header Subtitle: TEAM RBP CELEBRATES YOU
+  ctx.fillStyle = "#0C7B83";
+  ctx.font = "700 16px 'Inter', sans-serif";
+  ctx.letterSpacing = "6px";
+  ctx.fillText("TEAM RBP CELEBRATES YOU", width / 2, 252);
+
+  // Small Gold Dot below header tagline
+  ctx.fillStyle = "#C9A050";
+  ctx.beginPath();
+  ctx.arc(width / 2, 285, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Heading: Happy Birthday
+  ctx.letterSpacing = "0px";
+  ctx.fillStyle = "#096B74";
+  ctx.font = "italic 700 84px 'Playfair Display', Georgia, serif";
+  ctx.fillText("Happy Birthday", width / 2, 365);
+
+  // Sub-heading: WISHING A WONDERFUL YEAR TO
+  ctx.fillStyle = "#78716C";
+  ctx.font = "600 15px 'Inter', sans-serif";
+  ctx.letterSpacing = "4px";
+  ctx.fillText("WISHING A WONDERFUL YEAR TO", width / 2, 445);
+
+  // Employee Name
+  ctx.letterSpacing = "0px";
+  ctx.fillStyle = "#0F2228";
+  ctx.font = "700 54px 'Playfair Display', Georgia, serif";
+  const nameToDraw = employeeName || "Valued Team Member";
+  ctx.fillText(nameToDraw, width / 2, 520);
+
+  // Body Wish Text
+  const line1Part1 = "May the year ahead ";
+  const line1Highlight = "shine";
+  const line1Part2 = " as brightly as the energy you bring to RBP";
+  const line2 = "every single day. Thank you for being a valued part of our journey —";
+  const line3 = "here's to your health, happiness and continued success.";
+
+  // Measure Line 1 for centered mixed styling
+  ctx.font = "400 21px 'Inter', sans-serif";
+  const w1 = ctx.measureText(line1Part1).width;
+  ctx.font = "700 21px 'Inter', sans-serif";
+  const wH = ctx.measureText(line1Highlight).width;
+  ctx.font = "400 21px 'Inter', sans-serif";
+  const w2 = ctx.measureText(line1Part2).width;
+  const totalW1 = w1 + wH + w2;
+
+  let startX = (width - totalW1) / 2;
+  const line1Y = 605;
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#374151";
+  ctx.font = "400 21px 'Inter', sans-serif";
+  ctx.fillText(line1Part1, startX, line1Y);
+
+  startX += w1;
+  ctx.fillStyle = "#D97706";
+  ctx.font = "700 21px 'Inter', sans-serif";
+  ctx.fillText(line1Highlight, startX, line1Y);
+
+  startX += wH;
+  ctx.fillStyle = "#374151";
+  ctx.font = "400 21px 'Inter', sans-serif";
+  ctx.fillText(line1Part2, startX, line1Y);
+
+  // Line 2 & Line 3
+  ctx.textAlign = "center";
+  ctx.fillText(line2, width / 2, 645);
+  ctx.fillText(line3, width / 2, 685);
+
+  // Sign-off
+  ctx.fillStyle = "#6B7280";
+  ctx.font = "400 16px 'Inter', sans-serif";
+  ctx.fillText("With warm wishes,", width / 2, 765);
+
+  ctx.fillStyle = "#0F383E";
+  ctx.font = "800 20px 'Inter', sans-serif";
+  ctx.fillText("Team RBP", width / 2, 796);
+
+  // Bottom Emblems (STRONG LEGACY, SERVICE EXCELLENCE, ENGINEERING INNOVATION)
+  const iconY = 965;
+  const emblems = [
+    { x: 300, line1: "STRONG", line2: "LEGACY", type: "legacy" },
+    { x: 500, line1: "SERVICE", line2: "EXCELLENCE", type: "service" },
+    { x: 700, line1: "ENGINEERING", line2: "INNOVATION", type: "innovation" },
+  ];
+
+  emblems.forEach((emb) => {
+    const rad = 35;
+    const gGrad = ctx.createRadialGradient(
+      emb.x - 10,
+      iconY - 10,
+      5,
+      emb.x,
+      iconY,
+      rad
+    );
+    gGrad.addColorStop(0, "#FEF3C7");
+    gGrad.addColorStop(0.3, "#F59E0B");
+    gGrad.addColorStop(0.8, "#D97706");
+    gGrad.addColorStop(1, "#78350F");
+
+    ctx.save();
+    ctx.fillStyle = gGrad;
+    ctx.beginPath();
+    ctx.arc(emb.x, iconY, rad, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#FEF3C7";
+    ctx.lineWidth = 2;
+
+    if (emb.type === "legacy") {
+      ctx.beginPath();
+      ctx.arc(emb.x, iconY, 19, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(emb.x, iconY, 11, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "#FEF3C7";
+      ctx.beginPath();
+      ctx.arc(emb.x, iconY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (emb.type === "service") {
+      const sGrad = ctx.createRadialGradient(
+        emb.x - 12,
+        iconY - 12,
+        2,
+        emb.x,
+        iconY,
+        rad
+      );
+      sGrad.addColorStop(0, "#FFFFFF");
+      sGrad.addColorStop(0.4, "#FBBF24");
+      sGrad.addColorStop(1, "#92400E");
+      ctx.fillStyle = sGrad;
+      ctx.beginPath();
+      ctx.arc(emb.x, iconY, rad - 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (emb.type === "innovation") {
+      ctx.translate(emb.x, iconY);
+      const teeth = 8;
+      ctx.fillStyle = "#FEF3C7";
+      for (let t = 0; t < teeth; t++) {
+        ctx.rotate(Math.PI / 4);
+        ctx.fillRect(-4.5, -27, 9, 8);
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.strokeStyle = "#78350F";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#0C7B83";
+    ctx.font = "700 12px 'Inter', sans-serif";
+    ctx.letterSpacing = "1.5px";
+    ctx.fillText(emb.line1, emb.x, iconY + 56);
+    ctx.fillText(emb.line2, emb.x, iconY + 74);
+  });
+
+  // Footer Dot
+  ctx.fillStyle = "#C9A050";
+  ctx.beginPath();
+  ctx.arc(width / 2, 1115, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Footer Tagline
+  ctx.fillStyle = "#0C7B83";
+  ctx.font = "700 15px 'Inter', sans-serif";
+  ctx.letterSpacing = "4px";
+  ctx.fillText("COMMITTED TO EMPOWER & SHINE", width / 2, 1148);
+
+  // Footer Domain
+  ctx.fillStyle = "#78716C";
+  ctx.font = "400 14px 'Inter', sans-serif";
+  ctx.letterSpacing = "1px";
+  ctx.fillText("www.rbpindia.com", width / 2, 1178);
+};
+
+function BirthdayWishContent() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -147,9 +428,13 @@ export default function BirthdayWish() {
   // Modal State
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [message, setMessage] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState("professional");
+  const [selectedTemplate, setSelectedTemplate] = useState("official");
   const [confettiActive, setConfettiActive] = useState(false);
   const [sending, setSending] = useState(false);
+  const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
+  const [activeTab, setActiveTab] = useState("card"); // 'card' or 'text'
+
+  const canvasRef = useRef(null);
 
   // Wish History State (`birthday_wish` table)
   const [wishHistory, setWishHistory] = useState([]);
@@ -158,11 +443,13 @@ export default function BirthdayWish() {
 
   // Templates definition
   const messageTemplates = {
+    official: (name) => `Happy Birthday, ${name}!
+On your special day, the entire Team RBP wishes you joy, good health and a year that shines as bright as the energy you bring every day. Thank you for being part of our journey.
+Warm wishes, Team RBP — Committed to Empower & Shine`,
     simple: (name) => `On behalf of the *RBP Group*, we extend our warmest wishes to you on your special day. May this birthday bring you good health, happiness, success, and many new opportunities in the year ahead. We truly appreciate your dedication and valuable contributions to our organization, and we wish you continued growth and achievement. Have a wonderful birthday and a fantastic year ahead!`,
     professional: (name) => `Wishing you a very Happy Birthday on behalf of the entire team! Thank you for your hard work and dedication. May this year bring you continued success, good health, and happiness. Have a wonderful day!`,
     warm: (name) => `Happy Birthday, Wishing you a day filled with laughter, joy, and all your favorite things. We are so glad to have you in our team. Have an amazing year ahead!`,
     creative: (name) => `Cheers to another fantastic trip around the sun! May your special day be as bright, inspiring, and awesome as you are to work with. Have a blast celebrating!`,
-    funny: (name) => `Happy Birthday! 🎂🎉 Don't count the candles, just enjoy the cake! 🍰 We promise not to tell anyone your real age as long as we get a slice! 🍕🥳 Have an awesome day and a fantastic year ahead! 🚀✨`,
   };
 
   const fetchEmployees = async () => {
@@ -265,7 +552,7 @@ export default function BirthdayWish() {
   };
 
   // Save Sent Wish to `birthday_wish` table
-  const saveWishToDatabase = async (emp, phone, wishMessage) => {
+  const saveWishToDatabase = async (emp, phone, wishMessage, imageUrl = null, templateName = "new_emp_birthday_wish") => {
     try {
       const payload = {
         employee_name: emp.name,
@@ -273,6 +560,8 @@ export default function BirthdayWish() {
         mobile_number: phone,
         wish_date: new Date().toISOString().split("T")[0],
         message: wishMessage,
+        image_url: imageUrl,
+        template_name: templateName,
         sent_by: "WhatsApp",
         timestamp: new Date().toISOString(),
       };
@@ -304,6 +593,31 @@ export default function BirthdayWish() {
     fetchEmployees();
     fetchWishHistory();
   }, []);
+
+  // When selectedEmp changes, render the card canvas and generate data URL
+  useEffect(() => {
+    if (selectedEmp) {
+      const logoImg = new Image();
+      logoImg.src = "/logo_2.jpg";
+
+      const renderCard = () => {
+        if (canvasRef.current) {
+          drawBirthdayCardCanvas(canvasRef.current, selectedEmp.name, logoImg);
+          const dataUrl = canvasRef.current.toDataURL("image/png");
+          setCardPreviewUrl(dataUrl);
+        }
+      };
+
+      if (logoImg.complete && logoImg.naturalWidth > 0) {
+        renderCard();
+      } else {
+        logoImg.onload = renderCard;
+        setTimeout(renderCard, 150);
+      }
+    } else {
+      setCardPreviewUrl(null);
+    }
+  }, [selectedEmp]);
 
   const departmentsList = useMemo(() => {
     const depts = employees.map((e) => e.department).filter(Boolean);
@@ -365,15 +679,68 @@ export default function BirthdayWish() {
 
   const openWishModal = (emp) => {
     setSelectedEmp(emp);
-    setSelectedTemplate("professional");
-    setMessage(messageTemplates.professional(emp.name));
+    setSelectedTemplate("official");
+    setMessage(messageTemplates.official(emp.name));
+    setActiveTab("card");
   };
 
-  const handleTemplateChange = (type) => {
-    setSelectedTemplate(type);
-    if (selectedEmp) {
-      setMessage(messageTemplates[type](selectedEmp.name));
-    }
+
+
+  // Helper to upload canvas to Supabase Storage
+  const uploadCanvasToStorage = async (canvas, employeeName) => {
+    return new Promise((resolve) => {
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          resolve(null);
+          return;
+        }
+        try {
+          const cleanName = (employeeName || "employee").replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+          let fileName = `bday_${cleanName}_${Date.now()}.png`;
+
+          // Attempt upload to 'birthday-wishes' bucket
+          let { error: upErr } = await supabase.storage
+            .from("birthday-wishes")
+            .upload(fileName, blob, { contentType: "image/png", upsert: true });
+
+          let targetBucket = "birthday-wishes";
+
+          if (upErr) {
+            console.warn("birthday-wishes bucket upload note:", upErr.message);
+            // Fallback to joining-documents bucket
+            fileName = `birthday/${fileName}`;
+            const { error: fbErr } = await supabase.storage
+              .from("joining-documents")
+              .upload(fileName, blob, { contentType: "image/png", upsert: true });
+
+            if (!fbErr) {
+              targetBucket = "joining-documents";
+            } else {
+              console.error("Storage upload failed on both buckets:", fbErr);
+              resolve(null);
+              return;
+            }
+          }
+
+          const { data } = supabase.storage.from(targetBucket).getPublicUrl(fileName);
+          resolve(data?.publicUrl || null);
+        } catch (err) {
+          console.error("Error uploading card canvas:", err);
+          resolve(null);
+        }
+      }, "image/png");
+    });
+  };
+
+  // Download Card Image as PNG
+  const downloadCardImage = () => {
+    if (!canvasRef.current || !selectedEmp) return;
+    const link = document.createElement("a");
+    const cleanName = selectedEmp.name.replace(/[^a-zA-Z0-9]/g, "_");
+    link.download = `RBP_Birthday_Wish_${cleanName}.png`;
+    link.href = canvasRef.current.toDataURL("image/png");
+    link.click();
+    toast.success("Birthday Card Image downloaded!");
   };
 
   const sendWish = async () => {
@@ -392,12 +759,20 @@ export default function BirthdayWish() {
 
     setSending(true);
     try {
+      // 1. Upload card image canvas to Supabase storage
+      let imageUrl = null;
+      if (canvasRef.current) {
+        imageUrl = await uploadCanvasToStorage(canvasRef.current, selectedEmp.name);
+      }
+
+      // 2. Call Edge Function with imageUrl and parameters
       const { data, error: funcErr } = await supabase.functions.invoke("send-birthday-wish", {
         body: {
           phone: targetPhone,
           name: selectedEmp.name,
           message: message,
-          templateName: "employee_birthday_wish",
+          imageUrl: imageUrl,
+          templateName: "new_emp_birthday_wish",
           languageCode: "en_US"
         },
       });
@@ -416,12 +791,12 @@ export default function BirthdayWish() {
       }
 
       // Save wish record to database table `birthday_wish`
-      await saveWishToDatabase(selectedEmp, targetPhone, message);
+      await saveWishToDatabase(selectedEmp, targetPhone, message, imageUrl, "new_emp_birthday_wish");
 
       setConfettiActive(true);
       setTimeout(() => setConfettiActive(false), 3000);
 
-      toast.success(`Birthday Wish sent successfully to ${selectedEmp.name} via WhatsApp!`, {
+      toast.success(`Birthday Wish (Image + Message) sent to ${selectedEmp.name} via WhatsApp!`, {
         icon: "🎉",
         duration: 4000,
       });
@@ -430,9 +805,9 @@ export default function BirthdayWish() {
       console.error("Error sending birthday wish via Edge Function:", err);
       
       // Save wish record to database table `birthday_wish` even when using web fallback
-      await saveWishToDatabase(selectedEmp, targetPhone, message);
+      await saveWishToDatabase(selectedEmp, targetPhone, message, imageUrl, "new_emp_birthday_wish");
 
-      toast.error(`Automated send notice: ${err.message || "Redirecting to WhatsApp Web..."}`, {
+      toast.error(`WhatsApp Dispatch Notice: ${err.message || "Opening WhatsApp Web..."}`, {
         duration: 5000,
       });
 
@@ -443,6 +818,9 @@ export default function BirthdayWish() {
       
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, "_blank");
+
+      // Auto download card image so user can easily attach it in WhatsApp web
+      downloadCardImage();
 
       setConfettiActive(true);
       setTimeout(() => setConfettiActive(false), 3000);
@@ -471,7 +849,7 @@ export default function BirthdayWish() {
                 Birthday Wish <span className="text-sm font-normal px-2.5 py-0.5 bg-rose-50 text-rose-500 border border-rose-100 rounded-full font-semibold animate-pulse">Celebrations</span>
               </h1>
               <p className="text-sm text-slate-500 mt-1">
-                Calculate, search, send automated greetings to employees, and view sent history log.
+                Generate personalized RBP Birthday Cards, send WhatsApp images & text wishes, and track history.
               </p>
             </div>
           </div>
@@ -811,7 +1189,6 @@ export default function BirthdayWish() {
                   onChange={(e) => setHistorySearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20"
                 />
-                
               </div>
 
             </div>
@@ -827,6 +1204,7 @@ export default function BirthdayWish() {
                       <th className="px-4 py-3.5 bg-slate-100">Employee ID</th>
                       <th className="px-4 py-3.5 text-center bg-slate-100">Mobile Number</th>
                       <th className="px-4 py-3.5 text-center bg-slate-100">Wish Date</th>
+                      <th className="px-4 py-3.5 text-center bg-slate-100">Card Image</th>
                       <th className="px-4 py-3.5 bg-slate-100">Message Sent</th>
                       <th className="px-4 py-3.5 text-center bg-slate-100">Channel</th>
                       <th className="px-4 py-3.5 text-center bg-slate-100">Actions</th>
@@ -835,13 +1213,13 @@ export default function BirthdayWish() {
                   <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
                     {historyLoading ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-8 text-slate-400">
+                        <td colSpan={9} className="text-center py-8 text-slate-400">
                           Loading sent wishes history...
                         </td>
                       </tr>
                     ) : filteredHistory.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-8 text-slate-400">
+                        <td colSpan={9} className="text-center py-8 text-slate-400">
                           No birthday wishes sent yet.
                         </td>
                       </tr>
@@ -865,6 +1243,22 @@ export default function BirthdayWish() {
                             <div className="text-[10px] text-slate-400 font-normal">
                               {item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                             </div>
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            {item.image_url ? (
+                              <a
+                                href={item.image_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded-lg text-[10px] font-bold transition shadow-xs"
+                                title="Click to view high-res Birthday Card Image"
+                              >
+                                <ImageIcon className="w-3 h-3 text-amber-600" />
+                                View Card
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 text-[10px] italic">-</span>
+                            )}
                           </td>
                           <td className="px-4 py-3.5 text-slate-600 max-w-xs truncate" title={item.message}>
                             {item.message || "-"}
@@ -895,17 +1289,17 @@ export default function BirthdayWish() {
         </div>
       )}
 
-      {/* BIRTHDAY WISH MODAL */}
+      {/* BIRTHDAY WISH MODAL WITH RBP CARD TEMPLATE PREVIEW & WHATSAPP DISPATCH */}
       {selectedEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setSelectedEmp(null)}
           ></div>
           
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden relative z-10 transform transition-all duration-300 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden relative z-10 transform transition-all duration-300 animate-[fadeIn_0.2s_ease-out]">
             
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 text-white relative">
+            <div className="bg-gradient-to-r from-teal-600 via-rose-500 to-pink-500 p-5 text-white relative">
               <button 
                 onClick={() => setSelectedEmp(null)}
                 className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-lg transition"
@@ -913,134 +1307,220 @@ export default function BirthdayWish() {
                 <X className="w-4 h-4" />
               </button>
               
-              <div className="flex gap-4 items-center mt-2">
-                <InitialAvatar name={selectedEmp.name} size="w-16 h-16 text-xl ring-4 ring-white/30" />
+              <div className="flex gap-4 items-center">
+                <InitialAvatar name={selectedEmp.name} size="w-14 h-14 text-xl ring-4 ring-white/30" />
                 <div>
                   <h3 className="text-xl font-extrabold tracking-tight">{selectedEmp.name}</h3>
-                  <p className="text-xs text-pink-100 mt-0.5">
-                    {selectedEmp.designation} • ID: {selectedEmp.employeeId}
+                  <p className="text-xs text-white/90 mt-0.5">
+                    {selectedEmp.designation} • ID: {selectedEmp.employeeId} • Dept: {selectedEmp.department}
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Modal Tabs Header */}
+            <div className="flex border-b border-slate-200 bg-slate-50 px-6 pt-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab("card")}
+                className={`px-4 py-2 text-xs font-bold rounded-t-xl border-b-2 transition flex items-center gap-1.5 ${
+                  activeTab === "card"
+                    ? "border-rose-500 text-rose-600 bg-white shadow-sm"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                RBP Card Template Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("text")}
+                className={`px-4 py-2 text-xs font-bold rounded-t-xl border-b-2 transition flex items-center gap-1.5 ${
+                  activeTab === "text"
+                    ? "border-rose-500 text-rose-600 bg-white shadow-sm"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                WhatsApp Message
+              </button>
+            </div>
+
+            {/* Hidden HTML Canvas element used to draw ultra high-res image */}
+            <canvas ref={canvasRef} className="hidden" />
+
             <div className="p-6 space-y-5 overflow-y-auto flex-1">
               
-              <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-3 text-xs border border-slate-100">
-                <div>
-                  <span className="text-slate-400 font-medium">Department:</span>
-                  <p className="text-slate-800 font-bold mt-0.5">{selectedEmp.department}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">Birthday Date:</span>
-                  <p className="text-slate-800 font-bold mt-0.5">{formatBdayDate(selectedEmp.dateOfBirth)}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">Turning Age:</span>
-                  <p className="text-slate-800 font-bold mt-0.5">{selectedEmp.nextAge} Years Old</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">Days Remaining:</span>
-                  <p className="text-slate-800 font-bold mt-0.5">
-                    {selectedEmp.isToday ? "Today!" : `${selectedEmp.remainingDays} days`}
-                  </p>
-                </div>
-                <div className="col-span-2 border-t border-slate-200/60 pt-2 mt-1">
-                  <span className="text-slate-400 font-medium">Send WhatsApp To:</span>
-                  <p className="text-slate-800 font-bold mt-0.5 flex items-center gap-1.5">
-                    <span className="text-emerald-600 font-extrabold">📞</span>
-                    {selectedEmp.mobileNumber && selectedEmp.mobileNumber.trim() !== "" ? (
-                      <span>{selectedEmp.mobileNumber} <span className="text-[10px] font-normal text-slate-500 bg-slate-200/60 px-1.5 py-0.5 rounded ml-1">Personal</span></span>
-                    ) : selectedEmp.familyNumber && selectedEmp.familyNumber.trim() !== "" ? (
-                      <span>
-                        {selectedEmp.familyNumber}{" "}
-                        <span className="text-[10px] font-normal text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded ml-1">
-                          Family ({selectedEmp.familyRelationship || selectedEmp.familyPersonName || "Contact"})
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="text-red-500 font-semibold">No number found</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Message Tone</label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {Object.keys(messageTemplates).map((tone) => (
+              {/* TAB 1: RBP CARD TEMPLATE PREVIEW */}
+              {activeTab === "card" && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        Generated RBP Birthday Image Card
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Exact branded design generated with employee name. Ready to attach or send via WhatsApp.
+                      </p>
+                    </div>
                     <button
-                      key={tone}
                       type="button"
-                      onClick={() => handleTemplateChange(tone)}
-                      className={`text-xs py-2 px-3 font-semibold rounded-xl border transition-all capitalize ${
-                        selectedTemplate === tone
-                          ? 'bg-rose-50 border-rose-400 text-rose-600 font-bold'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
+                      onClick={downloadCardImage}
+                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
                     >
-                      {tone}
+                      <Download className="w-3.5 h-3.5 text-amber-600" />
+                      Download PNG
                     </button>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Customize Greeting</label>
-                  <span className="text-[10px] text-slate-400 font-medium">Editable</span>
-                </div>
-                <textarea
-                  rows={4}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl text-xs p-3 focus:border-rose-500 focus:bg-white resize-none"
-                  placeholder="Type a custom greeting message here..."
-                ></textarea>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Communication Channel</label>
-                <div className="flex">
-                  <div className="w-full py-2.5 px-4 font-bold rounded-xl border border-emerald-400 bg-emerald-50 text-emerald-750 text-xs flex items-center justify-center gap-2 shadow-sm">
-                    <MessageSquare className="w-4 h-4 text-emerald-600 animate-pulse" />
-                    WhatsApp (Active Channel)
+                  {/* Card Preview Container */}
+                  <div className="bg-amber-50/40 p-4 rounded-2xl border border-amber-200/60 flex justify-center items-center shadow-inner min-h-[320px]">
+                    {cardPreviewUrl ? (
+                      <img
+                        src={cardPreviewUrl}
+                        alt="RBP Birthday Wish Card"
+                        className="max-h-[380px] rounded-xl shadow-lg border border-amber-200/80 object-contain hover:scale-[1.01] transition-transform duration-200"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-8 text-amber-700 space-y-2">
+                        <div className="w-6 h-6 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs font-semibold">Generating Birthday Card...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-400 font-medium mt-1">
-                  Automated dispatch logs sent record directly to database table `birthday_wish`.
-                </p>
-              </div>
+              )}
 
-              <div className="flex gap-3 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setSelectedEmp(null)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs py-2.5 px-4 rounded-xl border border-slate-200 transition duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={sendWish}
-                  disabled={sending}
-                  className={`flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-200 transition duration-200 ${
-                    sending ? "opacity-75 cursor-not-allowed" : ""
-                  }`}
-                >
-                  {sending ? (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Sending...</span>
+              {/* TAB 2: WHATSAPP MESSAGE */}
+              {activeTab === "text" && (
+                <div className="space-y-4">
+                  
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Customize Greeting Text</label>
                     </div>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Send Greeting</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                    <textarea
+                      rows={5}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-2xl text-xs p-3.5 focus:border-rose-500 focus:bg-white resize-none shadow-inner"
+                      placeholder="Type a custom greeting message here..."
+                    ></textarea>
+                  </div>
+
+                </div>
+              )}
+
+              {/* Helper variables for phone validation */}
+              {(() => {
+                const mob = selectedEmp.mobileNumber ? String(selectedEmp.mobileNumber).trim() : "";
+                const fam = selectedEmp.familyNumber ? String(selectedEmp.familyNumber).trim() : "";
+                const invalid = ["", "null", "undefined", "na", "n/a", "none"];
+
+                const validMob = mob && !invalid.includes(mob.toLowerCase()) ? mob : null;
+                const validFam = fam && !invalid.includes(fam.toLowerCase()) ? fam : null;
+                const hasNumber = !!(validMob || validFam);
+
+                return (
+                  <>
+                    {/* Employee Contact Number Info */}
+                    <div className={`rounded-2xl p-3.5 grid grid-cols-2 gap-3 text-xs border transition-all ${
+                      !hasNumber
+                        ? "bg-red-50/90 border-2 border-red-400 shadow-md text-red-900"
+                        : "bg-slate-50 border-slate-100"
+                    }`}>
+                      <div>
+                        <span className={!hasNumber ? "text-red-600 font-semibold" : "text-slate-400 font-medium"}>Birthday Date:</span>
+                        <p className="text-slate-800 font-bold mt-0.5">{formatBdayDate(selectedEmp.dateOfBirth)}</p>
+                      </div>
+                      <div>
+                        <span className={!hasNumber ? "text-red-600 font-semibold" : "text-slate-400 font-medium"}>Turning Age:</span>
+                        <p className="text-slate-800 font-bold mt-0.5">{selectedEmp.nextAge} Years Old</p>
+                      </div>
+                      <div className="col-span-2 border-t border-slate-200/60 pt-2">
+                        <span className={!hasNumber ? "text-red-600 font-bold uppercase tracking-wider" : "text-slate-400 font-medium"}>Send WhatsApp To:</span>
+                        <p className="text-slate-800 font-bold mt-0.5 flex items-center gap-1.5">
+                          <span className="text-emerald-600 font-extrabold">📞</span>
+                          {validMob ? (
+                            <span>{validMob} <span className="text-[10px] font-normal text-slate-500 bg-slate-200/60 px-1.5 py-0.5 rounded ml-1">Personal</span></span>
+                          ) : validFam ? (
+                            <span>
+                              {validFam}{" "}
+                              <span className="text-[10px] font-normal text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded ml-1">
+                                Family ({selectedEmp.familyRelationship || selectedEmp.familyPersonName || "Contact"})
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-red-600 font-extrabold flex items-center gap-1 bg-red-100 border border-red-300 px-2 py-0.5 rounded-lg text-xs animate-pulse">
+                              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                              Employee Mobile Number is Missing / Not Available!
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Dispatch Channel Note */}
+                    <div className="flex items-center justify-between py-2 px-3.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-emerald-600 animate-pulse" />
+                        <span>Meta WhatsApp Template: Image Header + Dynamic Message</span>
+                      </div>
+                      <span className="text-[10px] bg-emerald-200/80 px-2 py-0.5 rounded-md font-bold text-emerald-900 uppercase">
+                        Active (new_emp_birthday_wish)
+                      </span>
+                    </div>
+
+                    {/* Modal Buttons */}
+                    <div className="flex gap-3 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEmp(null)}
+                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs py-2.5 px-4 rounded-xl border border-slate-200 transition duration-200"
+                      >
+                        Cancel
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={downloadCardImage}
+                        className="px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md transition duration-200"
+                        title="Download Birthday Card PNG"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Download Card</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={sendWish}
+                        disabled={sending || !hasNumber}
+                        className={`flex-1 font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition duration-200 ${
+                          !hasNumber
+                            ? "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300 shadow-none"
+                            : sending
+                              ? "opacity-75 cursor-not-allowed bg-rose-500 text-white"
+                              : "bg-gradient-to-r from-emerald-600 via-teal-600 to-rose-500 hover:from-emerald-700 hover:to-rose-600 text-white shadow-md shadow-rose-200"
+                        }`}
+                        title={!hasNumber ? "Cannot send wish: Mobile number is missing" : "Send WhatsApp Birthday Wish"}
+                      >
+                        {sending ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Sending Image & Message...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Send Wish (Image + Text)</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
 
             </div>
 
@@ -1048,6 +1528,45 @@ export default function BirthdayWish() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+export default function BirthdayWish() {
+  const [mainTab, setMainTab] = useState("birthday");
+
+  return (
+    <div className="min-h-screen bg-slate-50/50 p-4 md:p-8 space-y-6">
+      {/* Main Feature Tabs */}
+      <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm max-w-md">
+        <button
+          type="button"
+          onClick={() => setMainTab("birthday")}
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition duration-200 ${
+            mainTab === "birthday"
+              ? "bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md shadow-rose-200"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Cake className="w-4 h-4" />
+          <span>Birthday Wish</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab("anniversary")}
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition duration-200 ${
+            mainTab === "anniversary"
+              ? "bg-gradient-to-r from-amber-600 to-yellow-600 text-white shadow-md shadow-amber-200"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Award className="w-4 h-4" />
+          <span>Work Anniversary</span>
+        </button>
+      </div>
+
+      {mainTab === "birthday" ? <BirthdayWishContent /> : <WorkAnniversary />}
     </div>
   );
 }
