@@ -272,13 +272,34 @@ export default function PayrollPage() {
         }
       }
 
-      const { data: attData, error: attErr } = await supabase
-        .from('attendance')
-        .select('person_name,employee_code,date,status,approved_status,in_time')
-        .gte('date', startDate)
-        .lte('date', endDate);
+      let attPage = 0;
+      const ATT_PAGE_SIZE = 1000;
+      let hasMoreAtt = true;
 
-      if (!attErr) attLogs = attData || [];
+      while (hasMoreAtt) {
+        const { data: attData, error: attErr } = await supabase
+          .from('attendance')
+          .select('person_name,employee_code,date,status,approved_status,time')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .range(attPage * ATT_PAGE_SIZE, (attPage + 1) * ATT_PAGE_SIZE - 1);
+
+        if (attErr) {
+          console.error("Error fetching attendance logs page", attPage, attErr);
+          break;
+        }
+
+        if (attData && attData.length > 0) {
+          attLogs = [...attLogs, ...attData];
+          if (attData.length < ATT_PAGE_SIZE) {
+            hasMoreAtt = false;
+          } else {
+            attPage++;
+          }
+        } else {
+          hasMoreAtt = false;
+        }
+      }
     } catch (err) {
       console.error("Error fetching attendance/biometric logs", err);
     }
@@ -350,7 +371,22 @@ export default function PayrollPage() {
         } else if (a.status === 'CL') {
           leaveMap[key] = 'CL';
         } else {
-          fieldMap[key] = { status: a.status || 'P', inTime: a.in_time };
+          if (!fieldMap[key]) {
+            fieldMap[key] = { inTime: null, outTime: null, status: null };
+          }
+          const t = a.time || a.in_time;
+          if (a.status === 'IN') {
+            fieldMap[key].inTime = t;
+            if (!fieldMap[key].status) fieldMap[key].status = 'P';
+          } else if (a.status === 'OUT') {
+            fieldMap[key].outTime = t;
+          } else if (a.status === 'P') {
+            fieldMap[key].status = 'P';
+            if (t && !fieldMap[key].inTime) fieldMap[key].inTime = t;
+          } else if (a.status === 'HD') {
+            fieldMap[key].status = 'HD';
+            if (t && !fieldMap[key].inTime) fieldMap[key].inTime = t;
+          }
         }
       });
     });
@@ -368,6 +404,8 @@ export default function PayrollPage() {
 
       const doj = emp.joining_date ? new Date(emp.joining_date) : null;
       const dol = emp.leaving_date ? new Date(emp.leaving_date) : null;
+
+      const isOfficeStaff = emp.employee_category?.trim() === 'Office Staff';
 
       let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
       let lateCycleCount = 0, lateDaysCount = 0;
@@ -399,7 +437,7 @@ export default function PayrollPage() {
           const leaveStatus = (codeKey && leaveMap[codeKey]) || (nameKey && leaveMap[nameKey]);
           if (leaveStatus) {
             status = 'CL';
-          } else {
+          } else if (isOfficeStaff) {
             const bioEntry = (codeKey && bioMap[codeKey]) || (nameKey && bioMap[nameKey]);
             if (bioEntry && (bioEntry.finalIn || bioEntry.finalOut)) {
               checkInTime = bioEntry.finalIn;
@@ -408,11 +446,19 @@ export default function PayrollPage() {
               } else {
                 status = 'HD';
               }
-            } else {
-              const fieldRec = (codeKey && fieldMap[codeKey]) || (nameKey && fieldMap[nameKey]);
-              if (fieldRec) {
+            }
+          } else {
+            const fieldRec = (codeKey && fieldMap[codeKey]) || (nameKey && fieldMap[nameKey]);
+            if (fieldRec) {
+              checkInTime = fieldRec.inTime;
+              if (fieldRec.inTime && fieldRec.outTime) {
                 status = 'P';
-                checkInTime = fieldRec.inTime;
+              } else if (fieldRec.inTime || fieldRec.outTime) {
+                status = 'HD';
+              } else if (fieldRec.status === 'P') {
+                status = 'P';
+              } else if (fieldRec.status === 'HD') {
+                status = 'HD';
               }
             }
           }
