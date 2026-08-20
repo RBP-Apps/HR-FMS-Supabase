@@ -217,25 +217,17 @@ const FindEnquiry = () => {
       }));
 
       // ===== RECRUITMENT COUNT LOGIC =====
-      const indentRecruitmentCount = {};
-
-      processedEnquiry.forEach((row) => {
-        const indentNo = row.indentNo;
-        if (indentNo) {
-          if (!indentRecruitmentCount[indentNo]) {
-            indentRecruitmentCount[indentNo] = 0;
-          }
-          indentRecruitmentCount[indentNo]++;
+      // Build O(1) completed counts lookup per indentNo to avoid O(N*M) nested loop freezing
+      const completedCountsMap = {};
+      processedEnquiry.forEach((enquiry) => {
+        if (enquiry.indentNo && enquiry.status === "Complete") {
+          completedCountsMap[enquiry.indentNo] = (completedCountsMap[enquiry.indentNo] || 0) + 1;
         }
       });
 
-
       const pendingTasks = processedIndent.filter((task) => {
         const requiredPosts = parseInt(task.numberOfPost) || 0;
-        // Count only COMPLETED enquiries (where status is "Complete")
-        const completed = processedEnquiry.filter(
-          (enquiry) => enquiry.indentNo === task.indentNo && enquiry.status === "Complete"
-        ).length;
+        const completed = completedCountsMap[task.indentNo] || 0;
         return completed < requiredPosts;
       });
 

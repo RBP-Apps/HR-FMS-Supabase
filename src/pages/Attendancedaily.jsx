@@ -7,10 +7,18 @@ import {
   MapPin,
   Clock,
   Image as ImageIcon,
-  ExternalLink,Filter,Calendar,Users,UserCheck,UserMinus,TrendingUp,LayoutDashboard,Fingerprint,Map,Coffee,LogOut,AlertCircle,CheckCircle,Clock as ClockIcon,Database,Smartphone,ChevronLeft,ChevronRight as ChevronRightIcon,X,Eye,
+  ExternalLink,Filter,Calendar,Users,UserCheck,UserMinus,TrendingUp,LayoutDashboard,Fingerprint,Map,Coffee,LogOut,AlertCircle,CheckCircle,Clock as ClockIcon,Database,Smartphone,ChevronLeft,ChevronRight as ChevronRightIcon,X,Eye,Battery,Navigation,Gauge,ShieldAlert,Route,Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import supabase from "../utils/supabase";
+import {
+  cleanRouteForDisplay,
+  sumRouteDistanceKm,
+  splitLegsAtMid,
+  splitRouteByTimeGap,
+  buildGoogleMapsRouteUrl,
+  fetchAllLocationLogs,
+} from "../utils/geoUtils";
 
 // Helper Functions
 const calculateDuration = (inTime, outTime) => {
@@ -337,6 +345,57 @@ const Attendancedaily = () => {
     late: 0,
   });
 
+  // Location Tracker Modal State
+  const [selectedTrackerItem, setSelectedTrackerItem] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [trackerLogs, setTrackerLogs] = useState([]);
+  const [rawLogsCount, setRawLogsCount] = useState(0);
+  const [isTrackerLoading, setIsTrackerLoading] = useState(false);
+
+  const handleOpenTrackerModal = async (item) => {
+    setSelectedTrackerItem(item);
+    setTrackerLogs(item.locationLogs || []);
+    setSelectedSession(item.session || null);
+    setRawLogsCount((item.locationLogs || []).length);
+    setIsTrackerLoading(true);
+
+    try {
+      // 1. Fetch Session state machine from tracking_sessions
+      const { data: sessionRows } = await supabase
+        .from("tracking_sessions")
+        .select("*")
+        .eq("person_name", item.employee)
+        .eq("date", item.date);
+
+      const session = sessionRows && sessionRows[0] ? sessionRows[0] : null;
+      setSelectedSession(session);
+
+      // 2. Paginated fetch for location logs to bypass 1000 row truncation limit
+      const rawLogs = await fetchAllLocationLogs(supabase, {
+        sessionId: session ? session.session_id : null,
+        personName: item.employee,
+        date: item.date,
+      });
+
+      setRawLogsCount(rawLogs.length);
+
+      // 3. Run mandatory cleaning pipeline (displayable gate -> speed outliers -> stop detection -> transit thinning)
+      const cleanedLogs = cleanRouteForDisplay(rawLogs);
+      setTrackerLogs(cleanedLogs);
+    } catch (err) {
+      console.error("Error fetching location logs for modal:", err);
+    } finally {
+      setIsTrackerLoading(false);
+    }
+  };
+
+  const handleCloseTrackerModal = () => {
+    setSelectedTrackerItem(null);
+    setSelectedSession(null);
+    setTrackerLogs([]);
+    setRawLogsCount(0);
+  };
+
   const fetchFieldAttendance = async (customFilters = {}) => {
     try {
       let query = supabase
@@ -360,7 +419,6 @@ const Attendancedaily = () => {
         if (activeEndDate) {
           query = query.lte("date", activeEndDate);
         }
-        // Limit default view to last 30 days to avoid full table scans
         if (!activeStartDate && !activeEndDate && !activeSearchTerm) {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -375,6 +433,33 @@ const Attendancedaily = () => {
       const { data, error } = await query;
       if (error) throw error;
 
+      // ALSO fetch session state machine from tracking_sessions
+      let sessionQuery = supabase
+        .from("tracking_sessions")
+        .select("*")
+        .order("date", { ascending: false });
+
+      if (activeShowToday) {
+        sessionQuery = sessionQuery.eq("date", getTodayDate());
+      } else {
+        if (activeStartDate) sessionQuery = sessionQuery.gte("date", activeStartDate);
+        if (activeEndDate) sessionQuery = sessionQuery.lte("date", activeEndDate);
+        if (!activeStartDate && !activeEndDate && !activeSearchTerm) {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          sessionQuery = sessionQuery.gte("date", thirtyDaysAgo.toISOString().split("T")[0]);
+        }
+      }
+      if (activeSearchTerm) sessionQuery = sessionQuery.ilike("person_name", `%${activeSearchTerm}%`);
+
+      const { data: sessionData } = await sessionQuery;
+
+      const sessionsGrouped = {};
+      (sessionData || []).forEach((s) => {
+        const key = `${(s.person_name || "").toString().trim().toLowerCase()}_${s.date}`;
+        sessionsGrouped[key] = s;
+      });
+
       const processedFieldData = {};
       (data || []).forEach((rec) => {
         const key = `${rec.person_name}_${rec.date}`;
@@ -383,8 +468,11 @@ const Attendancedaily = () => {
             type: "field",
             employee: rec.person_name,
             empCode: rec.employee_code || rec.person_name,
+            userId: rec.user_id || null,
             date: rec.date,
             records: [],
+            locationLogs: [],
+            session: null,
             inTime: null,
             midEntries: [],
             outTime: null,
@@ -412,25 +500,40 @@ const Attendancedaily = () => {
         if (rec.images) processedFieldData[key].images = rec.images;
         if (rec.map_link) processedFieldData[key].mapLink = rec.map_link;
         if (rec.address) processedFieldData[key].location = rec.address;
+        if (rec.user_id) processedFieldData[key].userId = rec.user_id;
       });
 
-      // NEW FIELD STATUS LOGIC
+      // LIGHTWEIGHT FIELD STATUS & SESSION DISTANCE ASSIGNMENT
       Object.values(processedFieldData).forEach((group) => {
         const hasIn = group.inTime !== null;
         const hasMid = group.midEntries.length > 0;
         const hasOut = group.outTime !== null;
 
-        // Count how many entries are present
+        const nameKey = (group.employee || "").toString().trim().toLowerCase() + `_${group.date}`;
+        const session = sessionsGrouped[nameKey] || null;
+        group.session = session;
+        group.locationLogs = []; // Loaded on demand when modal opens
+
+        if (session && session.total_distance_km != null) {
+          group.totalDistanceKM = Number(session.total_distance_km).toFixed(2);
+          group.leg1DistanceKM = session.leg1_distance_km != null ? Number(session.leg1_distance_km).toFixed(2) : null;
+          group.leg2DistanceKM = session.leg2_distance_km != null ? Number(session.leg2_distance_km).toFixed(2) : null;
+        } else {
+          group.totalDistanceKM = "0.00";
+          group.leg1DistanceKM = null;
+          group.leg2DistanceKM = null;
+        }
+
         const entryCount = [hasIn, hasMid, hasOut].filter(Boolean).length;
 
         if (hasIn && hasMid && hasOut) {
-          group.status = "Present"; // All three present
+          group.status = "Present";
         } else if (!hasIn && !hasMid && !hasOut) {
-          group.status = "Absent"; // No entries at all
+          group.status = "Absent";
         } else if (entryCount === 2) {
-          group.status = "Half Day"; // Exactly two entries (IN+MID or IN+OUT or MID+OUT)
+          group.status = "Half Day";
         } else {
-          group.status = "Partial"; // Only one entry
+          group.status = "Partial";
         }
       });
 
@@ -1488,16 +1591,39 @@ const fetchAttendanceData = async (
                       </td>
                       <td className="px-4 py-3">
                         {item.type === "field" && (
-                          <button
-                            onClick={() => toggleRowExpand(idx)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-100 transition-colors group"
-                          >
-                            {expandedRows[idx] ? (
-                              <ChevronDown className="w-4 h-4 text-indigo-500" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                          <div className="flex items-center gap-1.5">
+                            {buildGoogleMapsRouteUrl(item.locationLogs) && (
+                              <a
+                                href={buildGoogleMapsRouteUrl(item.locationLogs)}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open Direct Google Maps Route Path"
+                                className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-all flex items-center gap-1 text-xs font-semibold shadow-sm hover:shadow"
+                              >
+                                <Route className="w-3.5 h-3.5 text-indigo-600" />
+                                <span className="hidden sm:inline">Map Path</span>
+                              </a>
                             )}
-                          </button>
+                            <button
+                              onClick={() => handleOpenTrackerModal(item)}
+                              title="View Employee Location Tracker & Distance Traveled"
+                              className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all flex items-center gap-1 text-xs font-semibold shadow-sm hover:shadow"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="hidden sm:inline">Track</span>
+                            </button>
+                            <button
+                              onClick={() => toggleRowExpand(idx)}
+                              title={expandedRows[idx] ? "Collapse details" : "Expand details"}
+                              className="p-1.5 rounded-lg hover:bg-indigo-100 transition-colors group border border-transparent"
+                            >
+                              {expandedRows[idx] ? (
+                                <ChevronDown className="w-4 h-4 text-indigo-500" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                              )}
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -1607,6 +1733,114 @@ const fetchAttendanceData = async (
                                   </div>
                                 ))}
                               </div>
+                            </div>
+
+                            {/* Location Logs Section with Distance Traveled in KM */}
+                            <div className="mt-6 pt-4 border-t border-indigo-200/60">
+                              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-emerald-100 rounded-lg">
+                                    <MapPin className="w-4 h-4 text-emerald-700" />
+                                  </div>
+                                  <h5 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                    Location Checkpoints Trail
+                                    <span className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800 rounded-full font-semibold">
+                                      {item.locationLogs?.length || 0} logs
+                                    </span>
+                                    {item.locationLogs && item.locationLogs.length > 0 && (
+                                      <span className="px-2.5 py-0.5 text-xs bg-emerald-600 text-white rounded-full font-extrabold flex items-center gap-1 shadow-xs">
+                                        <Zap className="w-3 h-3" />
+                                        Distance: {calculateTotalDistanceKM(item.locationLogs)} KM
+                                      </span>
+                                    )}
+                                  </h5>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {buildGoogleMapsRouteUrl(item.locationLogs) && (
+                                    <a
+                                      href={buildGoogleMapsRouteUrl(item.locationLogs)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5"
+                                    >
+                                      <Route className="w-3.5 h-3.5" />
+                                      View Map Path 🗺️
+                                    </a>
+                                  )}
+                                  <button
+                                    onClick={() => handleOpenTrackerModal(item)}
+                                    className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5"
+                                  >
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    Full Tracker Details
+                                  </button>
+                                </div>
+                              </div>
+
+                              {item.locationLogs && item.locationLogs.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                  {item.locationLogs.slice(0, 6).map((log, lIdx) => (
+                                    <div
+                                      key={log.id || lIdx}
+                                      className={`p-3 rounded-xl border text-xs shadow-xs space-y-1.5 transition-all ${
+                                        log.is_mock ? "bg-rose-50 border-rose-200" : "bg-white border-gray-200 hover:border-emerald-300"
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-bold text-gray-700 flex items-center gap-1">
+                                          <Clock className="w-3 h-3 text-emerald-600" />
+                                          {log.timestamp ? new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "N/A"}
+                                        </span>
+                                        {log.is_mock ? (
+                                          <span className="px-1.5 py-0.5 text-[10px] font-extrabold bg-rose-600 text-white rounded">
+                                            MOCK
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-gray-500 font-mono">
+                                            {log.battery !== null ? `🔋 ${log.battery}%` : ""}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center justify-between text-gray-600 font-mono">
+                                        <span>Lat: {Number(log.latitude)?.toFixed(4)}</span>
+                                        <span>Lng: {Number(log.longitude)?.toFixed(4)}</span>
+                                      </div>
+
+                                      <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-[11px]">
+                                        <span className="text-gray-500">
+                                          {log.speed ? `⚡ ${log.speed} km/h` : "Speed: --"}
+                                        </span>
+                                        {log.latitude && log.longitude && (
+                                          <a
+                                            href={`https://www.google.com/maps?q=${log.latitude},${log.longitude}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-emerald-600 font-semibold hover:underline flex items-center gap-1"
+                                          >
+                                            <ExternalLink className="w-3 h-3" /> Map
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {item.locationLogs.length > 6 && (
+                                    <div
+                                      onClick={() => handleOpenTrackerModal(item)}
+                                      className="p-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-100/50 transition-colors text-center"
+                                    >
+                                      <span className="text-xs font-bold text-emerald-700">
+                                        +{item.locationLogs.length - 6} More Checkpoints
+                                      </span>
+                                      <span className="text-[11px] text-emerald-600 mt-1">Click to view all in modal 📍</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-500">
+                                  No location tracking logs recorded for {item.employee} on {item.date}.
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -1990,6 +2224,288 @@ const fetchAttendanceData = async (
                   ) : (
                     "Save Changes"
                   )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* LOCATION TRACKER MODAL */}
+      <AnimatePresence>
+        {selectedTrackerItem && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={handleCloseTrackerModal}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-indigo-800 px-6 py-4 flex items-center justify-between text-white">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-emerald-300" />
+                      Employee Location Tracker
+                    </h3>
+                    {selectedSession && (
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase shadow-sm ${
+                        selectedSession.status === "ACTIVE"
+                          ? "bg-green-500 text-white animate-pulse"
+                          : selectedSession.status === "COMPLETED"
+                          ? "bg-emerald-300 text-emerald-900"
+                          : "bg-amber-400 text-amber-950"
+                      }`}>
+                        {selectedSession.status === "ACTIVE" ? "🟢 Live Active" : selectedSession.status}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-emerald-100 mt-0.5">
+                    {selectedTrackerItem.employee} • Date: {selectedTrackerItem.date} ({selectedTrackerItem.empCode})
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseTrackerModal}
+                  className="p-1.5 rounded-lg hover:bg-white/20 transition-colors text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Quick Metrics Bar */}
+              <div className="bg-emerald-50/70 border-b border-emerald-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-3 rounded-xl shadow-xs flex flex-col justify-between">
+                  <span className="text-[11px] text-emerald-100 font-semibold flex items-center gap-1">
+                    <Route className="w-3.5 h-3.5" /> Total Distance
+                  </span>
+                  <span className="text-xl font-extrabold mt-0.5">
+                    {selectedSession && (selectedSession.status === "COMPLETED" || selectedSession.status === "AUTO_CLOSED") && selectedSession.total_distance_km != null
+                      ? Number(selectedSession.total_distance_km).toFixed(2)
+                      : sumRouteDistanceKm(trackerLogs).toFixed(2)} <span className="text-xs font-medium text-emerald-200">KM</span>
+                  </span>
+                </div>
+                
+                <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-xs">
+                  <span className="text-[11px] text-gray-500 font-medium block">Cleaned Points</span>
+                  <span className="text-lg font-bold text-emerald-700">
+                    {trackerLogs.length} nodes
+                    {rawLogsCount > 0 && <span className="text-xs font-normal text-gray-400 ml-1">({rawLogsCount} raw)</span>}
+                  </span>
+                </div>
+
+                <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-xs">
+                  <span className="text-[11px] text-gray-500 font-medium block flex items-center gap-1">
+                    <Coffee className="w-3.5 h-3.5 text-indigo-600" /> Dwell Stops
+                  </span>
+                  <span className="text-lg font-bold text-indigo-700">
+                    {trackerLogs.filter(l => l.isStop).length} stops
+                  </span>
+                </div>
+
+                <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-xs">
+                  <span className="text-[11px] text-gray-500 font-medium block flex items-center gap-1">
+                    <ShieldAlert className="w-3.5 h-3.5 text-rose-500" /> Mock Alerts
+                  </span>
+                  <span className={`text-lg font-bold ${trackerLogs.filter(l => l.is_mock).length > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                    {trackerLogs.filter(l => l.is_mock).length} alerts
+                  </span>
+                </div>
+              </div>
+
+              {/* Legs Breakdown Bar if MID Time exists */}
+              {selectedSession && selectedSession.mid_time && (
+                <div className="bg-indigo-50/80 px-4 py-2 border-b border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-medium flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 text-indigo-600" /> Leg Breakdown:
+                    </span>
+                    <span>
+                      Leg 1 (IN→MID): <strong>{selectedSession.leg1_distance_km != null ? Number(selectedSession.leg1_distance_km).toFixed(2) : "0.00"} KM</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Leg 2 (MID→OUT): <strong>{selectedSession.leg2_distance_km != null ? Number(selectedSession.leg2_distance_km).toFixed(2) : "0.00"} KM</strong>
+                    </span>
+                  </div>
+                  {selectedSession.end_reason && (
+                    <span className="text-[11px] text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                      End Reason: {selectedSession.end_reason}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Action Toolbar */}
+              <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-600">Map Route:</span>
+                  {buildGoogleMapsRouteUrl(trackerLogs) ? (
+                    <a
+                      href={buildGoogleMapsRouteUrl(trackerLogs)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-600 via-emerald-600 to-teal-600 hover:from-indigo-700 hover:to-teal-700 text-white rounded-xl text-xs font-extrabold shadow-sm hover:shadow-md flex items-center gap-2 transition-all transform hover:-translate-y-0.5"
+                    >
+                      <Route className="w-4 h-4" />
+                      Open Full Route Path on Google Maps 🗺️
+                    </a>
+                  ) : (
+                    <span className="text-xs text-gray-400">No checkpoints available</span>
+                  )}
+                </div>
+                {isTrackerLoading && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
+                    <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                    Updating & cleaning location logs...
+                  </div>
+                )}
+              </div>
+
+              {/* Logs Content List */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-3 min-h-[300px]">
+                {isTrackerLoading && trackerLogs.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                    <p className="text-sm text-gray-500">Processing & cleaning location history...</p>
+                  </div>
+                ) : trackerLogs.length > 0 ? (
+                  <div className="relative border-l-2 border-emerald-200 ml-4 pl-6 space-y-4">
+                    {trackerLogs.map((log, index) => (
+                      <div key={log.id || index} className="relative group">
+                        {/* Circle Node */}
+                        <div className={`absolute -left-[31px] top-1.5 w-4 h-4 rounded-full border-2 bg-white ${
+                          log.isStop
+                            ? "border-indigo-600 bg-indigo-100"
+                            : log.is_mock
+                            ? "border-rose-500 bg-rose-100"
+                            : "border-emerald-600"
+                        }`} />
+
+                        <div className={`p-4 rounded-xl border transition-all ${
+                          log.isStop
+                            ? "bg-indigo-50/90 border-indigo-200 hover:border-indigo-300 shadow-xs"
+                            : log.is_mock
+                            ? "bg-rose-50/80 border-rose-200"
+                            : "bg-white border-gray-200 hover:border-emerald-300 shadow-xs"
+                        }`}>
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              {log.isStop ? (
+                                <span className="px-2.5 py-0.5 bg-indigo-600 text-white font-extrabold text-xs rounded-md shadow-xs flex items-center gap-1">
+                                  <Coffee className="w-3.5 h-3.5" />
+                                  🅿️ Parked Dwell ({Math.max(1, Math.round(log.durationMs / 60000))} mins)
+                                </span>
+                              ) : (
+                                <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                                  {log.timestamp ? new Date(log.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' }) : "N/A"}
+                                </span>
+                              )}
+                            </div>
+
+                            {log.is_mock && (
+                              <span className="px-2 py-0.5 bg-rose-600 text-white font-extrabold text-[10px] rounded shadow-xs animate-pulse">
+                                ⚠️ FAKE / MOCK LOCATION
+                              </span>
+                            )}
+                          </div>
+
+                          {log.isStop ? (
+                            <div className="p-3 bg-white rounded-lg border border-indigo-100 space-y-2 text-xs">
+                              <div className="flex items-center justify-between text-indigo-900 font-medium">
+                                <span>Arrival: <strong>{new Date(log.arrivalTime).toLocaleTimeString([], { timeStyle: 'short' })}</strong></span>
+                                <span>Departure: <strong>{new Date(log.departureTime).toLocaleTimeString([], { timeStyle: 'short' })}</strong></span>
+                                <span>Points Collapsed: <strong>{log.pointCount}</strong></span>
+                              </div>
+                              <div className="flex items-center justify-between pt-1 border-t border-indigo-50">
+                                <span className="font-mono text-indigo-700 font-bold">
+                                  Centroid: {log.latitude.toFixed(6)}, {log.longitude.toFixed(6)}
+                                </span>
+                                <a
+                                  href={`https://www.google.com/maps?q=${log.latitude},${log.longitude}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs text-indigo-700 font-bold hover:underline flex items-center gap-1 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-200"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  View Stop Location
+                                </a>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs font-medium text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                              <div>
+                                <span className="text-[10px] text-gray-400 block">Coordinates</span>
+                                <span className="font-mono text-indigo-700 font-bold">
+                                  {log.latitude}, {log.longitude}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] text-gray-400 block">Battery Level</span>
+                                <span className={`font-semibold ${log.battery < 20 ? "text-rose-600" : "text-gray-800"}`}>
+                                  🔋 {log.battery !== null ? `${log.battery}%` : "N/A"}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] text-gray-400 block">Speed & Accuracy</span>
+                                <span className="text-gray-800">
+                                  ⚡ {log.speed || 0} km/h • ±{log.accuracy || 0}m
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] text-gray-400 block">Tracking Session</span>
+                                <span className="text-gray-800 font-mono text-[11px] truncate block" title={log.tracking_session_id}>
+                                  {log.tracking_session_id || "N/A"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {!log.isStop && log.latitude && log.longitude && (
+                            <div className="mt-2.5 flex items-center justify-end">
+                              <a
+                                href={`https://www.google.com/maps?q=${log.latitude},${log.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                View on Google Maps
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-16 text-center">
+                    <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm font-medium">
+                      No location logs recorded for this employee on this date.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="bg-gray-50 px-6 py-3.5 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-500 font-medium">
+                  {trackerLogs.length} cleaned nodes ({rawLogsCount} raw points)
+                </span>
+                <button
+                  onClick={handleCloseTrackerModal}
+                  className="px-5 py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold hover:bg-emerald-800 shadow-sm transition-colors"
+                >
+                  Close Tracker
                 </button>
               </div>
             </motion.div>

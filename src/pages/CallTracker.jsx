@@ -282,11 +282,16 @@ const CallTracker = () => {
 
       if (err2) throw err2;
 
-      // 🔹 Step 3: map + join manually
+      // 🔹 Step 3: Map for O(1) join lookup (avoids browser freeze on 100k+ records)
+      const enquiryMap = new Map();
+      (enquiryData || []).forEach((e) => {
+        if (e.candidate_enquiry_number) {
+          enquiryMap.set(e.candidate_enquiry_number, e);
+        }
+      });
+
       const processedData = (followData || []).map((row) => {
-        const enquiry = enquiryData.find(
-          (e) => e.candidate_enquiry_number === row.enquiry_number
-        );
+        const enquiry = enquiryMap.get(row.enquiry_number);
 
         return {
           timestamp: row.created_at,
@@ -328,13 +333,14 @@ const CallTracker = () => {
     fetchFollowUpData();
   }, []);
 
-  const pendingData = enquiryData.filter(item => {
-    const hasFinalStatus = followUpData.some(followUp =>
-      followUp.enquiryNo === item.candidateEnquiryNo &&
-      (followUp.status.includes('Joining') || followUp.status.includes('Reject'))
-    );
-    return !hasFinalStatus;
-  });
+  // O(1) lookup set for finalized status instead of O(N*M) nested loop
+  const finalizedSet = new Set(
+    (followUpData || [])
+      .filter((f) => f.enquiryNo && f.status && (f.status.includes('Joining') || f.status.includes('Reject')))
+      .map((f) => f.enquiryNo)
+  );
+
+  const pendingData = enquiryData.filter(item => !finalizedSet.has(item.candidateEnquiryNo));
 
   const handleCallClick = (item) => {
     setSelectedItem(item);
