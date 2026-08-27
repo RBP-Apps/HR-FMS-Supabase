@@ -20,7 +20,7 @@
  *
  * DEDUCTIONS:
  *   EPF  = BASIC+DA_earned * 12%
- *   ESIC = BASIC+DA_earned * 0.75%
+ *   ESIC = GROSS_earned * 0.75%
  *   TOTAL = EPF + ESIC + advance + security + otherDed
  *
  * NET SALARY PAYABLE = GROSS - TOTAL DEDUCTION
@@ -69,7 +69,7 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
 
   // --- DEDUCTIONS ---
   const epfDed         = basicEarned * 0.12;
-  const esicDed        = basicEarned * 0.0075;
+  const esicDed        = grossEarned * 0.0075;
   const advance        = Number(edits.advance        ?? 0);
   const securityDep    = Number(edits.security_deposit ?? 0);
   const autoLateDed    = lateDays * (perDaySalary * 0.5);
