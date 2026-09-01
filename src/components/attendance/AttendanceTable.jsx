@@ -139,6 +139,7 @@ export default function AttendanceTable({
       const fieldRecord = fieldMap.get(codeKey) || fieldMap.get(nameKey);
 
       const inTime = bioRecord?.inTime || fieldRecord?.inTime;
+      const outTime = bioRecord?.outTime || fieldRecord?.outTime;
       if (!inTime) continue;
 
       const inMins = parseTimeToMinutes(inTime);
@@ -150,7 +151,8 @@ export default function AttendanceTable({
           genuineLateEntries.push({
             dateStr,
             formattedDate: formatLateDate(dateStr),
-            inTime: inTime
+            inTime: inTime,
+            outTime: outTime || "--:--"
           });
         }
       }
@@ -462,7 +464,7 @@ export default function AttendanceTable({
       {/* LATE HISTORY MODAL */}
       {lateModalData && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] transition-opacity">
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 w-[450px] shadow-2xl max-h-[85vh] flex flex-col relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 w-[500px] shadow-2xl max-h-[85vh] flex flex-col relative animate-in fade-in zoom-in-95 duration-200">
             {/* Close Button */}
             <button
               onClick={() => setLateModalData(null)}
@@ -511,8 +513,10 @@ export default function AttendanceTable({
                       <span className="text-amber-500 text-sm font-black">•</span>
                       <span className="font-extrabold text-slate-800 text-xs">{item.formattedDate}</span>
                     </div>
-                    <div className="text-xs font-medium text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-xs">
-                      In Time : <span className="font-bold text-amber-800">{item.inTime}</span>
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-xs">
+                      <span>In Time : <span className="font-bold text-amber-800">{item.inTime}</span></span>
+                      <span className="text-slate-300">|</span>
+                      <span>Out Time : <span className="font-bold text-indigo-800">{item.outTime || "--:--"}</span></span>
                     </div>
                   </div>
                 ))

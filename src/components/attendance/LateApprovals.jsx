@@ -14,6 +14,7 @@ export default function LateApprovals({ employees }) {
     duration: "",
     start_date: "",
     end_date: "",
+    remark: "",
     file: null,
     file_preview: null,
     approved: true
@@ -53,6 +54,10 @@ export default function LateApprovals({ employees }) {
       alert("Please select both start date and end date!");
       return;
     }
+    if (!lateForm.remark || !lateForm.remark.trim()) {
+      alert("Remark / Reason is mandatory!");
+      return;
+    }
 
     setIsSavingLateApproval(true);
     try {
@@ -86,6 +91,7 @@ export default function LateApprovals({ employees }) {
           duration: lateForm.duration || null,
           start_date: lateForm.start_date,
           end_date: lateForm.end_date,
+          remark: lateForm.remark.trim(),
           file_url: fileUrl,
           approved_status: lateForm.approved ? "Approved" : "Pending"
         });
@@ -104,6 +110,7 @@ export default function LateApprovals({ employees }) {
         duration: "",
         start_date: "",
         end_date: "",
+        remark: "",
         file: null,
         file_preview: null,
         approved: true
@@ -279,6 +286,21 @@ export default function LateApprovals({ employees }) {
             </div>
           </div>
 
+          {/* Remark Field */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-550 mb-1">
+              Remark / Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              required
+              rows="2"
+              value={lateForm.remark}
+              onChange={e => setLateForm({ ...lateForm, remark: e.target.value })}
+              placeholder="Enter reason for late approval..."
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
           {/* File Upload */}
           <div>
             <label className="block text-xs font-semibold text-slate-550 mb-1">
@@ -348,6 +370,7 @@ export default function LateApprovals({ employees }) {
                 <th className="p-3">Out Times</th>
                 <th className="p-3">Duration</th>
                 <th className="p-3">Date Range</th>
+                <th className="p-3">Remark</th>
                 <th className="p-3">Doc</th>
                 <th className="p-3">Status</th>
               </tr>
@@ -373,6 +396,9 @@ export default function LateApprovals({ employees }) {
                     <span className="text-slate-400 mx-1">to</span>
                     <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">{item.end_date}</span>
                   </td>
+                  <td className="p-3 max-w-[150px] truncate text-slate-600 text-[11px]" title={item.remark || ""}>
+                    {item.remark || "--"}
+                  </td>
                   <td className="p-3">
                     {item.file_url ? (
                       <a
@@ -388,9 +414,8 @@ export default function LateApprovals({ employees }) {
                     )}
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      item.approved_status === "Approved" ? "bg-emerald-50 text-emerald-700 border border-emerald-250" : "bg-amber-50 text-amber-700 border border-amber-250"
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.approved_status === "Approved" ? "bg-emerald-50 text-emerald-700 border border-emerald-250" : "bg-amber-50 text-amber-700 border border-amber-250"
+                      }`}>
                       {item.approved_status}
                     </span>
                   </td>
@@ -398,7 +423,7 @@ export default function LateApprovals({ employees }) {
               ))}
               {lateApprovalsList.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-400 italic">No late approvals configured yet.</td>
+                  <td colSpan="8" className="p-8 text-center text-slate-400 italic">No late approvals configured yet.</td>
                 </tr>
               )}
             </tbody>
@@ -408,3 +433,4 @@ export default function LateApprovals({ employees }) {
     </div>
   );
 }
+
