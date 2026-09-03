@@ -473,8 +473,10 @@ export default function AttendanceTable({
                     key={idx}
                     className="bg-slate-50 hover:bg-amber-50/50 border border-slate-200/80 rounded-xl p-3 transition-colors flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-500 text-sm font-black">•</span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-amber-500 text-white font-extrabold text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                        {idx + 1}
+                      </span>
                       <span className="font-extrabold text-slate-800 text-xs">{item.formattedDate}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-xs">
