@@ -1,6 +1,7 @@
 import React from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getLateHistoryForEmp } from "../../utils/attendanceHelpers";
 
 export default function AttendancePDF({
   selectedMonth,
@@ -16,6 +17,9 @@ export default function AttendancePDF({
   calcSummary,
   paidDays,
   getMonthNumber,
+  biometricAttendance = [],
+  fieldAttendance = [],
+  lateApprovals = []
 }) {
   const downloadPDF = () => {
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -136,6 +140,7 @@ export default function AttendancePDF({
     const body = filtered.map((emp, idx) => {
       const attendanceArray = generateMonthlyAttendance(emp, selectedYear, selectedMonth);
       const summary = calcSummary(attendanceArray);
+      const genuineLateEntries = getLateHistoryForEmp(emp, attendanceArray, selectedYear, selectedMonth, biometricAttendance, fieldAttendance, lateApprovals);
 
       const dayCells = attendanceArray.map((status) => ({
         content: status,
@@ -157,7 +162,7 @@ export default function AttendancePDF({
         { content: summary.A, styles: { halign: "center", textColor: [185, 28, 28], fontStyle: "bold" } },
         { content: summary.CL, styles: { halign: "center", textColor: [109, 40, 217], fontStyle: "bold" } },
         { content: summary.WO, styles: { halign: "center", textColor: [100, 116, 139] } },
-        { content: paidDays(summary), styles: { halign: "center", textColor: [67, 56, 202], fontStyle: "bold" } },
+        { content: paidDays(summary, genuineLateEntries.length), styles: { halign: "center", textColor: [67, 56, 202], fontStyle: "bold" } },
       ];
     });
 

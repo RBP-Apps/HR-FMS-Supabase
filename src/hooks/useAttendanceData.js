@@ -15,6 +15,7 @@ export default function useAttendanceData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [manualCorrections, setManualCorrections] = useState([]);
+  const [lateApprovals, setLateApprovals] = useState([]);
 
   // New states for Finalization & Processing Engine
   const [currentMainTab, setCurrentMainTab] = useState("attendance"); // "attendance", "ledger", "holidays", "logs"
@@ -487,6 +488,21 @@ export default function useAttendanceData() {
       console.error("Error fetching leave ledger:", err);
       return [];
     }
+  };
+
+  const fetchLateApprovals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("late_attendance_approval")
+        .select("*");
+      if (!error && data) {
+        setLateApprovals(data);
+        return data;
+      }
+    } catch (err) {
+      console.warn("late_attendance_approval fetch error:", err);
+    }
+    return [];
   };
 
   const fetchFinalizationLogs = async () => {
@@ -1393,7 +1409,8 @@ export default function useAttendanceData() {
         ledgerList,
         logList,
         finalizedList,
-        correctionsOverrides
+        correctionsOverrides,
+        lateApprovalsList
       ] = await Promise.all([
         fetchBiometricAttendance(selectedYear, selectedMonth),
         fetchFieldAttendance(selectedYear, selectedMonth),
@@ -1401,7 +1418,8 @@ export default function useAttendanceData() {
         fetchLeaveLedger(empList),
         fetchFinalizationLogs(),
         fetchFinalizedAttendance(selectedYear, selectedMonth, empList),
-        fetchManualCorrections(empList)
+        fetchManualCorrections(empList),
+        fetchLateApprovals()
       ]);
 
       const isMonthFinalized = logList.some(log =>
@@ -1584,6 +1602,8 @@ export default function useAttendanceData() {
     fetchBiometricAttendance,
     fetchFieldAttendance,
     fetchManualCorrections,
+    lateApprovals,
+    fetchLateApprovals,
     fetchHolidays,
     fetchLeaveLedger,
     fetchFinalizationLogs,

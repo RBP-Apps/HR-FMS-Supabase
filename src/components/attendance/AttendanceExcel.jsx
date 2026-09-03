@@ -1,4 +1,5 @@
 import React from "react";
+import { getLateHistoryForEmp } from "../../utils/attendanceHelpers";
 
 export default function AttendanceExcel({
   pageRows,
@@ -8,7 +9,10 @@ export default function AttendanceExcel({
   calcSummary,
   paidDays,
   getMonthNumber,
-  stats
+  stats,
+  biometricAttendance = [],
+  fieldAttendance = [],
+  lateApprovals = []
 }) {
   const exportToExcel = () => {
     // Prepare data for export
@@ -17,6 +21,7 @@ export default function AttendanceExcel({
     pageRows.forEach(emp => {
       const attendanceArray = generateMonthlyAttendance(emp, selectedYear, selectedMonth);
       const summary = calcSummary(attendanceArray);
+      const genuineLateEntries = getLateHistoryForEmp(emp, attendanceArray, selectedYear, selectedMonth, biometricAttendance, fieldAttendance, lateApprovals);
       
       // Create a row for each employee with their monthly data
       const row = {
@@ -28,7 +33,8 @@ export default function AttendanceExcel({
         "Absent Days": summary.A,
         "Casual Leave": summary.CL,
         "Week Off": summary.WO,
-        "Paid Days": paidDays(summary),
+        "Late Days": genuineLateEntries.length,
+        "Paid Days": paidDays(summary, genuineLateEntries.length),
       };
       
       // Add daily attendance

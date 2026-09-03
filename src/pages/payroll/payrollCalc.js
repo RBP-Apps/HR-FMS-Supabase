@@ -72,7 +72,7 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const esicDed        = grossEarned * 0.0075;
   const advance        = Number(edits.advance        ?? 0);
   const securityDep    = Number(edits.security_deposit ?? 0);
-  const autoLateDed    = lateDays * (perDaySalary * 0.5);
+  const autoLateDed    = 0; // Late deduction is already subtracted in present_days (Paid Days)
   const lateDeduction  = edits.late_deduction !== undefined && edits.late_deduction !== ''
     ? Number(edits.late_deduction)
     : autoLateDed;

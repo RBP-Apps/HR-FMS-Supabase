@@ -1,4 +1,5 @@
 import React from "react";
+import { getLateHistoryForEmp } from "../../utils/attendanceHelpers";
 
 const AVATAR_COLORS = [
   "from-violet-500 to-purple-600",
@@ -31,8 +32,9 @@ export default function EmployeeSummaryPanel({
   MAX_CL_DAYS,
   setSelectedLeaveEmp,
   setShowLeaveModal,
-  biometricAttendance,
-  fieldAttendance,
+  biometricAttendance = [],
+  fieldAttendance = [],
+  lateApprovals = [],
   setEditModalData,
   setShowEditModal
 }) {
@@ -40,6 +42,8 @@ export default function EmployeeSummaryPanel({
 
   const attendance = generateMonthlyAttendance(selEmp, selectedYear, selectedMonth);
   const summary = calcSummary(attendance);
+  const genuineLateEntries = getLateHistoryForEmp(selEmp, attendance, selectedYear, selectedMonth, biometricAttendance, fieldAttendance, lateApprovals);
+  const lateCount = genuineLateEntries.length;
 
   return (
     <div className="w-52 shrink-0 flex flex-col gap-3">
@@ -75,7 +79,7 @@ export default function EmployeeSummaryPanel({
           </div>
           <div className="flex justify-between border-t border-slate-100 mt-1 pt-2">
             <span className="text-[11px] font-bold text-slate-600">Total Paid Days</span>
-            <span className="text-[11px] font-bold text-indigo-700">{paidDays(summary)}</span>
+            <span className="text-[11px] font-bold text-indigo-700">{paidDays(summary, lateCount)}</span>
           </div>
         </div>
 

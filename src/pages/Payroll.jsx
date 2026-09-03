@@ -8,6 +8,7 @@ import PayrollFilters from './payroll/PayrollFilters';
 import PayrollTable from './payroll/PayrollTable';
 import PayrollEditModal from './payroll/PayrollEditModal';
 import PayslipModal from './payroll/PayslipModal';
+import { parseTimeToMinutes, isLateApproved } from '../utils/attendanceHelpers';
 
 // ─── Toast ──────────────────────────────────────────────────────────
 function Toast({ toasts }) {
@@ -314,6 +315,14 @@ export default function PayrollPage() {
       console.warn("holiday_master fetch error", err);
     }
 
+    let lateApprovalLogs = [];
+    try {
+      const { data, error } = await supabase.from('late_attendance_approval').select('*');
+      if (!error) lateApprovalLogs = data || [];
+    } catch (err) {
+      console.warn("late_attendance_approval fetch error", err);
+    }
+
     // Process biometric punches exactly like useAttendanceData.js
     const bioGrouped = {};
     bioLogs.forEach(b => {
@@ -492,17 +501,17 @@ export default function PayrollPage() {
         if (checkInTime && !['A', 'WO', 'H', 'CL', 'LWP'].includes(status)) {
           const inMins = parseTimeToMinutes(checkInTime);
           if (inMins !== null && inMins >= 586 && inMins <= 750) {
-            lateCycleCount++;
-            if (lateCycleCount === 4) {
-              lateCycleCount = 0;
-            } else {
+            // If approved in Late Approvals, do NOT count as late day for deduction
+            if (!isLateApproved(emp, dayStr, lateApprovalLogs)) {
               lateDaysCount++;
             }
           }
         }
       }
 
-      const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
+      const lateDeductionDays = Math.floor(lateDaysCount / 4) * 0.5;
+      const basePaidDays = presentDays + weekOffCount + paidLeaves + holidayCount;
+      const paidDaysTotal = Math.max(0, basePaidDays - lateDeductionDays);
 
       return {
         employee_id: emp.id,

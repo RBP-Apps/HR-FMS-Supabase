@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { parseTimeToMinutes } from "../../utils/attendanceHelpers";
+import { parseTimeToMinutes, getLateHistoryForEmp } from "../../utils/attendanceHelpers";
 
 const STATUS_STYLE = {
   P: { bg: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "P" },
@@ -78,6 +78,7 @@ export default function AttendanceTable({
   handleFileUpload,
   biometricAttendance,
   fieldAttendance,
+  lateApprovals = [],
   setSelectedLeaveEmp,
   setShowLeaveModal,
   setEditModalData,
@@ -115,51 +116,6 @@ export default function AttendanceTable({
     });
     return map;
   }, [fieldAttendance]);
-
-  const getLateHistoryForEmp = (emp, attendanceArray) => {
-    const monthNum = getMonthNumber(selectedMonth);
-    const daysInMonth = attendanceArray.length;
-    const empCodeLower = emp.code?.toString().trim().toLowerCase();
-    const empNameLower = emp.name?.toString().trim().toLowerCase();
-
-    let lateCycleCount = 0;
-    const genuineLateEntries = [];
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const status = attendanceArray[d - 1];
-      if (!status || ["A", "WO", "H", "CL", "LWP"].includes(status)) {
-        continue;
-      }
-
-      const dateStr = `${selectedYear}-${String(monthNum + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const codeKey = `${empCodeLower}_${dateStr}`;
-      const nameKey = `${empNameLower}_${dateStr}`;
-
-      const bioRecord = biometricMap.get(codeKey) || biometricMap.get(nameKey);
-      const fieldRecord = fieldMap.get(codeKey) || fieldMap.get(nameKey);
-
-      const inTime = bioRecord?.inTime || fieldRecord?.inTime;
-      const outTime = bioRecord?.outTime || fieldRecord?.outTime;
-      if (!inTime) continue;
-
-      const inMins = parseTimeToMinutes(inTime);
-      if (inMins !== null && inMins >= 586 && inMins <= 750) {
-        lateCycleCount++;
-        if (lateCycleCount === 4) {
-          lateCycleCount = 0;
-        } else {
-          genuineLateEntries.push({
-            dateStr,
-            formattedDate: formatLateDate(dateStr),
-            inTime: inTime,
-            outTime: outTime || "--:--"
-          });
-        }
-      }
-    }
-
-    return genuineLateEntries;
-  };
 
   return (
     <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
@@ -217,7 +173,7 @@ export default function AttendanceTable({
                   <div className="text-indigo-200 text-[9px] font-normal">{day}</div>
                 </th>
               ))}
-              {["P", "A", "Total CL", "CL Used", "CL Remaining", "WO", "Late Days", "Paid Days", "Actions"].map(h => (
+              {["P", "A", "Total CL", "CL Used", "CL (This Month)", "CL Remaining", "WO", "Late Days", "Paid Days", "Actions"].map(h => (
                 <th key={h} className="sticky top-0 z-20 bg-indigo-600 px-2 py-2 whitespace-nowrap font-semibold border-b border-indigo-700">{h}</th>
               ))}
             </tr>
@@ -226,12 +182,14 @@ export default function AttendanceTable({
             {pageRows.map((emp, ri) => {
               const attendanceArray = generateMonthlyAttendance(emp, selectedYear, selectedMonth);
               const summary = calcSummary(attendanceArray);
-              const genuineLateEntries = getLateHistoryForEmp(emp, attendanceArray);
+              const genuineLateEntries = getLateHistoryForEmp(emp, attendanceArray, selectedYear, selectedMonth, biometricAttendance, fieldAttendance, lateApprovals);
               const isExpanded = expandedRow === emp.id;
 
-              const totalCL = leaveBalances[emp.id]?.earnedCL ?? 0;
-              const clUsed = summary.CL;
-              const clRemaining = Math.max(0, totalCL - clUsed);
+              const empBalance = leaveBalances[emp.id] || leaveBalances[emp.code] || leaveBalances[emp.name];
+              const totalCL = empBalance?.earnedCL ?? 0;
+              const clUsed = empBalance?.usedCL ?? summary.CL;
+              const currentMonthCL = summary.CL;
+              const clRemaining = empBalance?.remainingCL ?? Math.max(0, totalCL - clUsed);
 
               return (
                 <React.Fragment key={emp.id}>
@@ -281,9 +239,10 @@ export default function AttendanceTable({
                     })}
                     <td className="px-2 py-2 text-center font-bold text-emerald-600">{summary.P}</td>
                     <td className="px-2 py-2 text-center font-bold text-red-500">{summary.A}</td>
-                    <td className="px-2 py-2 text-center font-bold text-violet-700">{totalCL}</td>
-                    <td className="px-2 py-2 text-center font-bold text-amber-600">{clUsed}</td>
-                    <td className="px-2 py-2 text-center font-bold text-emerald-600">{clRemaining}</td>
+                    <td className="px-2 py-2 text-center font-bold text-violet-700" title="Total CL Credits">{totalCL}</td>
+                    <td className="px-2 py-2 text-center font-bold text-amber-600" title="Total CL Used (Ledger)">{clUsed}</td>
+                    <td className="px-2 py-2 text-center font-bold text-indigo-600" title="CL Used in Current Month">{currentMonthCL}</td>
+                    <td className="px-2 py-2 text-center font-bold text-emerald-600" title="CL Balance Remaining">{clRemaining}</td>
                     <td className="px-2 py-2 text-center font-bold text-slate-400">{summary.WO}</td>
 
                     {/* LATE DAYS COLUMN */}
@@ -308,7 +267,7 @@ export default function AttendanceTable({
                       </button>
                     </td>
 
-                    <td className="px-2 py-2 text-center font-bold text-indigo-700">{paidDays(summary)}</td>
+                    <td className="px-2 py-2 text-center font-bold text-indigo-700">{paidDays(summary, genuineLateEntries.length)}</td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-1 justify-center">
                         <button

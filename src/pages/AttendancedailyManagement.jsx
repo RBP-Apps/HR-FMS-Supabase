@@ -24,7 +24,8 @@ import BulkActionsPanel from "../components/attendance/BulkActionsPanel";
 import {
   calcSummary,
   paidDays,
-  getMonthNumber
+  getMonthNumber,
+  getLateHistoryForEmp
 } from "../utils/attendanceHelpers";
 
 export default function HRMSAttendanceDashboard() {
@@ -37,6 +38,7 @@ export default function HRMSAttendanceDashboard() {
     fieldAttendance,
     loading,
     manualCorrections,
+    lateApprovals,
     currentMainTab,
     setCurrentMainTab,
     holidays,
@@ -152,6 +154,9 @@ export default function HRMSAttendanceDashboard() {
                   paidDays={paidDays}
                   getMonthNumber={getMonthNumber}
                   stats={stats}
+                  biometricAttendance={biometricAttendance}
+                  fieldAttendance={fieldAttendance}
+                  lateApprovals={lateApprovals}
                 />
 
                 <AttendancePDF
@@ -168,6 +173,9 @@ export default function HRMSAttendanceDashboard() {
                   calcSummary={calcSummary}
                   paidDays={paidDays}
                   getMonthNumber={getMonthNumber}
+                  biometricAttendance={biometricAttendance}
+                  fieldAttendance={fieldAttendance}
+                  lateApprovals={lateApprovals}
                 />
               </>
             )}
@@ -343,6 +351,7 @@ export default function HRMSAttendanceDashboard() {
                       handleFileUpload={handleFileUpload}
                       biometricAttendance={biometricAttendance}
                       fieldAttendance={fieldAttendance}
+                      lateApprovals={lateApprovals}
                       setSelectedLeaveEmp={setSelectedLeaveEmp}
                       setShowLeaveModal={setShowLeaveModal}
                       setEditModalData={setEditModalData}
@@ -372,6 +381,7 @@ export default function HRMSAttendanceDashboard() {
                       setShowLeaveModal={setShowLeaveModal}
                       biometricAttendance={biometricAttendance}
                       fieldAttendance={fieldAttendance}
+                      lateApprovals={lateApprovals}
                       setEditModalData={setEditModalData}
                       setShowEditModal={setShowEditModal}
                     />

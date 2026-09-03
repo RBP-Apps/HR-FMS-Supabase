@@ -21,6 +21,24 @@ export default function LateApprovals({ employees }) {
   });
   const [lateApprovalsList, setLateApprovalsList] = useState([]);
   const [isSavingLateApproval, setIsSavingLateApproval] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filtered late approvals list based on global search query
+  const filteredList = lateApprovalsList.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      item.employee_name?.toLowerCase().includes(q) ||
+      item.employee_code?.toLowerCase().includes(q) ||
+      item.start_date?.toLowerCase().includes(q) ||
+      item.end_date?.toLowerCase().includes(q) ||
+      item.remark?.toLowerCase().includes(q) ||
+      item.approved_status?.toLowerCase().includes(q) ||
+      item.duration?.toLowerCase().includes(q) ||
+      item.actual_in_time?.toLowerCase().includes(q) ||
+      item.changed_in_time?.toLowerCase().includes(q)
+    );
+  });
 
   // Fetch late approvals
   const fetchLateApprovals = async () => {
@@ -351,33 +369,57 @@ export default function LateApprovals({ employees }) {
       </div>
 
       {/* LIST HISTORY */}
-      <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-4">
-        <div>
-          <h3 className="font-bold text-slate-800 text-base">
-            📋 Late Approvals History
-          </h3>
-          <p className="text-xs text-slate-400 mt-1">
-            List of configured approvals. These dates will override biometric/field defaults for full-day presence.
-          </p>
+      <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-4 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
+          <div>
+            <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+              <span>📋</span> Late Approvals History
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              List of configured approvals. These dates will override biometric/field defaults for full-day presence.
+            </p>
+          </div>
+
+          {/* Global Search Input */}
+          <div className="relative w-full sm:w-64 shrink-0">
+            <input
+              type="text"
+              placeholder="Search employee, code, date..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-7 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all shadow-sm"
+            />
+           
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* 500px SCROLL CONTAINER WITH FIXED HEADER */}
+        <div className="overflow-x-auto overflow-y-auto max-h-[500px] border border-slate-100 rounded-xl shadow-inner relative" style={{ scrollbarWidth: 'thin', scrollbarColor: '#c7d2fe #f1f5f9' }}>
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                <th className="p-3">Employee</th>
-                <th className="p-3">In Times</th>
-                <th className="p-3">Out Times</th>
-                <th className="p-3">Duration</th>
-                <th className="p-3">Date Range</th>
-                <th className="p-3">Remark</th>
-                <th className="p-3">Doc</th>
-                <th className="p-3">Status</th>
+            <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+              <tr className="text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                <th className="p-3 bg-slate-100 sticky top-0">Employee</th>
+                <th className="p-3 bg-slate-100 sticky top-0">In Times</th>
+                <th className="p-3 bg-slate-100 sticky top-0">Out Times</th>
+                <th className="p-3 bg-slate-100 sticky top-0">Duration</th>
+                <th className="p-3 bg-slate-100 sticky top-0">Date Range</th>
+                <th className="p-3 bg-slate-100 sticky top-0">Remark</th>
+                <th className="p-3 bg-slate-100 sticky top-0">Doc</th>
+                <th className="p-3 bg-slate-100 sticky top-0">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-              {lateApprovalsList.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50/50">
+              {filteredList.map(item => (
+                <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="p-3">
                     <div className="font-bold text-slate-800">{item.employee_name}</div>
                     <div className="text-[10px] text-slate-400 font-mono">{item.employee_code}</div>
@@ -392,9 +434,9 @@ export default function LateApprovals({ employees }) {
                   </td>
                   <td className="p-3 font-mono text-slate-600">{item.duration || "--"}</td>
                   <td className="p-3 text-[10px]">
-                    <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">{item.start_date}</span>
+                    <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold border border-emerald-200">{item.start_date}</span>
                     <span className="text-slate-400 mx-1">to</span>
-                    <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">{item.end_date}</span>
+                    <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold border border-emerald-200">{item.end_date}</span>
                   </td>
                   <td className="p-3 max-w-[150px] truncate text-slate-600 text-[11px]" title={item.remark || ""}>
                     {item.remark || "--"}
@@ -421,9 +463,11 @@ export default function LateApprovals({ employees }) {
                   </td>
                 </tr>
               ))}
-              {lateApprovalsList.length === 0 && (
+              {filteredList.length === 0 && (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-400 italic">No late approvals configured yet.</td>
+                  <td colSpan="8" className="p-8 text-center text-slate-400 italic">
+                    {searchQuery ? "No matching late approvals found." : "No late approvals configured yet."}
+                  </td>
                 </tr>
               )}
             </tbody>
