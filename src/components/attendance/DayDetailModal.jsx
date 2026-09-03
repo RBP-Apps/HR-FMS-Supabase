@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import supabase from "../../utils/supabase";
+import { parseTimeToMinutes } from "../../utils/attendanceHelpers";
 
 const STATUS_STYLE = {
   P: { bg: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "✅ Present" },
@@ -115,8 +116,16 @@ export default function DayDetailModal({
   
   // Calculate expected status based on Biometric Logic
   let bioExpectedStatus = "Absent";
-  if (hasBioIn && hasBioOut) bioExpectedStatus = "Present";
-  else if (hasBioIn || hasBioOut) bioExpectedStatus = "Half Day / Punch Missing";
+  if (hasBioIn && hasBioOut) {
+    const outMins = parseTimeToMinutes(bioRecord.outTime);
+    if (outMins !== null && outMins < 960) {
+      bioExpectedStatus = "Half Day (Early Out)";
+    } else {
+      bioExpectedStatus = "Present";
+    }
+  } else if (hasBioIn || hasBioOut) {
+    bioExpectedStatus = "Half Day / Punch Missing";
+  }
 
   // Helper variables for field logs
   const hasFieldIn = fieldRecord && fieldRecord.inTime;

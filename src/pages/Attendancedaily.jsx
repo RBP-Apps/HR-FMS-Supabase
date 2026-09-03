@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import supabase from "../utils/supabase";
+import { parseTimeToMinutes } from "../utils/attendanceHelpers";
 import {
   cleanRouteForDisplay,
   sumRouteDistanceKm,
@@ -120,6 +121,9 @@ const processBiometricAttendance = (data) => {
       finalOut = allTimes[allTimes.length - 1];
     }
 
+    const outMins = parseTimeToMinutes(finalOut);
+    const isEarlyOut = outMins !== null && outMins < 960;
+
     return {
       type: "biometric",
       employee: item.employee_name,
@@ -133,11 +137,9 @@ const processBiometricAttendance = (data) => {
       outTime: finalOut,
       location: "Head Office",
       records: records,
-      status: finalIn && finalOut
+      status: (finalIn && finalOut && !isEarlyOut)
         ? "Present"
-        : finalIn || finalOut
-          ? "Half Day"
-          : "Absent",
+        : (finalIn || finalOut ? "Half Day" : "Absent"),
       workingHour: item.working_hour,
       lateCalculation: item.late_calculation,
       lateCountsMorning: item.late_counts_morning,
@@ -614,12 +616,14 @@ const fetchAttendanceData = async (
             allTimes.sort((a, b) => a.localeCompare(b));
             const finalIn = allTimes.length > 0 ? allTimes[0] : null;
             const finalOut = allTimes.length > 1 ? allTimes[allTimes.length - 1] : null;
+            const outMins = parseTimeToMinutes(finalOut);
+            const isEarlyOut = outMins !== null && outMins < 960;
             merged[existingIndex] = {
               ...existingItem,
               inTime: finalIn,
               outTime: finalOut,
               records: [...existingItem.records, ...newItem.records],
-              status: finalIn && finalOut ? "Present" : (finalIn || finalOut ? "Half Day" : "Absent")
+              status: (finalIn && finalOut && !isEarlyOut) ? "Present" : (finalIn || finalOut ? "Half Day" : "Absent")
             };
           } else {
             merged.push(newItem);

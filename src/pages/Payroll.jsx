@@ -442,7 +442,12 @@ export default function PayrollPage() {
             if (bioEntry && (bioEntry.finalIn || bioEntry.finalOut)) {
               checkInTime = bioEntry.finalIn;
               if (bioEntry.finalIn && bioEntry.finalOut) {
-                status = 'P';
+                const outMins = parseTimeToMinutes(bioEntry.finalOut);
+                if (outMins !== null && outMins < 960) {
+                  status = 'HD';
+                } else {
+                  status = 'P';
+                }
               } else {
                 status = 'HD';
               }
@@ -452,7 +457,12 @@ export default function PayrollPage() {
             if (fieldRec) {
               checkInTime = fieldRec.inTime;
               if (fieldRec.inTime && fieldRec.outTime) {
-                status = 'P';
+                const outMins = parseTimeToMinutes(fieldRec.outTime);
+                if (outMins !== null && outMins < 960) {
+                  status = 'HD';
+                } else {
+                  status = 'P';
+                }
               } else if (fieldRec.inTime || fieldRec.outTime) {
                 status = 'HD';
               } else if (fieldRec.status === 'P') {
