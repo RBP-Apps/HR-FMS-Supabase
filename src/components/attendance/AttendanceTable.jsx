@@ -143,7 +143,7 @@ export default function AttendanceTable({
       if (!inTime) continue;
 
       const inMins = parseTimeToMinutes(inTime);
-      if (inMins !== null && inMins >= 585 && inMins <= 750) {
+      if (inMins !== null && inMins >= 586 && inMins <= 750) {
         lateCycleCount++;
         if (lateCycleCount === 4) {
           lateCycleCount = 0;
@@ -217,7 +217,7 @@ export default function AttendanceTable({
                   <div className="text-indigo-200 text-[9px] font-normal">{day}</div>
                 </th>
               ))}
-              {["P", "A", "CL", "WO", "Late Days", "Paid Days", "Actions"].map(h => (
+              {["P", "A", "Total CL", "CL Used", "CL Remaining", "WO", "Late Days", "Paid Days", "Actions"].map(h => (
                 <th key={h} className="sticky top-0 z-20 bg-indigo-600 px-2 py-2 whitespace-nowrap font-semibold border-b border-indigo-700">{h}</th>
               ))}
             </tr>
@@ -228,7 +228,10 @@ export default function AttendanceTable({
               const summary = calcSummary(attendanceArray);
               const genuineLateEntries = getLateHistoryForEmp(emp, attendanceArray);
               const isExpanded = expandedRow === emp.id;
-              const remainingCL = leaveBalances[emp.id]?.remainingCL ?? MAX_CL_DAYS;
+
+              const totalCL = leaveBalances[emp.id]?.earnedCL ?? 0;
+              const clUsed = summary.CL;
+              const clRemaining = Math.max(0, totalCL - clUsed);
 
               return (
                 <React.Fragment key={emp.id}>
@@ -278,7 +281,9 @@ export default function AttendanceTable({
                     })}
                     <td className="px-2 py-2 text-center font-bold text-emerald-600">{summary.P}</td>
                     <td className="px-2 py-2 text-center font-bold text-red-500">{summary.A}</td>
-                    <td className="px-2 py-2 text-center font-bold text-violet-600">{summary.CL}</td>
+                    <td className="px-2 py-2 text-center font-bold text-violet-700">{totalCL}</td>
+                    <td className="px-2 py-2 text-center font-bold text-amber-600">{clUsed}</td>
+                    <td className="px-2 py-2 text-center font-bold text-emerald-600">{clRemaining}</td>
                     <td className="px-2 py-2 text-center font-bold text-slate-400">{summary.WO}</td>
 
                     {/* LATE DAYS COLUMN */}
@@ -411,7 +416,7 @@ export default function AttendanceTable({
                             </div>
                             {(emp.attendanceType === "Office" || emp.dept === "Office") && (
                               <div className="mt-2 text-[9px] text-slate-500 border-t pt-1">
-                                CL Remaining: {remainingCL} / {MAX_CL_DAYS} days
+                                CL Remaining: {clRemaining} / {totalCL} days
                               </div>
                             )}
                             <button

@@ -17,12 +17,12 @@ export default function RecentCorrections({
           </div>
           <button className="text-xs text-violet-600 font-semibold hover:underline">View All</button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[300px] overflow-y-auto relative">
           <table className="w-full text-[11px]">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
               <tr className="bg-slate-50 border-b border-slate-100">
                 {["Employee", "Date", "Previous Status", "New Status", "Remark", "Updated By", "Updated On", "Attachment"].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 text-slate-400 font-semibold whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-2.5 text-slate-400 font-semibold whitespace-nowrap bg-slate-50">{h}</th>
                 ))}
               </tr>
             </thead>

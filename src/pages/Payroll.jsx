@@ -207,7 +207,7 @@ export default function PayrollPage() {
 
               if (item.in_time && !['A', 'WO', 'H', 'CL', 'LWP'].includes(status)) {
                 const inMins = parseTimeToMinutes(item.in_time);
-                if (inMins !== null && inMins >= 585 && inMins <= 750) {
+                if (inMins !== null && inMins >= 586 && inMins <= 750) {
                   lateCycleCount++;
                   if (lateCycleCount === 4) {
                     lateCycleCount = 0;
@@ -481,7 +481,7 @@ export default function PayrollPage() {
 
         if (checkInTime && !['A', 'WO', 'H', 'CL', 'LWP'].includes(status)) {
           const inMins = parseTimeToMinutes(checkInTime);
-          if (inMins !== null && inMins >= 585 && inMins <= 750) {
+          if (inMins !== null && inMins >= 586 && inMins <= 750) {
             lateCycleCount++;
             if (lateCycleCount === 4) {
               lateCycleCount = 0;
