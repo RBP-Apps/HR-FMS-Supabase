@@ -12,7 +12,7 @@ export default function LeaveLedgerDashboard({
   const filteredBalances = filtered.filter(emp => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase().trim();
-    const bal = leaveBalances[emp.id] || { earnedCL: 0, usedCL: 0, remainingCL: 0, lwpCount: 0 };
+    const bal = leaveBalances[emp.id] || leaveBalances[String(emp.id)] || { earnedCL: 0, usedCL: 0, remainingCL: 0, lwpCount: 0 };
 
     const code = (emp.code || "").toString().toLowerCase();
     const name = (emp.name || "").toString().toLowerCase();
@@ -34,7 +34,7 @@ export default function LeaveLedgerDashboard({
   const filteredTransactions = leaveLedger.filter(row => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase().trim();
-    const emp = employees.find(e => e.id === row.employee_id);
+    const emp = employees.find(e => String(e.id) === String(row.employee_id));
 
     const empName = emp ? emp.name.toLowerCase() : `id: ${row.employee_id}`.toLowerCase();
     const empCode = emp && emp.code ? emp.code.toLowerCase() : "";
@@ -151,7 +151,7 @@ export default function LeaveLedgerDashboard({
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
               {filteredTransactions.slice(0, 100).map(row => {
-                const emp = employees.find(e => e.id === row.employee_id);
+                const emp = employees.find(e => String(e.id) === String(row.employee_id));
                 return (
                   <tr key={row.id} className="hover:bg-slate-50/50">
                     <td className="p-3 font-bold text-slate-800">{emp ? emp.name : `ID: ${row.employee_id}`}</td>

@@ -1,6 +1,13 @@
 import React from "react";
 import { Select } from "antd";
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+const YEARS = ["2024", "2025", "2026", "2027", "2028"];
+
 export default function AdjustmentModal({
   showAdjustModal,
   setShowAdjustModal,
@@ -18,7 +25,7 @@ export default function AdjustmentModal({
         <form onSubmit={handleAddAdjustment} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">
-              Select Employee
+              Select Employee <span className="text-red-500">*</span>
             </label>
 
             <Select
@@ -48,7 +55,7 @@ export default function AdjustmentModal({
             <div className="flex-1">
               <label className="block text-xs font-semibold text-slate-500 mb-1">Leave Type</label>
               <select
-                value={adjustForm.leave_type}
+                value={adjustForm.leave_type || "CL"}
                 onChange={e => setAdjustForm({ ...adjustForm, leave_type: e.target.value })}
                 className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none"
               >
@@ -58,7 +65,7 @@ export default function AdjustmentModal({
             <div className="flex-1">
               <label className="block text-xs font-semibold text-slate-500 mb-1">Adjustment Type</label>
               <select
-                value={adjustForm.transaction_type}
+                value={adjustForm.transaction_type || "CREDIT"}
                 onChange={e => setAdjustForm({ ...adjustForm, transaction_type: e.target.value })}
                 className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none"
               >
@@ -67,6 +74,43 @@ export default function AdjustmentModal({
               </select>
             </div>
           </div>
+
+          {/* Month & Year Selection Fields */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Select Month <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                value={adjustForm.month || ""}
+                onChange={e => setAdjustForm({ ...adjustForm, month: e.target.value })}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700"
+              >
+                <option value="">Choose Month</option>
+                {MONTHS.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-1/3">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Select Year <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                value={adjustForm.year || ""}
+                onChange={e => setAdjustForm({ ...adjustForm, year: e.target.value })}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700"
+              >
+                <option value="">Year</option>
+                {YEARS.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">Amount (Days)</label>
             <input

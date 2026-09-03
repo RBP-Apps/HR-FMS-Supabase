@@ -456,6 +456,8 @@ export default function HRMSAttendanceDashboard() {
         setAdjustForm={setAdjustForm}
         employees={employees}
         handleAddAdjustment={handleAddAdjustment}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
       />
 
       {/* LEAVE MODAL */}

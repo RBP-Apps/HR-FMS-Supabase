@@ -35,7 +35,15 @@ export default function useAttendanceData() {
 
   // Leave Ledger Adjustment Modal
   const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [adjustForm, setAdjustForm] = useState({ employee_id: "", leave_type: "CL", transaction_type: "CREDIT", amount: 1, remarks: "" });
+  const [adjustForm, setAdjustForm] = useState({
+    employee_id: "",
+    leave_type: "CL",
+    transaction_type: "CREDIT",
+    amount: 1,
+    remarks: "",
+    month: new Date().toLocaleString("default", { month: "long" }),
+    year: new Date().getFullYear().toString()
+  });
 
   // Bulk action state
   const [bulkAction, setBulkAction] = useState({ employeeId: "ALL", startDate: "", endDate: "", status: "P", remark: "" });
@@ -653,13 +661,17 @@ export default function useAttendanceData() {
 
         if (insertError) {
           console.error("Error auto crediting CL:", insertError);
+          return ledgerRows;
         } else {
           console.log(`Auto-credited ${missingCredits.length} CL entries to leave_ledger.`);
-          await fetchLeaveLedger();
+          const updatedLedger = await fetchLeaveLedger(employeesList);
+          return updatedLedger || ledgerRows;
         }
       }
+      return ledgerRows;
     } catch (err) {
       console.error("Error in syncMonthlyCLCredits:", err);
+      return ledgerRows;
     }
   };
 
@@ -1367,34 +1379,48 @@ export default function useAttendanceData() {
 
   const handleAddAdjustment = async (e) => {
     e.preventDefault();
-    if (!adjustForm.employee_id || !adjustForm.amount || !adjustForm.remarks.trim()) {
-      alert("Please fill all adjustment details!");
+    if (!adjustForm.employee_id || !adjustForm.amount || !adjustForm.remarks.trim() || !adjustForm.month || !adjustForm.year) {
+      alert("Please fill all adjustment details including Month and Year!");
       return;
     }
 
     try {
       const isCredit = adjustForm.transaction_type === "CREDIT";
+      const monthNum = getMonthNumber(adjustForm.month) + 1;
+      const yearVal = parseInt(adjustForm.year);
+      const ledgerDateStr = `${yearVal}-${String(monthNum).padStart(2, "0")}-01`;
+
       const { error: err } = await supabase
         .from("leave_ledger")
         .insert({
           employee_id: adjustForm.employee_id,
-          ledger_date: new Date().toISOString().split("T")[0],
+          ledger_date: ledgerDateStr,
           leave_type: adjustForm.leave_type,
           transaction_type: adjustForm.transaction_type,
           earned: isCredit ? Number(adjustForm.amount) : 0,
           used: !isCredit ? Number(adjustForm.amount) : 0,
-          remarks: `Manual Adjustment: ${adjustForm.remarks}`
+          remarks: `Manual Adjustment (${adjustForm.month} ${adjustForm.year}): ${adjustForm.remarks}`
         });
+
       if (err) throw err;
 
-      alert("Adjustment recorded successfully.");
+      alert(`HR Manual adjustment recorded successfully for ${adjustForm.month} ${adjustForm.year}!`);
       setShowAdjustModal(false);
-      setAdjustForm({ employee_id: "", leave_type: "CL", transaction_type: "CREDIT", amount: 1, remarks: "" });
+      setAdjustForm({
+        employee_id: "",
+        leave_type: "CL",
+        transaction_type: "CREDIT",
+        amount: 1,
+        remarks: "",
+        month: selectedMonth || new Date().toLocaleString("default", { month: "long" }),
+        year: selectedYear || new Date().getFullYear().toString()
+      });
+
       await fetchLeaveLedger();
       await loadDynamicData();
     } catch (err) {
       console.error("Error recording adjustment:", err);
-      alert("Failed to record adjustment");
+      alert("Failed to record adjustment: " + err.message);
     }
   };
 
@@ -1431,8 +1457,8 @@ export default function useAttendanceData() {
       setIsFinalized(isMonthFinalized);
 
       if (empList.length > 0) {
-        await syncMonthlyCLCredits(empList, ledgerList, selectedYear, selectedMonth);
-        processAttendanceEngine(empList, biometricList, fieldList, holidaysList, ledgerList, selectedYear, selectedMonth, correctionsOverrides);
+        const updatedLedgerList = await syncMonthlyCLCredits(empList, ledgerList, selectedYear, selectedMonth);
+        processAttendanceEngine(empList, biometricList, fieldList, holidaysList, updatedLedgerList || ledgerList, selectedYear, selectedMonth, correctionsOverrides);
       }
     } catch (err) {
       console.error("Error loading dynamic data:", err);
