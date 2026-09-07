@@ -53,6 +53,7 @@ function formatLateDate(dateStr) {
 export default function AttendanceTable({
   selectedMonth,
   selectedYear,
+  isFinalized = false,
   activeTab,
   setActiveTab,
   daysOfWeek,
@@ -187,9 +188,12 @@ export default function AttendanceTable({
 
               const empBalance = leaveBalances[emp.id] || leaveBalances[emp.code] || leaveBalances[emp.name];
               const totalCL = empBalance?.earnedCL ?? 0;
-              const clUsed = empBalance?.usedCL ?? summary.CL;
               const currentMonthCL = summary.CL;
-              const clRemaining = empBalance?.remainingCL ?? Math.max(0, totalCL - clUsed);
+              const ledgerDebits = empBalance?.ledgerDebits ?? (isFinalized ? Math.max(0, (empBalance?.usedCL ?? 0) - currentMonthCL) : (empBalance?.usedCL ?? 0));
+              const clUsed = isFinalized
+                ? (empBalance?.usedCL ?? currentMonthCL)
+                : (ledgerDebits + currentMonthCL);
+              const clRemaining = Math.max(0, totalCL - clUsed);
 
               return (
                 <React.Fragment key={emp.id}>
@@ -240,7 +244,7 @@ export default function AttendanceTable({
                     <td className="px-2 py-2 text-center font-bold text-emerald-600">{summary.P}</td>
                     <td className="px-2 py-2 text-center font-bold text-red-500">{summary.A}</td>
                     <td className="px-2 py-2 text-center font-bold text-violet-700" title="Total CL Credits">{totalCL}</td>
-                    <td className="px-2 py-2 text-center font-bold text-amber-600" title="Total CL Used (Ledger)">{clUsed}</td>
+                    <td className="px-2 py-2 text-center font-bold text-amber-600" title="Total CL Used (Ledger + Current Month)">{clUsed}</td>
                     <td className="px-2 py-2 text-center font-bold text-indigo-600" title="CL Used in Current Month">{currentMonthCL}</td>
                     <td className="px-2 py-2 text-center font-bold text-emerald-600" title="CL Balance Remaining">{clRemaining}</td>
                     <td className="px-2 py-2 text-center font-bold text-slate-400">{summary.WO}</td>

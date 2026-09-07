@@ -758,7 +758,8 @@ export default function useAttendanceData() {
       localBalances[emp.id] = {
         earnedCL: totalClCredits,
         usedCL: totalClDebits,
-        remainingCL: totalClCredits - totalClDebits,
+        ledgerDebits: totalClDebits,
+        remainingCL: Math.max(0, totalClCredits - totalClDebits),
         lwpCount: 0
       };
     });
@@ -917,11 +918,19 @@ export default function useAttendanceData() {
       draftStatus[emp.id] = empStatusArray;
       draftDetails[emp.id] = empDetailsArray;
 
+      const monthCL = empStatusArray.filter(s => s === "CL").length;
       if (localBalances[emp.id]) {
         localBalances[emp.id].lwpCount = lwpCount;
+        localBalances[emp.id].monthCL = monthCL;
+        const baseLedgerDebits = localBalances[emp.id].ledgerDebits ?? 0;
+        if (!isFinalized) {
+          localBalances[emp.id].usedCL = baseLedgerDebits + monthCL;
+          localBalances[emp.id].remainingCL = Math.max(0, localBalances[emp.id].earnedCL - localBalances[emp.id].usedCL);
+        }
       }
     });
 
+    setLeaveBalances({ ...localBalances });
     setProcessedDraft(draftStatus);
     setProcessedDraftDetails(draftDetails);
   };

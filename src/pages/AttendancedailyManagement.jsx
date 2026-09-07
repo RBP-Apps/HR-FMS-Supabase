@@ -118,6 +118,7 @@ export default function HRMSAttendanceDashboard() {
     handleSaveHoliday,
     handleDeleteHoliday,
     handleAddAdjustment,
+    loadDynamicData,
     filtered,
     stats,
     totalPages,
@@ -326,6 +327,7 @@ export default function HRMSAttendanceDashboard() {
                     <AttendanceTable
                       selectedMonth={selectedMonth}
                       selectedYear={selectedYear}
+                      isFinalized={isFinalized}
                       activeTab={activeTab}
                       setActiveTab={setActiveTab}
                       daysOfWeek={daysOfWeek}
@@ -405,6 +407,7 @@ export default function HRMSAttendanceDashboard() {
                   leaveLedger={leaveLedger}
                   employees={employees}
                   setShowAdjustModal={setShowAdjustModal}
+                  loadDynamicData={loadDynamicData}
                 />
               )}
 
