@@ -16,6 +16,7 @@ export default function SalaryDeductions({ employees }) {
   });
   const [deductionsList, setDeductionsList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch salary deductions
   const fetchDeductions = async () => {
@@ -131,6 +132,26 @@ export default function SalaryDeductions({ employees }) {
       alert("Failed to delete record: " + err.message);
     }
   };
+
+  const filteredDeductions = deductionsList.filter(item => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase().trim();
+    const name = (item.employee_name || "").toLowerCase();
+    const code = (item.employee_code || "").toLowerCase();
+    const date = (item.deduction_date || "").toString().toLowerCase();
+    const days = (item.deducted_days || "").toString().toLowerCase();
+    const amount = (item.deducted_amount || "").toString().toLowerCase();
+    const reason = (item.reason || "").toLowerCase();
+
+    return (
+      name.includes(term) ||
+      code.includes(term) ||
+      date.includes(term) ||
+      days.includes(term) ||
+      amount.includes(term) ||
+      reason.includes(term)
+    );
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
@@ -278,13 +299,37 @@ export default function SalaryDeductions({ employees }) {
 
       {/* LIST HISTORY */}
       <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-4">
-        <div>
-          <h3 className="font-bold text-slate-800 text-base">
-            📋 Salary Deductions Registry
-          </h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Registered salary deductions. These deductions will be integrated into the monthly payroll processing.
-          </p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h3 className="font-bold text-slate-800 text-base">
+              📋 Salary Deductions Registry
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Registered salary deductions. These deductions will be integrated into the monthly payroll processing.
+            </p>
+          </div>
+
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              placeholder="Search deductions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-8 pr-8 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            />
+            {/* <span className="absolute left-2.5 top-2.5 text-slate-400 text-xs">
+              🔍
+            </span> */}
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -301,7 +346,7 @@ export default function SalaryDeductions({ employees }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-              {deductionsList.map(item => (
+              {filteredDeductions.map(item => (
                 <tr key={item.id} className="hover:bg-slate-50/50">
                   <td className="p-3">
                     <div className="font-bold text-slate-800">{item.employee_name}</div>
@@ -343,9 +388,11 @@ export default function SalaryDeductions({ employees }) {
                   </td>
                 </tr>
               ))}
-              {deductionsList.length === 0 && (
+              {filteredDeductions.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-400 italic">No salary deductions recorded.</td>
+                  <td colSpan="7" className="p-8 text-center text-slate-400 italic">
+                    {searchTerm ? "No matching deduction records found." : "No salary deductions recorded."}
+                  </td>
                 </tr>
               )}
             </tbody>

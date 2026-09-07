@@ -26,8 +26,32 @@ export default function RecentCorrections({
   employees = []
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [updatedOnFilter, setUpdatedOnFilter] = useState("");
+
+  const getRowDateStr = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+      // Fallback in case dateStr is DD/MM/YYYY or YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+      return "";
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const filteredCorrections = (manualCorrections || []).filter(row => {
+    // 1. Filter by Updated On Date
+    if (updatedOnFilter) {
+      const rowDate = getRowDateStr(row.on);
+      if (rowDate !== updatedOnFilter) {
+        return false;
+      }
+    }
+
+    // 2. Filter by Search Query
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     const formattedOn = formatDateTime(row.on).toLowerCase();
@@ -57,7 +81,30 @@ export default function RecentCorrections({
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Updated On Date Filter */}
+            <div className="flex items-center gap-1.5 bg-slate-50/70 border border-slate-200 rounded-xl px-2.5 py-1 text-xs focus-within:ring-2 focus-within:ring-violet-500 focus-within:bg-white transition-all">
+              <span className="text-slate-400 text-[11px] font-semibold whitespace-nowrap">
+                📅 Updated On:
+              </span>
+              <input
+                type="date"
+                value={updatedOnFilter}
+                onChange={(e) => setUpdatedOnFilter(e.target.value)}
+                className="bg-transparent text-xs text-slate-700 outline-none cursor-pointer font-medium"
+              />
+              {updatedOnFilter && (
+                <button
+                  type="button"
+                  onClick={() => setUpdatedOnFilter("")}
+                  className="text-slate-400 hover:text-slate-600 text-xs font-bold ml-0.5"
+                  title="Clear date filter"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
             {/* Global Search input */}
             <div className="relative">
               <input
@@ -65,9 +112,9 @@ export default function RecentCorrections({
                 placeholder="Search corrections..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-6 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 w-52 bg-slate-50/50 focus:bg-white transition-all"
+                className="pl-8 pr-6 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 w-48 bg-slate-50/50 focus:bg-white transition-all"
               />
-              <span className="absolute left-0.5 top-2 text-slate-400 text-xs">🔍</span>
+              <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
@@ -77,7 +124,6 @@ export default function RecentCorrections({
                 </button>
               )}
             </div>
-           
           </div>
         </div>
         <div className="overflow-x-auto max-h-[300px] overflow-y-auto relative">
@@ -116,7 +162,9 @@ export default function RecentCorrections({
               {filteredCorrections.length === 0 && (
                 <tr>
                   <td colSpan="8" className="px-4 py-8 text-center text-slate-400">
-                    {searchQuery ? `No manual corrections matching "${searchQuery}"` : "No manual corrections yet"}
+                    {searchQuery || updatedOnFilter
+                      ? "No manual corrections matching your filter criteria"
+                      : "No manual corrections yet"}
                   </td>
                 </tr>
               )}
