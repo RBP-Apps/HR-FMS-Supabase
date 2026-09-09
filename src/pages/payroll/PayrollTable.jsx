@@ -196,6 +196,18 @@ const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, 
         <div className="pt-1 border-t border-gray-100 flex flex-wrap justify-between items-center text-[10px] text-gray-500 gap-y-1">
           <div><span className="font-medium text-gray-400">A/C:</span> <span className="font-mono text-gray-700 font-semibold">{emp.bank_account_number || record.bank_account_number || '—'}</span></div>
           <div><span className="font-medium text-gray-400">IFSC:</span> <span className="font-mono text-gray-700 font-semibold">{emp.ifsc_code || record.ifsc_code || '—'}</span></div>
+          <div>
+            <span className="font-medium text-gray-400">PF:</span>{' '}
+            {(() => {
+              const pfVal = record?.edits?.company_pf_provided || emp?.company_pf_provided || record?.company_pf_provided;
+              const isYes = pfVal === 'Yes' || pfVal === true || pfVal === 'TRUE' || pfVal === 'true';
+              return isYes ? (
+                <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Yes</span>
+              ) : (
+                <span className="font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">No</span>
+              );
+            })()}
+          </div>
           <div><span className="font-medium text-gray-400">UAN:</span> <span className="text-gray-700">{emp.uan_number || '—'}</span></div>
         </div>
 
@@ -298,6 +310,9 @@ export default function PayrollTable({
                 <TH className="!bg-indigo-600">EMP CODE</TH>
                 <TH className="!bg-indigo-600">ACCOUNT NO</TH>
                 <TH className="!bg-indigo-600">IFSC CODE</TH>
+                <TH className="!bg-amber-400 !text-slate-950 font-extrabold border-x border-amber-300 shadow-inner tracking-wider">
+                  COMPANY PROVIDES PF
+                </TH>
                 <TH className="!bg-indigo-600">UAN</TH>
                 <TH className="!bg-indigo-600">ESIC</TH>
                 <TH className="!bg-indigo-600">DESIGNATION</TH>
@@ -380,7 +395,7 @@ export default function PayrollTable({
                 : records.length === 0
                   ? (
                     <tr>
-                      <td colSpan={40} className="py-20 text-center">
+                      <td colSpan={41} className="py-20 text-center">
                         <div className="flex flex-col items-center gap-3 text-gray-400">
                           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
                             <User className="w-8 h-8" />
@@ -440,6 +455,25 @@ export default function PayrollTable({
                           <span className="font-mono text-xs text-slate-700 font-semibold">
                             {emp?.ifsc_code || record?.ifsc_code || '—'}
                           </span>
+                        </TD>
+
+                        {/* COMPANY PROVIDES PF */}
+                        <TD even={even} className="bg-amber-50/40 border-x border-amber-100">
+                          {(() => {
+                            const pfVal = record?.edits?.company_pf_provided || emp?.company_pf_provided || record?.company_pf_provided;
+                            const isYes = pfVal === 'Yes' || pfVal === true || pfVal === 'TRUE' || pfVal === 'true';
+                            return isYes ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                                No
+                              </span>
+                            );
+                          })()}
                         </TD>
 
                         {/* UAN */}

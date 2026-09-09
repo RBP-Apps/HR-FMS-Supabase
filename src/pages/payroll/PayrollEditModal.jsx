@@ -38,6 +38,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
     salary_arrears: 0,
     ta_da: 0,
     ot: 0,
+    company_pf_provided: 'Yes',
     remark: '',
   });
   const [saving, setSaving] = useState(false);
@@ -45,6 +46,8 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
 
   useEffect(() => {
     if (record) {
+      const pfRaw = record.edits?.company_pf_provided || record.employee?.company_pf_provided || record.company_pf_provided;
+      const isPfYes = pfRaw === 'Yes' || pfRaw === true || pfRaw === 'TRUE' || pfRaw === 'true';
       setForm({
         advance:          record.calc?.advance        ?? 0,
         security_deposit: record.calc?.securityDep    ?? 0,
@@ -54,6 +57,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
         salary_arrears:   record.calc?.salaryArrears  ?? 0,
         ta_da:            record.calc?.taDA           ?? 0,
         ot:               record.edits?.ot            ?? 0,
+        company_pf_provided: isPfYes ? 'Yes' : 'No',
         remark:           record.calc?.remark         ?? '',
       });
     }
@@ -61,7 +65,7 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: name === 'remark' ? value : Number(value) }));
+    setForm(prev => ({ ...prev, [name]: (name === 'remark' || name === 'company_pf_provided') ? value : Number(value) }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
@@ -133,6 +137,19 @@ export default function PayrollEditModal({ record, onClose, onSave }) {
               <Field label="Reimbursement (₹)" name="reimbursement" value={form.reimbursement} onChange={handleChange} />
               <Field label="Salary Arrears (₹)" name="salary_arrears" value={form.salary_arrears} onChange={handleChange} />
               <Field label="TA / DA (₹)" name="ta_da" value={form.ta_da} onChange={handleChange} />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Company Provides PF</label>
+                <select
+                  name="company_pf_provided"
+                  value={form.company_pf_provided}
+                  onChange={handleChange}
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-800
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
+                >
+                  <option value="Yes">Yes (Apply PF / HR Policy)</option>
+                  <option value="No">No (No PF / HR Policy)</option>
+                </select>
+              </div>
               <div className="col-span-2 flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Remark</label>
                 <input

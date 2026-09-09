@@ -528,7 +528,7 @@ const Joining = () => {
           branch_name: editJoiningFormData.branchName,
           bank_passbook_photo: fileUrls.bankPassbookPhoto || editJoiningFormData.existingBankPassbookUrl,
           personal_email: editJoiningFormData.personalEmail,
-          company_pf_provided: editJoiningFormData.companyProvidesPf === "Yes",
+          company_pf_provided: editJoiningFormData.companyProvidesPf === "Yes" ? "Yes" : "No",
           company_esic_provided: editJoiningFormData.companyProvidesEsic === "Yes",
           company_mail_provided: editJoiningFormData.companyProvidesEmail === "Yes",
           attendance_type: editJoiningFormData.attendanceType,
@@ -674,8 +674,8 @@ const Joining = () => {
       }
 
       const formatSelection = (val) => {
-        if (val === true || val === "TRUE" || val === "true") return "Yes";
-        if (val === false || val === "FALSE" || val === "false") return "No";
+        if (val === true || val === "TRUE" || val === "true" || val === "Yes" || val === "yes") return "Yes";
+        if (val === false || val === "FALSE" || val === "false" || val === "No" || val === "no") return "No";
         return "";
       };
 

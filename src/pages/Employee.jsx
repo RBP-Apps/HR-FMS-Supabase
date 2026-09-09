@@ -364,7 +364,7 @@ const Employee = () => {
         personal_email: editData.personalEmail,
         attendance_type: editData.attendanceType,
         employee_category: editData.employeeCategory,
-        company_pf_provided: editData.companyProvidesPf === "Yes",
+        company_pf_provided: editData.companyProvidesPf === "Yes" ? "Yes" : "No",
         company_esic_provided: editData.companyProvidesEsic === "Yes",
         company_mail_provided: editData.companyProvidesEmail === "Yes",
         candidate_validated: editData.validateCandidate === "Yes",
@@ -394,6 +394,11 @@ const Employee = () => {
   const handleCancel = () => {
     setEditingRow(null);
     setEditData({});
+  };
+
+  const formatYesNo = (val) => {
+    if (val === true || val === "Yes" || val === "yes" || val === "TRUE" || val === "true") return "Yes";
+    return "No";
   };
 
   const fetchJoiningData = async () => {
@@ -445,18 +450,18 @@ const Employee = () => {
 
         personalEmail: row.personal_email || "",
 
-        companyProvidesPf: row.company_pf_provided ? "Yes" : "No",
-        companyProvidesEsic: row.company_esic_provided ? "Yes" : "No",
-        companyProvidesEmail: row.company_mail_provided ? "Yes" : "No",
+        companyProvidesPf: formatYesNo(row.company_pf_provided),
+        companyProvidesEsic: formatYesNo(row.company_esic_provided),
+        companyProvidesEmail: formatYesNo(row.company_mail_provided),
 
         attendanceType: row.attendance_type || "",
         employeeCategory: row.employee_category ? row.employee_category.trim() : "",
 
-        validateCandidate: row.candidate_validated ? "Yes" : "No",
-        issueGmailId: row.gmail_id_issued ? "Yes" : "No",
-        issueJoiningLetter: row.joining_letter_issued ? "Yes" : "No",
+        validateCandidate: formatYesNo(row.candidate_validated),
+        issueGmailId: formatYesNo(row.gmail_id_issued),
+        issueJoiningLetter: formatYesNo(row.joining_letter_issued),
 
-        attendanceRegistration: row.attendance_registration ? "Yes" : "No",
+        attendanceRegistration: formatYesNo(row.attendance_registration),
       }));
 
       setJoiningData(processedData);

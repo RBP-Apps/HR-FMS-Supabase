@@ -132,6 +132,8 @@ export default function PayrollPage() {
       official_email_id: emp.official_email_id || '',
       attendance_type: emp.attendance_type || 'Field',
       employee_category: emp.employee_category ? emp.employee_category.trim() : '',
+      company_pf_provided: (emp.company_pf_provided === true || emp.company_pf_provided === 'Yes' || emp.company_pf_provided === 'TRUE' || emp.company_pf_provided === 'true') ? 'Yes' : 'No',
+      company_esic_provided: emp.company_esic_provided === true || emp.company_esic_provided === 'Yes' || emp.company_esic_provided === 'TRUE' || emp.company_esic_provided === 'true',
     }));
   }, [addToast]);
 
@@ -564,7 +566,7 @@ export default function PayrollPage() {
       };
       const recordId = `PR${String(idx + 1).padStart(4, '0')}`;
       const empEdits = edits[recordId] || {};
-      const c = calcSalary(emp.gross_salary, att, empEdits, Number(filters.month), Number(filters.year));
+      const c = calcSalary(emp.gross_salary, att, empEdits, Number(filters.month), Number(filters.year), emp);
       return {
         id: recordId,
         employee: emp,
@@ -758,6 +760,8 @@ export default function PayrollPage() {
       'EMP CODE': r.employee.rbp_joining_id,
       'NAME': r.employee.employee_name,
       'ACCOUNT NO': r.employee.bank_account_number || '',
+      'IFSC CODE': r.employee.ifsc_code || '',
+      'COMPANY PROVIDES PF': r.edits?.company_pf_provided || r.employee.company_pf_provided || 'No',
       'DESIGNATION': r.employee.designation,
       'DEPARTMENT': r.employee.department,
       'PRESENT': r.attendance?.present_days ?? 0,
@@ -798,6 +802,9 @@ export default function PayrollPage() {
       'SL': i + 1,
       'EMP CODE': r.employee.rbp_joining_id,
       'NAME': r.employee.employee_name,
+      'ACCOUNT NO': r.employee.bank_account_number || '',
+      'IFSC CODE': r.employee.ifsc_code || '',
+      'COMPANY PROVIDES PF': r.employee.company_pf_provided || 'No',
       'GROSS': r.calc.grossReal,
       'BASIC EARNED': r.calc.basicEarned,
       'HRA EARNED': r.calc.hraEarned,
@@ -868,20 +875,27 @@ export default function PayrollPage() {
         .eq('year', log.year);
       if (error) throw error;
 
-      const mapped = (data || []).map((row, idx) => ({
-        id: row.id,
-        employee: {
-          id: row.employee_id,
-          rbp_joining_id: row.employee_code,
-          employee_name: row.employee_name,
-          gross_salary: Number(row.gross_salary),
-          department: 'N/A',
-          designation: 'N/A'
-        },
-        attendance: {
-          present_days: 0,
-          working_days: 0,
-        },
+      const mapped = (data || []).map((row, idx) => {
+        const matchedEmp = employees.find(e => e.id === row.employee_id || e.rbp_joining_id === row.employee_code);
+        return {
+          id: row.id,
+          employee: {
+            id: row.employee_id,
+            rbp_joining_id: row.employee_code,
+            employee_name: row.employee_name,
+            gross_salary: Number(row.gross_salary),
+            department: matchedEmp?.department || 'N/A',
+            designation: matchedEmp?.designation || 'N/A',
+            bank_account_number: matchedEmp?.bank_account_number || '',
+            ifsc_code: matchedEmp?.ifsc_code || '',
+            uan_number: matchedEmp?.uan_number || '',
+            esic_number: matchedEmp?.esic_number || '',
+            company_pf_provided: matchedEmp?.company_pf_provided || (Number(row.epf_ded) > 0 ? 'Yes' : 'No'),
+          },
+          attendance: {
+            present_days: 0,
+            working_days: 0,
+          },
         calc: {
           basicReal: 0, hraReal: 0, convReal: 0, medReal: 0, specialReal: 0, grossReal: row.gross_salary,
           basicEarned: Number(row.basic_earned),
@@ -908,8 +922,9 @@ export default function PayrollPage() {
           ctc: Number(row.ctc),
           remark: row.remark || ''
         }
-      }));
-      setHistoryRecords(mapped);
+      };
+    });
+    setHistoryRecords(mapped);
       setSelectedHistoryLog(log);
     } catch (err) {
       addToast('Failed to load history month records: ' + err.message, 'error');

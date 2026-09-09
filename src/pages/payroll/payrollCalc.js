@@ -31,7 +31,7 @@
  *   Employer ESIC = BASIC+DA_earned * 3.25%
  *   CTC = GROSS + Employer EPF + Employer ESIC
  */
-export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
+export function calcSalary(grossSalary, attendance, edits = {}, month, year, emp = {}) {
   const workingDays = attendance?.working_days || 26;
   const presentDays = attendance?.present_days || 0;
   const weekOff = attendance?.week_off || 0;
@@ -67,9 +67,25 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const perDaySalary   = totalDaysInMonth ? grossSalary / totalDaysInMonth : 0;
   const otAmount       = otDays * perDaySalary;
 
+  // --- HR POLICY / PF CHECK ---
+  // If company provides PF (Yes): standard HR policy applies (EPF 12%, Employer EPF 13%, ESIC, etc.)
+  // If company provides PF (No): PF and other HR policy deductions do not work (set to 0)
+  const pfVal = edits?.company_pf_provided || emp?.company_pf_provided;
+  const isPfProvided = pfVal !== undefined
+    ? (pfVal === 'Yes' || pfVal === true || pfVal === 'TRUE' || pfVal === 'true')
+    : true;
+
+  const isEsicProvided = isPfProvided && (
+    emp?.company_esic_provided === undefined ||
+    emp?.company_esic_provided === true ||
+    emp?.company_esic_provided === 'Yes' ||
+    emp?.company_esic_provided === 'TRUE' ||
+    emp?.company_esic_provided === 'true'
+  );
+
   // --- DEDUCTIONS ---
-  const epfDed         = basicEarned * 0.12;
-  const esicDed        = grossEarned * 0.0075;
+  const epfDed         = isPfProvided ? basicEarned * 0.12 : 0;
+  const esicDed        = isEsicProvided ? grossEarned * 0.0075 : 0;
   const advance        = Number(edits.advance        ?? 0);
   const securityDep    = Number(edits.security_deposit ?? 0);
   const autoLateDed    = 0; // Late deduction is already subtracted in present_days (Paid Days)
@@ -90,8 +106,8 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year) {
   const totalPayable   = netSalary + taDA + reimbursement + salaryArrears;
 
   // --- EMPLOYER ---
-  const employerEPF    = basicEarned * 0.13;
-  const employerESIC   = basicEarned * 0.0325;
+  const employerEPF    = isPfProvided ? basicEarned * 0.13 : 0;
+  const employerESIC   = isEsicProvided ? basicEarned * 0.0325 : 0;
   const ctc            = grossEarned + employerEPF + employerESIC;
 
   return {

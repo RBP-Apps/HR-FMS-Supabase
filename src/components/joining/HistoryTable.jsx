@@ -232,8 +232,8 @@ const HistoryTable = ({
                     {renderField(joiningRecord?.past_esic_number || "")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className={`px-2 py-1 text-xs rounded-full ${joiningRecord?.company_pf_provided ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {joiningRecord?.company_pf_provided ? 'Yes' : 'No'}
+                    <span className={`px-2 py-1 text-xs rounded-full ${(joiningRecord?.company_pf_provided === true || joiningRecord?.company_pf_provided === "Yes" || joiningRecord?.company_pf_provided === "TRUE" || joiningRecord?.company_pf_provided === "true") ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {(joiningRecord?.company_pf_provided === true || joiningRecord?.company_pf_provided === "Yes" || joiningRecord?.company_pf_provided === "TRUE" || joiningRecord?.company_pf_provided === "true") ? 'Yes' : 'No'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
