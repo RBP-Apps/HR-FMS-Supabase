@@ -67,21 +67,18 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year, emp
   const perDaySalary   = totalDaysInMonth ? grossSalary / totalDaysInMonth : 0;
   const otAmount       = otDays * perDaySalary;
 
-  // --- HR POLICY / PF CHECK ---
-  // If company provides PF (Yes): standard HR policy applies (EPF 12%, Employer EPF 13%, ESIC, etc.)
-  // If company provides PF (No): PF and other HR policy deductions do not work (set to 0)
+  // --- HR POLICY / PF & ESIC CHECK ---
+  // PF: If Yes -> EPF 12% and Employer EPF 13% apply; If No -> 0
   const pfVal = edits?.company_pf_provided || emp?.company_pf_provided;
   const isPfProvided = pfVal !== undefined
     ? (pfVal === 'Yes' || pfVal === true || pfVal === 'TRUE' || pfVal === 'true')
     : true;
 
-  const isEsicProvided = isPfProvided && (
-    emp?.company_esic_provided === undefined ||
-    emp?.company_esic_provided === true ||
-    emp?.company_esic_provided === 'Yes' ||
-    emp?.company_esic_provided === 'TRUE' ||
-    emp?.company_esic_provided === 'true'
-  );
+  // ESIC: If Yes -> ESIC 0.75% and Employer ESIC 3.25% apply; If No -> 0
+  const esicVal = edits?.company_esic_provided || emp?.company_esic_provided;
+  const isEsicProvided = esicVal !== undefined
+    ? (esicVal === 'Yes' || esicVal === true || esicVal === 'TRUE' || esicVal === 'true')
+    : true;
 
   // --- DEDUCTIONS ---
   const epfDed         = isPfProvided ? basicEarned * 0.12 : 0;

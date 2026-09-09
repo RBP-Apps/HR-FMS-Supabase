@@ -208,6 +208,18 @@ const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, 
               );
             })()}
           </div>
+          <div>
+            <span className="font-medium text-gray-400">ESIC:</span>{' '}
+            {(() => {
+              const esicVal = record?.edits?.company_esic_provided || emp?.company_esic_provided || record?.company_esic_provided;
+              const isYes = esicVal === 'Yes' || esicVal === true || esicVal === 'TRUE' || esicVal === 'true';
+              return isYes ? (
+                <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Yes</span>
+              ) : (
+                <span className="font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">No</span>
+              );
+            })()}
+          </div>
           <div><span className="font-medium text-gray-400">UAN:</span> <span className="text-gray-700">{emp.uan_number || '—'}</span></div>
         </div>
 
@@ -313,6 +325,9 @@ export default function PayrollTable({
                 <TH className="!bg-amber-400 !text-slate-950 font-extrabold border-x border-amber-300 shadow-inner tracking-wider">
                   COMPANY PROVIDES PF
                 </TH>
+                <TH className="!bg-teal-400 !text-slate-950 font-extrabold border-x border-teal-300 shadow-inner tracking-wider">
+                  COMPANY PROVIDES ESIC
+                </TH>
                 <TH className="!bg-indigo-600">UAN</TH>
                 <TH className="!bg-indigo-600">ESIC</TH>
                 <TH className="!bg-indigo-600">DESIGNATION</TH>
@@ -395,7 +410,7 @@ export default function PayrollTable({
                 : records.length === 0
                   ? (
                     <tr>
-                      <td colSpan={41} className="py-20 text-center">
+                      <td colSpan={42} className="py-20 text-center">
                         <div className="flex flex-col items-center gap-3 text-gray-400">
                           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
                             <User className="w-8 h-8" />
@@ -462,6 +477,25 @@ export default function PayrollTable({
                           {(() => {
                             const pfVal = record?.edits?.company_pf_provided || emp?.company_pf_provided || record?.company_pf_provided;
                             const isYes = pfVal === 'Yes' || pfVal === true || pfVal === 'TRUE' || pfVal === 'true';
+                            return isYes ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                                No
+                              </span>
+                            );
+                          })()}
+                        </TD>
+
+                        {/* COMPANY PROVIDES ESIC */}
+                        <TD even={even} className="bg-teal-50/40 border-x border-teal-100">
+                          {(() => {
+                            const esicVal = record?.edits?.company_esic_provided || emp?.company_esic_provided || record?.company_esic_provided;
+                            const isYes = esicVal === 'Yes' || esicVal === true || esicVal === 'TRUE' || esicVal === 'true';
                             return isYes ? (
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

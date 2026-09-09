@@ -133,7 +133,7 @@ export default function PayrollPage() {
       attendance_type: emp.attendance_type || 'Field',
       employee_category: emp.employee_category ? emp.employee_category.trim() : '',
       company_pf_provided: (emp.company_pf_provided === true || emp.company_pf_provided === 'Yes' || emp.company_pf_provided === 'TRUE' || emp.company_pf_provided === 'true') ? 'Yes' : 'No',
-      company_esic_provided: emp.company_esic_provided === true || emp.company_esic_provided === 'Yes' || emp.company_esic_provided === 'TRUE' || emp.company_esic_provided === 'true',
+      company_esic_provided: (emp.company_esic_provided === true || emp.company_esic_provided === 'Yes' || emp.company_esic_provided === 'TRUE' || emp.company_esic_provided === 'true') ? 'Yes' : 'No',
     }));
   }, [addToast]);
 
@@ -762,6 +762,7 @@ export default function PayrollPage() {
       'ACCOUNT NO': r.employee.bank_account_number || '',
       'IFSC CODE': r.employee.ifsc_code || '',
       'COMPANY PROVIDES PF': r.edits?.company_pf_provided || r.employee.company_pf_provided || 'No',
+      'COMPANY PROVIDES ESIC': r.edits?.company_esic_provided || r.employee.company_esic_provided || 'No',
       'DESIGNATION': r.employee.designation,
       'DEPARTMENT': r.employee.department,
       'PRESENT': r.attendance?.present_days ?? 0,
@@ -805,6 +806,7 @@ export default function PayrollPage() {
       'ACCOUNT NO': r.employee.bank_account_number || '',
       'IFSC CODE': r.employee.ifsc_code || '',
       'COMPANY PROVIDES PF': r.employee.company_pf_provided || 'No',
+      'COMPANY PROVIDES ESIC': r.employee.company_esic_provided || 'No',
       'GROSS': r.calc.grossReal,
       'BASIC EARNED': r.calc.basicEarned,
       'HRA EARNED': r.calc.hraEarned,
@@ -891,6 +893,7 @@ export default function PayrollPage() {
             uan_number: matchedEmp?.uan_number || '',
             esic_number: matchedEmp?.esic_number || '',
             company_pf_provided: matchedEmp?.company_pf_provided || (Number(row.epf_ded) > 0 ? 'Yes' : 'No'),
+            company_esic_provided: matchedEmp?.company_esic_provided || (Number(row.esic_ded) > 0 ? 'Yes' : 'No'),
           },
           attendance: {
             present_days: 0,
