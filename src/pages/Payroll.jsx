@@ -53,15 +53,36 @@ export default function PayrollPage() {
   // ─── Main navigation tab ──────────────────────────────────────────
   const [mainTab, setMainTab] = useState('processing'); // 'processing' | 'history'
 
+  const getStorageKey = useCallback((y, m) => `payroll_edits_${y}_${m}`, []);
+
   // ─── Core processing data ─────────────────────────────────────────
   const [employees, setEmployees] = useState([]);
   const [attendances, setAttendances] = useState([]);
-  const [edits, setEdits] = useState({});
+  const [edits, setEdits] = useState(() => {
+    try {
+      const key = `payroll_edits_${DEFAULT_FILTERS.year}_${DEFAULT_FILTERS.month}`;
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [isFinalized, setIsFinalized] = useState(false);
 
   // ─── Filters & Tab selections ──────────────────────────────────────
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  // Sync edits from localStorage when month/year changes
+  useEffect(() => {
+    try {
+      const key = getStorageKey(filters.year, filters.month);
+      const saved = localStorage.getItem(key);
+      setEdits(saved ? JSON.parse(saved) : {});
+    } catch (err) {
+      console.warn('Failed to load edits from localStorage:', err);
+    }
+  }, [filters.month, filters.year, getStorageKey]);
   const [cardFilter, setCardFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
   const searchTimer = useRef(null);
@@ -538,6 +559,58 @@ export default function PayrollPage() {
         const atts = await fetchAttendances(emps, filters.month, filters.year);
         setAttendances(atts);
       }
+
+      // ─── Fetch saved payroll records from Supabase database for this month & year ───
+      const mVal = Number(filters.month) + 1;
+      const yVal = Number(filters.year);
+      try {
+        const { data: dbRecords, error: dbErr } = await supabase
+          .from('payroll_history')
+          .select('*')
+          .eq('month', mVal)
+          .eq('year', yVal);
+
+        if (!dbErr && dbRecords && dbRecords.length > 0) {
+          const dbEdits = {};
+          dbRecords.forEach(row => {
+            const rowData = {
+              gross_salary: Number(row.gross_salary),
+              grossReal: Number(row.gross_salary),
+              basicEarned: Number(row.basic_earned),
+              hraEarned: Number(row.hra_earned),
+              convEarned: Number(row.conv_earned),
+              medEarned: Number(row.med_earned),
+              specialEarned: Number(row.special_earned),
+              grossEarned: Number(row.gross_earned),
+              otAmount: Number(row.ot_amount),
+              epfDed: Number(row.epf_ded),
+              esicDed: Number(row.esic_ded),
+              advance: Number(row.advance),
+              security_deposit: Number(row.security_dep),
+              late_deduction: Number(row.late_deduction || 0),
+              other_deduction: Number(row.other_ded),
+              totalDed: Number(row.total_ded),
+              reimbursement: Number(row.reimbursement),
+              salary_arrears: Number(row.salary_arrears),
+              netSalary: Number(row.net_salary),
+              ta_da: Number(row.ta_da),
+              totalPayable: Number(row.total_payable),
+              employerEPF: Number(row.employer_epf),
+              employerESIC: Number(row.employer_esic),
+              ctc: Number(row.ctc),
+              remark: row.remark || '',
+              employee_name: row.employee_name,
+              rbp_joining_id: row.employee_code,
+            };
+            if (row.employee_id) dbEdits[row.employee_id] = rowData;
+            if (row.employee_code) dbEdits[row.employee_code] = rowData;
+          });
+          setEdits(prev => ({ ...prev, ...dbEdits }));
+        }
+      } catch (err) {
+        console.warn('Could not fetch payroll records from Supabase:', err);
+      }
+
       await checkIfFinalized();
     } catch (err) {
       addToast('Failed to load payroll data', 'error');
@@ -565,12 +638,36 @@ export default function PayrollPage() {
         working_days: daysInSelectedMonth, present_days: 0, week_off: 0, absent_days: daysInSelectedMonth
       };
       const recordId = `PR${String(idx + 1).padStart(4, '0')}`;
-      const empEdits = edits[recordId] || {};
-      const c = calcSalary(emp.gross_salary, att, empEdits, Number(filters.month), Number(filters.year), emp);
+      const empEdits = (emp.id && edits[emp.id]) || (emp.rbp_joining_id && edits[emp.rbp_joining_id]) || edits[recordId] || {};
+
+      // Merge employee overrides if present
+      const mergedEmp = {
+        ...emp,
+        ...(empEdits.employee_name !== undefined && empEdits.employee_name !== '' ? { employee_name: empEdits.employee_name } : {}),
+        ...(empEdits.rbp_joining_id !== undefined && empEdits.rbp_joining_id !== '' ? { rbp_joining_id: empEdits.rbp_joining_id } : {}),
+        ...(empEdits.bank_account_number !== undefined ? { bank_account_number: empEdits.bank_account_number } : {}),
+        ...(empEdits.ifsc_code !== undefined ? { ifsc_code: empEdits.ifsc_code } : {}),
+        ...(empEdits.uan_number !== undefined ? { uan_number: empEdits.uan_number } : {}),
+        ...(empEdits.esic_number !== undefined ? { esic_number: empEdits.esic_number } : {}),
+        ...(empEdits.designation !== undefined ? { designation: empEdits.designation } : {}),
+        ...(empEdits.in_hand !== undefined ? { in_hand: empEdits.in_hand } : {}),
+        ...(empEdits.gross_salary !== undefined && empEdits.gross_salary !== '' ? { gross_salary: Number(empEdits.gross_salary) } : {}),
+        ...(empEdits.company_pf_provided !== undefined ? { company_pf_provided: empEdits.company_pf_provided } : {}),
+        ...(empEdits.company_esic_provided !== undefined ? { company_esic_provided: empEdits.company_esic_provided } : {}),
+      };
+
+      // Merge attendance overrides if present
+      const mergedAtt = {
+        ...att,
+        ...(empEdits.present_days !== undefined && empEdits.present_days !== '' ? { present_days: Number(empEdits.present_days) } : {}),
+        ...(empEdits.working_days !== undefined && empEdits.working_days !== '' ? { working_days: Number(empEdits.working_days) } : {}),
+      };
+
+      const c = calcSalary(mergedEmp.gross_salary, mergedAtt, empEdits, Number(filters.month), Number(filters.year), mergedEmp);
       return {
         id: recordId,
-        employee: emp,
-        attendance: att,
+        employee: mergedEmp,
+        attendance: mergedAtt,
         calc: c,
         edits: empEdits,
         payroll_status: 'Processed',
@@ -666,11 +763,187 @@ export default function PayrollPage() {
     addToast('All filters cleared');
   };
 
-  // ─── Save live edits ──────────────────────────────────────────────
-  const handleSaveEdit = (recordId, newEdits) => {
-    setEdits(prev => ({ ...prev, [recordId]: newEdits }));
+  // ─── Save live edits directly to Supabase database ────────────────
+  const handleSaveEdit = async (recordId, newEdits) => {
+    const key = getStorageKey(filters.year, filters.month);
+    const emp = editRecord?.employee;
+    const empId = emp?.id;
+    const rbpId = emp?.rbp_joining_id;
+    const mVal = Number(filters.month) + 1;
+    const yVal = Number(filters.year);
+
+    if (!newEdits) {
+      // 1. Delete override from Supabase payroll_history if it exists
+      if (empId) {
+        try {
+          await supabase
+            .from('payroll_history')
+            .delete()
+            .eq('employee_id', empId)
+            .eq('month', mVal)
+            .eq('year', yVal);
+        } catch (e) {
+          console.warn('Failed to remove from Supabase:', e);
+        }
+      }
+
+      setEdits(prev => {
+        const next = { ...prev };
+        delete next[recordId];
+        if (empId) delete next[empId];
+        if (rbpId) delete next[rbpId];
+        try {
+          localStorage.setItem(key, JSON.stringify(next));
+        } catch (e) {
+          console.warn('Failed to update localStorage:', e);
+        }
+        return next;
+      });
+      setEditRecord(null);
+      addToast('Payroll overrides reset to default', 'info');
+      return;
+    }
+
+    // 1. Directly save/upsert to Supabase database (payroll_history)
+    if (empId) {
+      try {
+        const historyRow = {
+          employee_id: empId,
+          employee_name: newEdits.employee_name || emp?.employee_name || '',
+          employee_code: newEdits.rbp_joining_id || emp?.rbp_joining_id || '',
+          month: mVal,
+          year: yVal,
+          gross_salary: Number(newEdits.gross_salary || newEdits.grossReal || emp?.gross_salary || 0),
+          basic_earned: Number(newEdits.basicEarned || 0),
+          hra_earned: Number(newEdits.hraEarned || 0),
+          conv_earned: Number(newEdits.convEarned || 0),
+          med_earned: Number(newEdits.medEarned || 0),
+          special_earned: Number(newEdits.specialEarned || 0),
+          gross_earned: Number(newEdits.grossEarned || 0),
+          ot_amount: Number(newEdits.otAmount || 0),
+          epf_ded: Number(newEdits.epfDed || 0),
+          esic_ded: Number(newEdits.esicDed || 0),
+          advance: Number(newEdits.advance || 0),
+          security_dep: Number(newEdits.security_deposit || 0),
+          late_deduction: Number(newEdits.late_deduction || 0),
+          other_ded: Number(newEdits.other_deduction || 0),
+          total_ded: Number(newEdits.totalDed || 0),
+          reimbursement: Number(newEdits.reimbursement || 0),
+          salary_arrears: Number(newEdits.salary_arrears || 0),
+          net_salary: Number(newEdits.netSalary || 0),
+          ta_da: Number(newEdits.ta_da || 0),
+          total_payable: Number(newEdits.totalPayable || 0),
+          employer_epf: Number(newEdits.employerEPF || 0),
+          employer_esic: Number(newEdits.employerESIC || 0),
+          ctc: Number(newEdits.ctc || 0),
+          remark: newEdits.remark || ''
+        };
+
+        const { error: histSaveErr } = await supabase
+          .from('payroll_history')
+          .upsert([historyRow], { onConflict: 'employee_id,month,year' });
+
+        if (histSaveErr) {
+          console.warn('Could not upsert to payroll_history:', histSaveErr.message);
+        }
+      } catch (err) {
+        console.warn('Error saving to payroll_history:', err);
+      }
+
+      // 2. Also update employee profile details in joining table if changed
+      try {
+        const updatePayload = {};
+        if (newEdits.employee_name && newEdits.employee_name !== emp?.employee_name) {
+          updatePayload.name_as_per_aadhar = newEdits.employee_name;
+        }
+        if (newEdits.rbp_joining_id && newEdits.rbp_joining_id !== emp?.rbp_joining_id) {
+          updatePayload.rbp_joining_id = newEdits.rbp_joining_id;
+        }
+        if (newEdits.bank_account_number !== undefined) updatePayload.bank_account_number = newEdits.bank_account_number;
+        if (newEdits.ifsc_code !== undefined) updatePayload.ifsc_code = newEdits.ifsc_code;
+        if (newEdits.uan_number !== undefined) updatePayload.past_pf_id = newEdits.uan_number;
+        if (newEdits.esic_number !== undefined) updatePayload.past_esic_number = newEdits.esic_number;
+        if (newEdits.designation !== undefined) updatePayload.designation = newEdits.designation;
+        if (newEdits.company_pf_provided !== undefined) updatePayload.company_pf_provided = newEdits.company_pf_provided;
+        if (newEdits.company_esic_provided !== undefined) updatePayload.company_esic_provided = newEdits.company_esic_provided;
+        if (newEdits.gross_salary !== undefined && !isNaN(Number(newEdits.gross_salary)) && Number(newEdits.gross_salary) > 0) {
+          updatePayload.salary = Number(newEdits.gross_salary);
+        }
+
+        if (Object.keys(updatePayload).length > 0) {
+          await supabase.from('joining').update(updatePayload).eq('id', empId);
+        }
+      } catch (err) {
+        console.warn('Could not update employee master in joining table:', err);
+      }
+    }
+
+    // 3. Update React state & localStorage
+    setEdits(prev => {
+      const next = { ...prev, [recordId]: newEdits };
+      if (empId) next[empId] = newEdits;
+      if (rbpId) next[rbpId] = newEdits;
+      try {
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save edits to localStorage:', e);
+      }
+      return next;
+    });
+
     setEditRecord(null);
-    addToast('Payroll record updated successfully');
+    addToast('Payroll record saved directly to database (Supabase)', 'success');
+  };
+
+  // ─── Save all current processed records to Supabase database ──────
+  const handleSaveAllToDatabase = async () => {
+    if (filteredRecords.length === 0) return;
+    setLoading(true);
+    try {
+      const historyRows = filteredRecords.map(r => ({
+        employee_id: r.employee.id,
+        employee_name: r.employee.employee_name,
+        employee_code: r.employee.rbp_joining_id,
+        month: Number(filters.month) + 1,
+        year: Number(filters.year),
+        gross_salary: r.employee.gross_salary,
+        basic_earned: r.calc.basicEarned,
+        hra_earned: r.calc.hraEarned,
+        conv_earned: r.calc.convEarned,
+        med_earned: r.calc.medEarned,
+        special_earned: r.calc.specialEarned,
+        gross_earned: r.calc.grossEarned,
+        ot_amount: r.calc.otAmount,
+        epf_ded: r.calc.epfDed,
+        esic_ded: r.calc.esicDed,
+        advance: r.calc.advance,
+        security_dep: r.calc.securityDep,
+        late_deduction: r.calc.lateDeduction,
+        other_ded: r.calc.otherDed,
+        total_ded: r.calc.totalDed,
+        reimbursement: r.calc.reimbursement,
+        salary_arrears: r.calc.salaryArrears,
+        net_salary: r.calc.netSalary,
+        ta_da: r.calc.taDA,
+        total_payable: r.calc.totalPayable,
+        employer_epf: r.calc.employerEPF,
+        employer_esic: r.calc.employerESIC,
+        ctc: r.calc.ctc,
+        remark: r.calc.remark || ''
+      }));
+
+      const { error: dbErr } = await supabase
+        .from('payroll_history')
+        .upsert(historyRows, { onConflict: 'employee_id,month,year' });
+
+      if (dbErr) throw dbErr;
+      addToast(`All ${historyRows.length} employee records saved permanently in database!`, 'success');
+    } catch (err) {
+      console.error(err);
+      addToast('Error saving to database: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ─── Submit & Finalize Month ──────────────────────────────────────
@@ -990,13 +1263,23 @@ export default function PayrollPage() {
                   Finalized & Locked
                 </span>
               ) : (
-                <button
-                  onClick={handleFinalizePayroll}
-                  disabled={loading || filteredRecords.length === 0}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-xs font-bold shadow-md hover:from-emerald-700 hover:to-green-700 transition-all duration-150 disabled:opacity-50"
-                >
-                  🔒 Lock & Finalize Month
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSaveAllToDatabase}
+                    disabled={loading || filteredRecords.length === 0}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all duration-150 disabled:opacity-50 active:scale-95"
+                    title="Save all employee payroll records permanently to database"
+                  >
+                    <span>💾 Save All to Database</span>
+                  </button>
+                  <button
+                    onClick={handleFinalizePayroll}
+                    disabled={loading || filteredRecords.length === 0}
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-xs font-bold shadow-md hover:from-emerald-700 hover:to-green-700 transition-all duration-150 disabled:opacity-50"
+                  >
+                    🔒 Lock & Finalize Month
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -1188,6 +1471,8 @@ export default function PayrollPage() {
       {editRecord && (
         <PayrollEditModal
           record={editRecord}
+          month={Number(filters.month)}
+          year={Number(filters.year)}
           onClose={() => setEditRecord(null)}
           onSave={handleSaveEdit}
         />

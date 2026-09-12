@@ -113,9 +113,16 @@ const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, 
               #{rowNum}
             </span>
             <div className="min-w-0">
-              <h3 className="font-extrabold text-red-500 text-sm leading-tight tracking-wide group-hover:text-indigo-700 transition-colors truncate">
-                {emp.employee_name || '—'}
-              </h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="font-extrabold text-red-500 text-sm leading-tight tracking-wide group-hover:text-indigo-700 transition-colors truncate">
+                  {emp.employee_name || '—'}
+                </h3>
+                {record?.edits && Object.keys(record.edits).length > 0 && (
+                  <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded shadow-xs" title="Custom overrides applied">
+                    Edited
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                 <span className="font-mono text-[11px] bg-indigo-100/80 text-indigo-700 font-bold px-2 py-0.5 rounded-md">
                   {emp.rbp_joining_id || '—'}
@@ -448,7 +455,14 @@ export default function PayrollTable({
                           leftOffset={48}
                           className="font-extrabold text-red-500 text-[14px] tracking-wide bg-indigo-50 w-[220px] min-w-[220px] max-w-[220px] z-10"
                         >
-                          {emp?.employee_name || '—'}
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className="truncate">{emp?.employee_name || '—'}</span>
+                            {record?.edits && Object.keys(record.edits).length > 0 && (
+                              <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded shadow-xs" title="Custom overrides applied">
+                                Edited
+                              </span>
+                            )}
+                          </div>
                         </TD>
 
                         {/* EMP CODE */}
@@ -529,7 +543,7 @@ export default function PayrollTable({
 
                         {/* IN HAND */}
                         <TD even={even} className="font-bold text-emerald-600">
-                          {/* Remained blank as requested */}
+                          {c.inHand || emp?.in_hand ? (isNaN(Number(c.inHand || emp?.in_hand)) ? (c.inHand || emp?.in_hand) : fmt(c.inHand || emp?.in_hand)) : '—'}
                         </TD>
 
                         {/* PRESENT */}
@@ -596,9 +610,7 @@ export default function PayrollTable({
                           <div className="flex items-center gap-0.5">
                             <ActionBtn icon={Eye} label="View Payroll" onClick={() => onView(record)} color="blue" />
                             {onEdit && <ActionBtn icon={Edit2} label="Edit Payroll" onClick={() => onEdit(record)} color="green" />}
-                            {/* <ActionBtn icon={Download} label="Download Payslip" onClick={() => onDownloadPayslip(record)} color="purple" />
-                            <ActionBtn icon={Printer} label="Print" onClick={() => onPrint(record)} color="orange" />
-                            <ActionBtn icon={User} label="View Employee" onClick={() => onViewEmployee(record)} color="slate" /> */}
+                        
                           </div>
                         </TD>
                       </tr>
