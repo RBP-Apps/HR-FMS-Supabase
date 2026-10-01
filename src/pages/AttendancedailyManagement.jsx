@@ -279,16 +279,12 @@ export default function HRMSAttendanceDashboard() {
                           <p className="text-xs text-amber-600">You are reviewing live punches & leave calculations. Click 'Submit & Finalize' to lock records.</p>
                         </div>
                       </div>
-                      {selectedCompany !== "All Companies" ? (
-                        <button
-                          onClick={handleFinalizeAttendance}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-sm transition-all"
-                        >
-                          🔒 Submit & Finalize
-                        </button>
-                      ) : (
-                        <span className="text-xs text-amber-700 font-semibold italic">Select a specific company to finalize</span>
-                      )}
+                      <button
+                        onClick={handleFinalizeAttendance}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-sm transition-all"
+                      >
+                        🔒 Submit & Finalize {selectedCompany === "All Companies" ? "(All Companies)" : ""}
+                      </button>
                     </div>
                   )}
 

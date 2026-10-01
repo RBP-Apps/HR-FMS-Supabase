@@ -1230,13 +1230,11 @@ export default function useAttendanceData() {
   };
 
   const handleFinalizeAttendance = async () => {
-    if (selectedCompany === "All Companies") {
-      alert("Please select a specific Company to submit and finalize attendance!");
-      return;
-    }
+    const isAllCompanies = selectedCompany === "All Companies";
+    const companyLabel = isAllCompanies ? "All Companies" : `"${selectedCompany}"`;
 
     const confirmFinalize = window.confirm(
-      `Are you sure you want to SUBMIT & FINALIZE attendance for "${selectedCompany}" for ${selectedMonth} ${selectedYear}? This will lock the records and update the leave ledger.`
+      `Are you sure you want to SUBMIT & FINALIZE attendance for ${companyLabel} for ${selectedMonth} ${selectedYear}? This will lock the records and update the leave ledger.`
     );
     if (!confirmFinalize) return;
 
@@ -1250,9 +1248,17 @@ export default function useAttendanceData() {
 
       const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
 
-      const companyEmployees = employees.filter(e => e.company === selectedCompany);
+      const targetEmployees = isAllCompanies
+        ? employees.filter(e => e.status?.toLowerCase() !== "inactive" && e.status?.toLowerCase() !== "in-active")
+        : employees.filter(e => e.company === selectedCompany && e.status?.toLowerCase() !== "inactive" && e.status?.toLowerCase() !== "in-active");
 
-      companyEmployees.forEach(emp => {
+      if (!targetEmployees || targetEmployees.length === 0) {
+        alert("No employees found to finalize!");
+        setLoading(false);
+        return;
+      }
+
+      targetEmployees.forEach(emp => {
         const statuses = processedDraft[emp.id] || [];
         const details = processedDraftDetails[emp.id] || [];
 
@@ -1269,15 +1275,15 @@ export default function useAttendanceData() {
             employee_code: emp.code,
             attendance_date: dateStr,
             status: status,
-            in_time: detail.inTime || null,
-            out_time: detail.outTime || null,
-            is_late: detail.isLate || false,
-            is_half_day: detail.isHalfDay || false,
-            is_punch_missing: detail.isPunchMissing || false,
-            remarks: detail.remarks || "",
+            in_time: detail?.inTime || null,
+            out_time: detail?.outTime || null,
+            is_late: detail?.isLate || false,
+            is_half_day: detail?.isHalfDay || false,
+            is_punch_missing: detail?.isPunchMissing || false,
+            remarks: detail?.remarks || "",
             month: monthNum,
             year: yearNum,
-            company: selectedCompany
+            company: emp.company || (isAllCompanies ? "N/A" : selectedCompany)
           });
 
           if (status === "CL") {
@@ -1294,29 +1300,54 @@ export default function useAttendanceData() {
         }
       });
 
-      const { error: finalError } = await supabase
-        .from("final_attendance")
-        .insert(finalRows);
-      if (finalError) throw finalError;
+      // Insert in chunks of 500 to avoid payload limit issues
+      const chunkSize = 500;
+      for (let i = 0; i < finalRows.length; i += chunkSize) {
+        const chunk = finalRows.slice(i, i + chunkSize);
+        const { error: finalError } = await supabase
+          .from("final_attendance")
+          .insert(chunk);
+        if (finalError) throw finalError;
+      }
 
-      if (ledgerEntries.length > 0) {
+      for (let i = 0; i < ledgerEntries.length; i += chunkSize) {
+        const chunk = ledgerEntries.slice(i, i + chunkSize);
         const { error: ledgerError } = await supabase
           .from("leave_ledger")
-          .insert(ledgerEntries);
+          .insert(chunk);
         if (ledgerError) throw ledgerError;
       }
 
-      const { error: logError } = await supabase
-        .from("attendance_finalization_log")
-        .insert({
-          month: monthNum,
-          year: yearNum,
-          company: selectedCompany,
-          finalized_by: "HR Admin"
-        });
-      if (logError) throw logError;
+      const distinctCompanies = [...new Set(targetEmployees.map(e => e.company).filter(Boolean))];
+      const logEntriesToInsert = isAllCompanies
+        ? [
+            { month: monthNum, year: yearNum, company: "All Companies", finalized_by: "HR Admin" },
+            ...distinctCompanies.map(comp => ({
+              month: monthNum,
+              year: yearNum,
+              company: comp,
+              finalized_by: "HR Admin"
+            }))
+          ]
+        : [
+            { month: monthNum, year: yearNum, company: selectedCompany, finalized_by: "HR Admin" }
+          ];
 
-      alert(`Success! Attendance for "${selectedCompany}" finalized and locked.`);
+      const existingKeys = new Set(
+        (finalizationLogs || []).map(l => `${l.month}_${l.year}_${l.company}`)
+      );
+      const filteredLogEntries = logEntriesToInsert.filter(
+        l => !existingKeys.has(`${l.month}_${l.year}_${l.company}`)
+      );
+
+      if (filteredLogEntries.length > 0) {
+        const { error: logError } = await supabase
+          .from("attendance_finalization_log")
+          .insert(filteredLogEntries);
+        if (logError) throw logError;
+      }
+
+      alert(`Success! Attendance for ${companyLabel} finalized and locked.`);
       await loadDynamicData();
     } catch (err) {
       console.error("Error finalizing attendance:", err);
@@ -1457,11 +1488,27 @@ export default function useAttendanceData() {
         fetchLateApprovals()
       ]);
 
-      const isMonthFinalized = logList.some(log =>
-        log.month === (getMonthNumber(selectedMonth) + 1) &&
-        log.year === parseInt(selectedYear) &&
-        log.company === selectedCompany
-      );
+      const currentMonthNum = getMonthNumber(selectedMonth) + 1;
+      const currentYearNum = parseInt(selectedYear);
+
+      let isMonthFinalized = false;
+      if (selectedCompany === "All Companies") {
+        const hasAllLog = logList.some(log => log.month === currentMonthNum && log.year === currentYearNum && log.company === "All Companies");
+        if (hasAllLog) {
+          isMonthFinalized = true;
+        } else if (empList && empList.length > 0) {
+          const uniqueComps = [...new Set(empList.map(e => e.company).filter(c => c && c !== "N/A"))];
+          isMonthFinalized = uniqueComps.length > 0 && uniqueComps.every(comp =>
+            logList.some(log => log.month === currentMonthNum && log.year === currentYearNum && log.company === comp)
+          );
+        }
+      } else {
+        isMonthFinalized = logList.some(log =>
+          log.month === currentMonthNum &&
+          log.year === currentYearNum &&
+          (log.company === selectedCompany || log.company === "All Companies")
+        );
+      }
 
       setIsFinalized(isMonthFinalized);
 
