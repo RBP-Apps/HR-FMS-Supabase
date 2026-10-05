@@ -8,7 +8,7 @@ import PayrollFilters from './payroll/PayrollFilters';
 import PayrollTable from './payroll/PayrollTable';
 import PayrollEditModal from './payroll/PayrollEditModal';
 import PayslipModal from './payroll/PayslipModal';
-import { parseTimeToMinutes, isLateApproved } from '../utils/attendanceHelpers';
+import { parseTimeToMinutes, isLateApproved, calcSummary, paidDays, getLateHistoryForEmp } from '../utils/attendanceHelpers';
 
 // ─── Toast ──────────────────────────────────────────────────────────
 function Toast({ toasts }) {
@@ -165,386 +165,551 @@ export default function PayrollPage() {
     const monthNum = mVal + 1;
     const daysInMonth = new Date(yVal, monthNum, 0).getDate();
     const prefix = `${yVal}-${String(monthNum).padStart(2, '0')}`;
+    const monthName = MONTHS[mVal] || new Date(yVal, mVal, 1).toLocaleString('default', { month: 'long' });
 
-    const parseTimeToMinutes = (timeStr) => {
+    const formatTime12hr = (timeStr) => {
       if (!timeStr) return null;
-      const str = String(timeStr).trim().toUpperCase();
-      const isPM = str.includes("PM");
-      const isAM = str.includes("AM");
-      const cleanStr = str.replace(/(AM|PM|\s)/g, "");
-      const parts = cleanStr.split(":");
-      if (parts.length < 2) return null;
+      const str = String(timeStr).trim();
+      if (str.toLowerCase().includes('am') || str.toLowerCase().includes('pm')) {
+        return str;
+      }
+      const parts = str.split(':');
+      if (parts.length < 2) return str;
       let hours = parseInt(parts[0], 10);
-      const minutes = parseInt(parts[1], 10);
-      if (isNaN(hours) || isNaN(minutes)) return null;
-      if (isPM && hours < 12) hours += 12;
-      if (isAM && hours === 12) hours = 0;
-      return hours * 60 + minutes;
+      const minutes = parts[1];
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      return `${hours}:${minutes} ${ampm}`;
     };
 
-    // 1. First check if attendance is finalized in attendance_finalization_log
-    try {
-      const { data: finLog, error: logErr } = await supabase
-        .from('attendance_finalization_log')
-        .select('*')
-        .eq('month', monthNum)
-        .eq('year', yVal);
+    const startDate = `${prefix}-01`;
+    const endDate = `${prefix}-${daysInMonth}`;
 
-      if (!logErr && finLog && finLog.length > 0) {
-        const { data: finalAtt, error: finalAttErr } = await supabase
-          .from('final_attendance')
-          .select('employee_id,attendance_date,status,in_time')
+    let bioLogs = [];
+    let fieldLogs = [];
+    let holidayLogs = [];
+    let lateApprovalLogs = [];
+    let finalizationLogs = [];
+    let finalAttLogs = [];
+    let correctionsLogs = [];
+    let ledgerLogs = [];
+
+    try {
+      const PAGE_SIZE = 1000;
+
+      // 1. offline_biometric_punch
+      const fetchBioPromise = (async () => {
+        let page = 0, hasMore = true;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('offline_biometric_punch')
+            .select('employee_id,employee_name,attendance_date,in_time,out_time')
+            .gte('attendance_date', startDate)
+            .lte('attendance_date', endDate)
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (error || !data || data.length === 0) break;
+          bioLogs = [...bioLogs, ...data];
+          if (data.length < PAGE_SIZE) hasMore = false;
+          else page++;
+        }
+      })();
+
+      // 2. attendance logs
+      const fetchAttPromise = (async () => {
+        let page = 0, hasMore = true;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('attendance')
+            .select('*')
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (error || !data || data.length === 0) break;
+          fieldLogs = [...fieldLogs, ...data];
+          if (data.length < PAGE_SIZE) hasMore = false;
+          else page++;
+        }
+      })();
+
+      // 3. manual corrections
+      const fetchCorrectionsPromise = (async () => {
+        let page = 0, hasMore = true;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('approved_status', 'corrected')
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (error || !data || data.length === 0) break;
+          correctionsLogs = [...correctionsLogs, ...data];
+          if (data.length < PAGE_SIZE) hasMore = false;
+          else page++;
+        }
+      })();
+
+      // 4. holiday_master
+      const fetchHolidaysPromise = (async () => {
+        const { data, error } = await supabase
+          .from('holiday_master')
+          .select('holiday_date,holiday_name')
+          .eq('is_active', true)
+          .order('holiday_date', { ascending: true });
+        if (!error && data) holidayLogs = data;
+      })();
+
+      // 5. late_attendance_approval
+      const fetchLateAppPromise = (async () => {
+        const { data, error } = await supabase
+          .from('late_attendance_approval')
+          .select('*');
+        if (!error && data) lateApprovalLogs = data;
+      })();
+
+      // 6. attendance_finalization_log
+      const fetchFinLogPromise = (async () => {
+        const { data, error } = await supabase
+          .from('attendance_finalization_log')
+          .select('*')
           .eq('month', monthNum)
           .eq('year', yVal);
+        if (!error && data) finalizationLogs = data;
+      })();
 
-        if (!finalAttErr && finalAtt && finalAtt.length > 0) {
-          const empAttMap = {};
-          finalAtt.forEach(row => {
-            if (!row.employee_id) return;
-            const k = String(row.employee_id).trim().toLowerCase();
-            if (!empAttMap[k]) empAttMap[k] = [];
-            let st = row.status;
-            if (row.attendance_date) {
-              const dDate = new Date(row.attendance_date);
-              if (dDate.getDay() === 0 && st === 'A') st = 'WO';
-            }
-            empAttMap[k].push({ status: st, in_time: row.in_time });
-          });
-
-          return empList.map(emp => {
-            const empIdKey = emp.id ? String(emp.id).trim().toLowerCase() : '';
-            const empCodeKey = emp.rbp_joining_id ? String(emp.rbp_joining_id).trim().toLowerCase() : '';
-            const empNameKey = emp.employee_name ? String(emp.employee_name).trim().toLowerCase() : '';
-
-            const records = empAttMap[empIdKey] || empAttMap[empCodeKey] || empAttMap[empNameKey] || [];
-            let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
-            let lateCycleCount = 0, lateDaysCount = 0;
-
-            records.forEach(item => {
-              const status = item.status;
-              if (status === 'P') presentDays++;
-              else if (status === 'HD') { presentDays += 0.5; absentDays += 0.5; }
-              else if (status === 'WO') weekOffCount++;
-              else if (status === 'CL') paidLeaves++;
-              else if (status === 'H') holidayCount++;
-              else absentDays++;
-
-              if (item.in_time && !['A', 'WO', 'H', 'CL', 'LWP'].includes(status)) {
-                const inMins = parseTimeToMinutes(item.in_time);
-                if (inMins !== null && inMins >= 586 && inMins <= 750) {
-                  lateCycleCount++;
-                  if (lateCycleCount === 4) {
-                    lateCycleCount = 0;
-                  } else {
-                    lateDaysCount++;
-                  }
-                }
-              }
-            });
-
-            const paidDaysTotal = presentDays + weekOffCount + paidLeaves + holidayCount;
-
-            return {
-              employee_id: emp.id,
-              working_days: daysInMonth,
-              present_days: paidDaysTotal,
-              week_off: weekOffCount,
-              paid_leave: paidLeaves,
-              holidays: holidayCount,
-              absent_days: absentDays,
-              late_days: lateDaysCount,
-            };
-          });
+      // 7. final_attendance
+      const fetchFinalAttPromise = (async () => {
+        let page = 0, hasMore = true;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('final_attendance')
+            .select('*')
+            .eq('month', monthNum)
+            .eq('year', yVal)
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (error || !data || data.length === 0) break;
+          finalAttLogs = [...finalAttLogs, ...data];
+          if (data.length < PAGE_SIZE) hasMore = false;
+          else page++;
         }
-      }
+      })();
+
+      // 8. leave_ledger
+      const fetchLedgerPromise = (async () => {
+        const empIds = empList.map(e => e.id).filter(Boolean);
+        let query = supabase.from('leave_ledger').select('*').order('created_at', { ascending: false });
+        if (empIds.length > 0) {
+          query = query.in('employee_id', empIds);
+        }
+        let page = 0, hasMore = true;
+        while (hasMore) {
+          const { data, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (error || !data || data.length === 0) break;
+          ledgerLogs = [...ledgerLogs, ...data];
+          if (data.length < PAGE_SIZE) hasMore = false;
+          else page++;
+        }
+      })();
+
+      await Promise.all([
+        fetchBioPromise,
+        fetchAttPromise,
+        fetchCorrectionsPromise,
+        fetchHolidaysPromise,
+        fetchLateAppPromise,
+        fetchFinLogPromise,
+        fetchFinalAttPromise,
+        fetchLedgerPromise
+      ]);
     } catch (err) {
-      console.warn("Error checking attendance_finalization_log", err);
+      console.error('Error fetching raw attendance data for Payroll:', err);
     }
 
-    // 2. Live calculation if not finalized
-    let bioLogs = [], attLogs = [], holidayLogs = [];
-    try {
-      // Paginated fetch for offline_biometric_punch (Supabase truncates at 1000 without range pagination)
-      let page = 0;
-      const PAGE_SIZE = 1000;
-      let hasMore = true;
-      const startDate = `${prefix}-01`;
-      const endDate = `${prefix}-${daysInMonth}`;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('offline_biometric_punch')
-          .select('employee_id,employee_name,attendance_date,in_time,out_time')
-          .gte('attendance_date', startDate)
-          .lte('attendance_date', endDate)
-          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-        if (error) {
-          console.error("Error fetching biometric logs page", page, error);
-          break;
-        }
-
-        if (data && data.length > 0) {
-          bioLogs = [...bioLogs, ...data];
-          if (data.length < PAGE_SIZE) {
-            hasMore = false;
-          } else {
-            page++;
-          }
-        } else {
-          hasMore = false;
-        }
-      }
-
-      let attPage = 0;
-      const ATT_PAGE_SIZE = 1000;
-      let hasMoreAtt = true;
-
-      while (hasMoreAtt) {
-        const { data: attData, error: attErr } = await supabase
-          .from('attendance')
-          .select('person_name,employee_code,date,status,approved_status,time')
-          .gte('date', startDate)
-          .lte('date', endDate)
-          .range(attPage * ATT_PAGE_SIZE, (attPage + 1) * ATT_PAGE_SIZE - 1);
-
-        if (attErr) {
-          console.error("Error fetching attendance logs page", attPage, attErr);
-          break;
-        }
-
-        if (attData && attData.length > 0) {
-          attLogs = [...attLogs, ...attData];
-          if (attData.length < ATT_PAGE_SIZE) {
-            hasMoreAtt = false;
-          } else {
-            attPage++;
-          }
-        } else {
-          hasMoreAtt = false;
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching attendance/biometric logs", err);
-    }
-
-    try {
-      const { data, error } = await supabase.from('holiday_master')
-        .select('holiday_date,holiday_name')
-        .gte('holiday_date', `${prefix}-01`)
-        .lte('holiday_date', `${prefix}-${daysInMonth}`);
-      if (!error) holidayLogs = data || [];
-    } catch (err) {
-      console.warn("holiday_master fetch error", err);
-    }
-
-    let lateApprovalLogs = [];
-    try {
-      const { data, error } = await supabase.from('late_attendance_approval').select('*');
-      if (!error) lateApprovalLogs = data || [];
-    } catch (err) {
-      console.warn("late_attendance_approval fetch error", err);
-    }
-
-    // Process biometric punches exactly like useAttendanceData.js
+    // ─── Format biometric logs exactly like useAttendanceData.js ───
     const bioGrouped = {};
-    bioLogs.forEach(b => {
-      if (!b.attendance_date) return;
-      const attDate = String(b.attendance_date).split('T')[0].split(' ')[0];
-      const empId = b.employee_id ? String(b.employee_id).trim().toUpperCase() : '';
-      const empName = b.employee_name ? String(b.employee_name).trim().toUpperCase() : '';
-
-      const keys = [];
-      if (empId) keys.push(`${empId}_${attDate}`);
-      if (empName) keys.push(`${empName}_${attDate}`);
-
-      keys.forEach(key => {
-        if (!bioGrouped[key]) {
-          bioGrouped[key] = { inTimes: [], outTimes: [] };
-        }
-        if (b.in_time) bioGrouped[key].inTimes.push(b.in_time);
-        if (b.out_time) bioGrouped[key].outTimes.push(b.out_time);
-      });
+    bioLogs.forEach(record => {
+      if (!record.employee_id || !record.attendance_date) return;
+      const empId = record.employee_id.toString().trim().toUpperCase();
+      const attDate = record.attendance_date.toString().trim().split(' ')[0].split('T')[0];
+      const key = `${empId}_${attDate}`;
+      if (!bioGrouped[key]) {
+        bioGrouped[key] = {
+          employeeCode: empId,
+          employeeName: record.employee_name,
+          date: attDate,
+          inTimes: [],
+          outTimes: [],
+          records: []
+        };
+      }
+      bioGrouped[key].records.push(record);
+      if (record.in_time) bioGrouped[key].inTimes.push(record.in_time);
+      if (record.out_time) bioGrouped[key].outTimes.push(record.out_time);
     });
 
-    const bioMap = {};
-    Object.keys(bioGrouped).forEach(key => {
-      const g = bioGrouped[key];
+    const biometricAttendance = Object.values(bioGrouped).map(group => {
       const allTimes = [];
-      g.inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
-      g.outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+      group.inTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
+      group.outTimes.forEach(t => { if (t && !allTimes.includes(t)) allTimes.push(t); });
       allTimes.sort((a, b) => a.localeCompare(b));
 
-      let finalIn = null, finalOut = null;
+      let finalIn = null;
+      let finalOut = null;
       if (allTimes.length === 1) {
-        if (g.inTimes.length > 0) finalIn = g.inTimes[0];
-        else if (g.outTimes.length > 0) finalOut = g.outTimes[0];
+        if (group.inTimes.length > 0) finalIn = group.inTimes[0];
+        else if (group.outTimes.length > 0) finalOut = group.outTimes[0];
         else finalIn = allTimes[0];
       } else if (allTimes.length > 1) {
         finalIn = allTimes[0];
         finalOut = allTimes[allTimes.length - 1];
       }
 
-      bioMap[key.toLowerCase()] = { finalIn, finalOut };
+      const isPresent = finalIn || finalOut;
+      return {
+        employeeCode: group.employeeCode,
+        employeeName: group.employeeName,
+        date: group.date,
+        inTime: formatTime12hr(finalIn),
+        outTime: formatTime12hr(finalOut),
+        status: isPresent ? 'P' : 'A',
+        records: group.records
+      };
     });
 
-    const manualMap = {};
-    const leaveMap = {};
-    const fieldMap = {};
-    attLogs.forEach(a => {
-      if (!a.date) return;
-      const nameKey = a.person_name ? `${String(a.person_name).trim().toLowerCase()}_${a.date}` : null;
-      const codeKey = a.employee_code ? `${String(a.employee_code).trim().toLowerCase()}_${a.date}` : null;
+    // ─── Format field logs exactly like useAttendanceData.js ───
+    const fieldGrouped = {};
+    fieldLogs.forEach(record => {
+      const key = `${record.person_name}_${record.date}`;
+      if (!fieldGrouped[key]) {
+        fieldGrouped[key] = {
+          employeeName: record.person_name,
+          employeeCode: record.employee_code,
+          date: record.date,
+          inTime: null,
+          outTime: null,
+          midEntries: [],
+          status: 'A',
+          records: []
+        };
+      }
+      fieldGrouped[key].records.push(record);
+      if (record.status === 'IN') {
+        fieldGrouped[key].inTime = record.time;
+        fieldGrouped[key].status = 'P';
+      } else if (record.status === 'OUT') {
+        fieldGrouped[key].outTime = record.time;
+      } else if (record.status === 'MID') {
+        fieldGrouped[key].midEntries.push(record.time);
+      } else if (record.status === 'CL') {
+        fieldGrouped[key].status = 'CL';
+      }
+    });
+    const fieldAttendance = Object.values(fieldGrouped);
 
-      [nameKey, codeKey].forEach(key => {
-        if (!key) return;
-        if (a.approved_status === 'corrected') {
-          manualMap[key] = a.status;
-        } else if (a.status === 'CL') {
-          leaveMap[key] = 'CL';
-        } else {
-          if (!fieldMap[key]) {
-            fieldMap[key] = { inTime: null, outTime: null, status: null };
-          }
-          const t = a.time || a.in_time;
-          if (a.status === 'IN') {
-            fieldMap[key].inTime = t;
-            if (!fieldMap[key].status) fieldMap[key].status = 'P';
-          } else if (a.status === 'OUT') {
-            fieldMap[key].outTime = t;
-          } else if (a.status === 'P') {
-            fieldMap[key].status = 'P';
-            if (t && !fieldMap[key].inTime) fieldMap[key].inTime = t;
-          } else if (a.status === 'HD') {
-            fieldMap[key].status = 'HD';
-            if (t && !fieldMap[key].inTime) fieldMap[key].inTime = t;
-          }
-        }
+    // ─── Format manual corrections overrides ───
+    const manualOverrides = {};
+    correctionsLogs.forEach(c => {
+      const status = (c.status === 'IN' || c.status === 'P') ? 'P' : c.status;
+      const dateStr = c.date;
+      if (!dateStr) return;
+
+      const codeStr = c.employee_code ? String(c.employee_code).trim() : '';
+      const empStr = c.person_name ? String(c.person_name).trim() : '';
+
+      const matchedEmp = (empList || []).find(e =>
+        (codeStr && (String(e.rbp_joining_id || '').trim().toLowerCase() === codeStr.toLowerCase() || String(e.id) === codeStr)) ||
+        (empStr && String(e.employee_name || '').trim().toLowerCase() === empStr.toLowerCase())
+      );
+
+      const keysToSet = new Set();
+      if (codeStr) keysToSet.add(codeStr);
+      if (empStr) keysToSet.add(empStr);
+      if (matchedEmp) {
+        if (matchedEmp.id) keysToSet.add(String(matchedEmp.id));
+        if (matchedEmp.rbp_joining_id) keysToSet.add(String(matchedEmp.rbp_joining_id).trim());
+        if (matchedEmp.employee_name) keysToSet.add(String(matchedEmp.employee_name).trim());
+      }
+
+      keysToSet.forEach(key => {
+        if (!manualOverrides[key]) manualOverrides[key] = {};
+        manualOverrides[key][dateStr] = status;
       });
     });
 
-    const holidayMap = {};
+    // ─── Holiday Map ───
+    const holidayMap = new Map();
     holidayLogs.forEach(h => {
-      if (h.holiday_date) {
-        holidayMap[h.holiday_date] = h.holiday_name;
+      if (h.holiday_date) holidayMap.set(h.holiday_date, h);
+    });
+
+    // ─── Check Month Finalization ───
+    const hasAllLog = finalizationLogs.some(log => log.month === monthNum && log.year === yVal && log.company === 'All Companies');
+    let isMonthFinalized = false;
+    if (hasAllLog) {
+      isMonthFinalized = true;
+    } else if (empList && empList.length > 0) {
+      const uniqueComps = [...new Set(empList.map(e => e.company).filter(c => c && c !== 'N/A'))];
+      isMonthFinalized = uniqueComps.length > 0 && uniqueComps.every(comp =>
+        finalizationLogs.some(log => log.month === monthNum && log.year === yVal && log.company === comp)
+      );
+    }
+
+    // ─── Finalized Attendance Map if finalized ───
+    const finalizedAttendanceMap = new Map();
+    if (isMonthFinalized && finalAttLogs.length > 0) {
+      finalAttLogs.forEach(r => {
+        if (r.employee_id) {
+          const k = r.employee_id.toString();
+          if (!finalizedAttendanceMap.has(k)) finalizedAttendanceMap.set(k, []);
+          finalizedAttendanceMap.get(k).push(r);
+        }
+      });
+    }
+
+    // ─── Fast Lookups for Biometric & Field Attendance ───
+    const biometricByCodeDateMap = new Map();
+    const biometricByNameDateMap = new Map();
+    biometricAttendance.forEach(b => {
+      const date = b.date;
+      if (b.employeeCode && date) {
+        const c = b.employeeCode.toString().trim().toLowerCase();
+        biometricByCodeDateMap.set(`${c}_${date}`, b);
+        const numPart = c.replace(/\D/g, '');
+        if (numPart && numPart !== c) {
+          biometricByCodeDateMap.set(`${numPart}_${date}`, b);
+        }
+      }
+      if (b.employeeName && date) {
+        biometricByNameDateMap.set(`${b.employeeName.toString().trim().toLowerCase()}_${date}`, b);
       }
     });
 
-    return empList.map(emp => {
-      const empNameClean = emp.employee_name?.trim().toLowerCase();
-      const empCodeClean = emp.rbp_joining_id?.trim().toLowerCase();
-
-      const doj = emp.joining_date ? new Date(emp.joining_date) : null;
-      const dol = emp.leaving_date ? new Date(emp.leaving_date) : null;
-
-      const isOfficeStaff = emp.employee_category?.trim() === 'Office Staff';
-
-      let presentDays = 0, weekOffCount = 0, paidLeaves = 0, absentDays = 0, holidayCount = 0;
-      let lateCycleCount = 0, lateDaysCount = 0;
-
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dayStr = `${prefix}-${String(d).padStart(2, '0')}`;
-        const dayDate = new Date(yVal, mVal, d);
-
-        const compareDate = new Date(dayDate);
-        compareDate.setHours(0, 0, 0, 0);
-        if ((doj && compareDate < new Date(doj).setHours(0, 0, 0, 0)) ||
-            (dol && compareDate > new Date(dol).setHours(0, 0, 0, 0))) {
-          continue;
+    const fieldByCodeDateMap = new Map();
+    const fieldByNameDateMap = new Map();
+    fieldAttendance.forEach(f => {
+      const date = f.date;
+      if (f.employeeCode && date) {
+        const c = f.employeeCode.toString().trim().toLowerCase();
+        fieldByCodeDateMap.set(`${c}_${date}`, f);
+        const numPart = c.replace(/\D/g, '');
+        if (numPart && numPart !== c) {
+          fieldByCodeDateMap.set(`${numPart}_${date}`, f);
         }
+      }
+      if (f.employeeName && date) {
+        fieldByNameDateMap.set(`${f.employeeName.toString().trim().toLowerCase()}_${date}`, f);
+      }
+    });
 
-        const isSunday = dayDate.getDay() === 0;
-        const isHoliday = holidayMap[dayStr];
-        let status = isSunday ? 'WO' : (isHoliday ? 'H' : 'A');
+    // ─── Leave Ledger balances calculation ───
+    const fyStartYear = monthNum >= 4 ? yVal : yVal - 1;
+    const fyStartDateStr = `${fyStartYear}-04-01`;
+    const targetMonthEndStr = `${yVal}-${String(monthNum).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    const targetMonthStartStr = `${yVal}-${String(monthNum).padStart(2, '0')}-01`;
 
-        const nameKey = empNameClean ? `${empNameClean}_${dayStr}` : '';
-        const codeKey = empCodeClean ? `${empCodeClean}_${dayStr}` : '';
+    const ledgerMap = new Map();
+    ledgerLogs.forEach(row => {
+      if (row.employee_id) {
+        const k = row.employee_id.toString();
+        if (!ledgerMap.has(k)) ledgerMap.set(k, []);
+        ledgerMap.get(k).push(row);
+      }
+    });
 
-        const manualStatus = (codeKey && manualMap[codeKey]) || (nameKey && manualMap[nameKey]);
-        let checkInTime = null;
+    const localBalances = {};
+    empList.forEach(emp => {
+      const empLedger = ledgerMap.get(emp.id?.toString()) || [];
 
-        if (manualStatus) {
-          status = manualStatus;
-        } else {
-          const leaveStatus = (codeKey && leaveMap[codeKey]) || (nameKey && leaveMap[nameKey]);
-          if (leaveStatus) {
-            status = 'CL';
-          } else if (isOfficeStaff) {
-            const bioEntry = (codeKey && bioMap[codeKey]) || (nameKey && bioMap[nameKey]);
-            if (bioEntry && (bioEntry.finalIn || bioEntry.finalOut)) {
-              checkInTime = bioEntry.finalIn;
-              if (bioEntry.finalIn && bioEntry.finalOut) {
-                const outMins = parseTimeToMinutes(bioEntry.finalOut);
-                if (outMins !== null && outMins < 960) {
-                  status = 'HD';
-                } else {
-                  status = 'P';
-                }
+      let totalClCredits = empLedger
+        .filter(row =>
+          row.leave_type === 'CL' &&
+          (row.transaction_type === 'CREDIT' || (row.transaction_type === 'ADJUSTMENT' && row.earned > 0)) &&
+          row.ledger_date >= fyStartDateStr &&
+          row.ledger_date <= targetMonthEndStr
+        )
+        .reduce((sum, row) => sum + Number(row.earned || 0), 0);
+
+      if (totalClCredits === 0) {
+        let mCount = 0;
+        for (let m = 4; m <= 15; m++) {
+          let nMonth = m > 12 ? m - 12 : m;
+          let nYear = m > 12 ? fyStartYear + 1 : fyStartYear;
+          const dTarget = new Date(nYear, nMonth - 1, 1);
+          const curTarget = new Date(yVal, monthNum - 1, 1);
+          if (dTarget <= curTarget) {
+            const doj = emp.joining_date ? new Date(emp.joining_date) : null;
+            if (!doj || dTarget >= new Date(doj.getFullYear(), doj.getMonth(), 1)) {
+              mCount++;
+            }
+          }
+        }
+        totalClCredits = Math.min(12, mCount);
+      }
+
+      const totalClDebits = empLedger
+        .filter(row =>
+          row.leave_type === 'CL' &&
+          (row.transaction_type === 'DEBIT' || (row.transaction_type === 'ADJUSTMENT' && row.used > 0)) &&
+          row.ledger_date >= fyStartDateStr &&
+          row.ledger_date <= targetMonthEndStr
+        )
+        .reduce((sum, row) => sum + Number(row.used || 0), 0);
+
+      localBalances[emp.id] = {
+        earnedCL: totalClCredits,
+        usedCL: totalClDebits,
+        remainingCL: Math.max(0, totalClCredits - totalClDebits)
+      };
+    });
+
+    // ─── Process Attendance for Each Employee ───
+    return empList.map(emp => {
+      let empStatusArray = new Array(daysInMonth);
+
+      if (isMonthFinalized) {
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dayDate = new Date(yVal, mVal, d);
+          empStatusArray[d - 1] = dayDate.getDay() === 0 ? 'WO' : 'A';
+        }
+        const empFinalRecords = (emp.id && finalizedAttendanceMap.get(emp.id.toString())) || [];
+        empFinalRecords.forEach(r => {
+          if (r.attendance_date) {
+            const d = new Date(r.attendance_date).getDate();
+            if (d >= 1 && d <= daysInMonth) {
+              const dayDate = new Date(yVal, mVal, d);
+              const isSunday = dayDate.getDay() === 0;
+              if (isSunday && r.status === 'A') {
+                empStatusArray[d - 1] = 'WO';
               } else {
-                status = 'HD';
+                empStatusArray[d - 1] = r.status;
               }
+            }
+          }
+        });
+      } else {
+        empStatusArray.fill('A');
+        const empLedger = ledgerMap.get(emp.id?.toString()) || [];
+        const clDebitsPrior = empLedger
+          .filter(row => row.leave_type === 'CL' && (row.transaction_type === 'DEBIT' || row.used > 0) && row.ledger_date < targetMonthStartStr)
+          .reduce((sum, row) => sum + Number(row.used || 0), 0);
+        let runningCLBalance = (localBalances[emp.id]?.earnedCL ?? 0) - clDebitsPrior;
+
+        const doj = emp.joining_date ? new Date(emp.joining_date) : null;
+        const dol = emp.leaving_date ? new Date(emp.leaving_date) : null;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${yVal}-${String(monthNum).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dayDate = new Date(yVal, mVal, d);
+          const dayOfWeek = dayDate.getDay();
+
+          let status = 'A';
+          const compareDate = new Date(dayDate);
+          compareDate.setHours(0, 0, 0, 0);
+
+          const isBeforeJoining = doj && compareDate < new Date(doj).setHours(0, 0, 0, 0);
+          const isAfterLeaving = dol && compareDate > new Date(dol).setHours(0, 0, 0, 0);
+
+          if (isBeforeJoining || isAfterLeaving) {
+            empStatusArray[d - 1] = '';
+            continue;
+          }
+
+          const manualOverride =
+            (emp.rbp_joining_id && manualOverrides[emp.rbp_joining_id]?.[dateStr]) ||
+            (emp.id && manualOverrides[emp.id]?.[dateStr]) ||
+            (emp.employee_name && manualOverrides[emp.employee_name]?.[dateStr]);
+
+          if (manualOverride) {
+            status = manualOverride;
+            if (status === 'CL') {
+              runningCLBalance--;
             }
           } else {
-            const fieldRec = (codeKey && fieldMap[codeKey]) || (nameKey && fieldMap[nameKey]);
-            if (fieldRec) {
-              checkInTime = fieldRec.inTime;
-              if (fieldRec.inTime && fieldRec.outTime) {
-                const outMins = parseTimeToMinutes(fieldRec.outTime);
-                if (outMins !== null && outMins < 960) {
-                  status = 'HD';
+            const holidayMatch = holidayMap.get(dateStr);
+            if (holidayMatch) {
+              status = 'H';
+            } else {
+              const empCodeLower = (emp.rbp_joining_id || '').toString().trim().toLowerCase();
+              const empNameLower = (emp.employee_name || '').toString().trim().toLowerCase();
+              const empNumCode = empCodeLower.replace(/\D/g, '');
+              const codeKey = `${empCodeLower}_${dateStr}`;
+              const numKey = empNumCode ? `${empNumCode}_${dateStr}` : null;
+              const nameKey = `${empNameLower}_${dateStr}`;
+
+              const fRecord = fieldByCodeDateMap.get(codeKey) || (numKey && fieldByCodeDateMap.get(numKey)) || fieldByNameDateMap.get(nameKey) || null;
+              const fieldCL = (fRecord && fRecord.status === 'CL') ? fRecord : null;
+
+              if (fieldCL) {
+                if (runningCLBalance >= 1) {
+                  status = 'CL';
+                  runningCLBalance--;
                 } else {
-                  status = 'P';
+                  status = 'LWP';
                 }
-              } else if (fieldRec.inTime || fieldRec.outTime) {
-                status = 'HD';
-              } else if (fieldRec.status === 'P') {
-                status = 'P';
-              } else if (fieldRec.status === 'HD') {
-                status = 'HD';
+              } else {
+                let record = null;
+                const isOfficeStaff = emp.employee_category?.trim() === 'Office Staff';
+                if (isOfficeStaff) {
+                  record = biometricByCodeDateMap.get(codeKey) || (numKey && biometricByCodeDateMap.get(numKey)) || biometricByNameDateMap.get(nameKey) || null;
+                } else {
+                  record = (fRecord && fRecord.status !== 'CL') ? fRecord : null;
+                }
+
+                if (record && (record.inTime || record.outTime)) {
+                  const inTime = record.inTime;
+                  const outTime = record.outTime;
+                  if (inTime && outTime) {
+                    const outMins = parseTimeToMinutes(outTime);
+                    if (outMins !== null && outMins < 960) {
+                      status = 'HD';
+                    } else {
+                      status = 'P';
+                    }
+                  } else {
+                    status = 'HD';
+                  }
+                } else {
+                  if (dayOfWeek === 0) {
+                    status = 'WO';
+                  } else {
+                    status = 'A';
+                  }
+                }
               }
             }
           }
-        }
 
-        if (status === 'P') {
-          presentDays++;
-        } else if (status === 'HD') {
-          presentDays += 0.5;
-          absentDays += 0.5;
-        } else if (status === 'WO') {
-          weekOffCount++;
-        } else if (status === 'CL') {
-          paidLeaves++;
-        } else if (status === 'H') {
-          holidayCount++;
-        } else {
-          absentDays++;
-        }
-
-        if (checkInTime && !['A', 'WO', 'H', 'CL', 'LWP'].includes(status)) {
-          const inMins = parseTimeToMinutes(checkInTime);
-          if (inMins !== null && inMins >= 586 && inMins <= 750) {
-            // If approved in Late Approvals, do NOT count as late day for deduction
-            if (!isLateApproved(emp, dayStr, lateApprovalLogs)) {
-              lateDaysCount++;
-            }
-          }
+          empStatusArray[d - 1] = status;
         }
       }
 
-      const lateDeductionDays = Math.floor(lateDaysCount / 4) * 0.5;
-      const basePaidDays = presentDays + weekOffCount + paidLeaves + holidayCount;
-      const paidDaysTotal = Math.max(0, basePaidDays - lateDeductionDays);
+      // Calculate summary and genuine late entries using helper functions
+      const summary = calcSummary(empStatusArray);
+      const genuineLateEntries = getLateHistoryForEmp(
+        {
+          id: emp.id,
+          code: emp.rbp_joining_id,
+          name: emp.employee_name,
+          company: emp.company
+        },
+        empStatusArray,
+        yVal.toString(),
+        monthName,
+        biometricAttendance,
+        fieldAttendance,
+        lateApprovalLogs
+      );
+
+      const totalPaidDays = paidDays(summary, genuineLateEntries.length);
 
       return {
         employee_id: emp.id,
         working_days: daysInMonth,
-        present_days: paidDaysTotal,
-        week_off: weekOffCount,
-        paid_leave: paidLeaves,
-        holidays: holidayCount,
-        absent_days: absentDays,
-        late_days: lateDaysCount,
+        present_days: totalPaidDays, // Guaranteed exact match to Attendance Management
+        week_off: summary.WO,
+        paid_leave: summary.CL,
+        holidays: summary.H,
+        absent_days: summary.A,
+        late_days: genuineLateEntries.length,
       };
     });
   }, []);
