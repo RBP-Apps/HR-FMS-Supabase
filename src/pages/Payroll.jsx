@@ -573,9 +573,18 @@ export default function PayrollPage() {
         if (!dbErr && dbRecords && dbRecords.length > 0) {
           const dbEdits = {};
           dbRecords.forEach(row => {
+            const currentEmp = emps.find(e => e.id === row.employee_id || e.rbp_joining_id === row.employee_code);
+            const isPf = currentEmp ? (currentEmp.company_pf_provided === 'Yes') : true;
+            const isEsic = currentEmp ? (currentEmp.company_esic_provided === 'Yes') : true;
+
+            const masterSalary = currentEmp ? currentEmp.gross_salary : null;
+            const effectiveSalary = (masterSalary !== null && masterSalary !== undefined && masterSalary > 0)
+              ? masterSalary
+              : Number(row.gross_salary);
+
             const rowData = {
-              gross_salary: Number(row.gross_salary),
-              grossReal: Number(row.gross_salary),
+              gross_salary: effectiveSalary,
+              grossReal: effectiveSalary,
               basicEarned: Number(row.basic_earned),
               hraEarned: Number(row.hra_earned),
               convEarned: Number(row.conv_earned),
@@ -583,8 +592,8 @@ export default function PayrollPage() {
               specialEarned: Number(row.special_earned),
               grossEarned: Number(row.gross_earned),
               otAmount: Number(row.ot_amount),
-              epfDed: Number(row.epf_ded),
-              esicDed: Number(row.esic_ded),
+              epfDed: isPf ? Number(row.epf_ded) : 0,
+              esicDed: isEsic ? Number(row.esic_ded) : 0,
               advance: Number(row.advance),
               security_deposit: Number(row.security_dep),
               late_deduction: Number(row.late_deduction || 0),
@@ -595,12 +604,14 @@ export default function PayrollPage() {
               netSalary: Number(row.net_salary),
               ta_da: Number(row.ta_da),
               totalPayable: Number(row.total_payable),
-              employerEPF: Number(row.employer_epf),
-              employerESIC: Number(row.employer_esic),
+              employerEPF: isPf ? Number(row.employer_epf) : 0,
+              employerESIC: isEsic ? Number(row.employer_esic) : 0,
               ctc: Number(row.ctc),
               remark: row.remark || '',
               employee_name: row.employee_name,
               rbp_joining_id: row.employee_code,
+              company_pf_provided: isPf ? 'Yes' : 'No',
+              company_esic_provided: isEsic ? 'Yes' : 'No',
             };
             if (row.employee_id) dbEdits[row.employee_id] = rowData;
             if (row.employee_code) dbEdits[row.employee_code] = rowData;
@@ -651,9 +662,11 @@ export default function PayrollPage() {
         ...(empEdits.esic_number !== undefined ? { esic_number: empEdits.esic_number } : {}),
         ...(empEdits.designation !== undefined ? { designation: empEdits.designation } : {}),
         ...(empEdits.in_hand !== undefined ? { in_hand: empEdits.in_hand } : {}),
-        ...(empEdits.gross_salary !== undefined && empEdits.gross_salary !== '' ? { gross_salary: Number(empEdits.gross_salary) } : {}),
-        ...(empEdits.company_pf_provided !== undefined ? { company_pf_provided: empEdits.company_pf_provided } : {}),
-        ...(empEdits.company_esic_provided !== undefined ? { company_esic_provided: empEdits.company_esic_provided } : {}),
+        gross_salary: (emp.gross_salary !== undefined && emp.gross_salary !== null && emp.gross_salary > 0)
+          ? emp.gross_salary
+          : (empEdits.gross_salary !== undefined ? Number(empEdits.gross_salary) : 0),
+        company_pf_provided: empEdits.company_pf_provided !== undefined ? empEdits.company_pf_provided : emp.company_pf_provided,
+        company_esic_provided: empEdits.company_esic_provided !== undefined ? empEdits.company_esic_provided : emp.company_esic_provided,
       };
 
       // Merge attendance overrides if present
@@ -764,9 +777,10 @@ export default function PayrollPage() {
   };
 
   // ─── Save live edits directly to Supabase database ────────────────
-  const handleSaveEdit = async (recordId, newEdits) => {
+  const handleSaveEdit = async (recordId, newEdits, targetRecord = null) => {
     const key = getStorageKey(filters.year, filters.month);
-    const emp = editRecord?.employee;
+    const rec = targetRecord || editRecord;
+    const emp = rec?.employee;
     const empId = emp?.id;
     const rbpId = emp?.rbp_joining_id;
     const mVal = Number(filters.month) + 1;
@@ -774,14 +788,14 @@ export default function PayrollPage() {
 
     if (!newEdits) {
       // 1. Delete override from Supabase payroll_history if it exists
-      if (empId) {
+      if (empId || rbpId) {
         try {
-          await supabase
-            .from('payroll_history')
-            .delete()
-            .eq('employee_id', empId)
-            .eq('month', mVal)
-            .eq('year', yVal);
+          if (empId) {
+            await supabase.from('payroll_history').delete().eq('employee_id', empId).eq('month', mVal).eq('year', yVal);
+          }
+          if (rbpId) {
+            await supabase.from('payroll_history').delete().eq('employee_code', rbpId).eq('month', mVal).eq('year', yVal);
+          }
         } catch (e) {
           console.warn('Failed to remove from Supabase:', e);
         }
@@ -792,6 +806,8 @@ export default function PayrollPage() {
         delete next[recordId];
         if (empId) delete next[empId];
         if (rbpId) delete next[rbpId];
+        if (emp?.name_as_per_aadhar) delete next[emp.name_as_per_aadhar];
+        if (emp?.employee_name) delete next[emp.employee_name];
         try {
           localStorage.setItem(key, JSON.stringify(next));
         } catch (e) {
@@ -800,11 +816,14 @@ export default function PayrollPage() {
         return next;
       });
       setEditRecord(null);
-      addToast('Payroll overrides reset to default', 'info');
+      addToast(`Payroll overrides reset for ${emp?.employee_name || 'employee'}`, 'info');
       return;
     }
 
     // 1. Directly save/upsert to Supabase database (payroll_history)
+    const isPf = (newEdits.company_pf_provided === 'Yes' || (newEdits.company_pf_provided === undefined && emp?.company_pf_provided === 'Yes'));
+    const isEsic = (newEdits.company_esic_provided === 'Yes' || (newEdits.company_esic_provided === undefined && emp?.company_esic_provided === 'Yes'));
+
     if (empId) {
       try {
         const historyRow = {
@@ -821,8 +840,8 @@ export default function PayrollPage() {
           special_earned: Number(newEdits.specialEarned || 0),
           gross_earned: Number(newEdits.grossEarned || 0),
           ot_amount: Number(newEdits.otAmount || 0),
-          epf_ded: Number(newEdits.epfDed || 0),
-          esic_ded: Number(newEdits.esicDed || 0),
+          epf_ded: isPf ? Number(newEdits.epfDed || 0) : 0,
+          esic_ded: isEsic ? Number(newEdits.esicDed || 0) : 0,
           advance: Number(newEdits.advance || 0),
           security_dep: Number(newEdits.security_deposit || 0),
           late_deduction: Number(newEdits.late_deduction || 0),
@@ -833,8 +852,8 @@ export default function PayrollPage() {
           net_salary: Number(newEdits.netSalary || 0),
           ta_da: Number(newEdits.ta_da || 0),
           total_payable: Number(newEdits.totalPayable || 0),
-          employer_epf: Number(newEdits.employerEPF || 0),
-          employer_esic: Number(newEdits.employerESIC || 0),
+          employer_epf: isPf ? Number(newEdits.employerEPF || 0) : 0,
+          employer_esic: isEsic ? Number(newEdits.employerESIC || 0) : 0,
           ctc: Number(newEdits.ctc || 0),
           remark: newEdits.remark || ''
         };
@@ -872,6 +891,21 @@ export default function PayrollPage() {
 
         if (Object.keys(updatePayload).length > 0) {
           await supabase.from('joining').update(updatePayload).eq('id', empId);
+          // Sync React employees state live!
+          setEmployees(prev => prev.map(e => {
+            if (e.id === empId || (rbpId && e.rbp_joining_id === rbpId)) {
+              return {
+                ...e,
+                ...(updatePayload.name_as_per_aadhar ? { employee_name: updatePayload.name_as_per_aadhar } : {}),
+                ...(updatePayload.rbp_joining_id ? { rbp_joining_id: updatePayload.rbp_joining_id } : {}),
+                ...(updatePayload.company_pf_provided !== undefined ? { company_pf_provided: updatePayload.company_pf_provided } : {}),
+                ...(updatePayload.company_esic_provided !== undefined ? { company_esic_provided: updatePayload.company_esic_provided } : {}),
+                ...(updatePayload.salary !== undefined ? { gross_salary: Number(updatePayload.salary) } : {}),
+                ...(updatePayload.designation ? { designation: updatePayload.designation } : {}),
+              };
+            }
+            return e;
+          }));
         }
       } catch (err) {
         console.warn('Could not update employee master in joining table:', err);
@@ -894,6 +928,16 @@ export default function PayrollPage() {
     setEditRecord(null);
     addToast('Payroll record saved directly to database (Supabase)', 'success');
   };
+
+  const handleResetRecordOverrides = useCallback(async (record) => {
+    if (!record) return;
+    const emp = record.employee;
+    const empName = emp?.employee_name || 'this employee';
+    if (!window.confirm(`Reset all custom payroll overrides for "${empName}" back to original Master & Attendance calculations?`)) {
+      return;
+    }
+    await handleSaveEdit(record.id, null, record);
+  }, [filters.year, filters.month]);
 
   // ─── Save all current processed records to Supabase database ──────
   const handleSaveAllToDatabase = async () => {
@@ -1344,6 +1388,7 @@ export default function PayrollPage() {
               loading={loading}
               onView={(r) => setPayslipRecord(r)}
               onEdit={isFinalized ? null : (r) => setEditRecord(r)}
+              onReset={isFinalized ? null : handleResetRecordOverrides}
               onDownloadPayslip={(r) => { setPayslipRecord(r); addToast('Opening payslip...'); }}
               onPrint={(r) => { setPayslipRecord(r); setTimeout(() => window.print(), 300); }}
               onViewEmployee={(r) => addToast(`Employee ID: ${r.employee?.rbp_joining_id}`, 'success')}

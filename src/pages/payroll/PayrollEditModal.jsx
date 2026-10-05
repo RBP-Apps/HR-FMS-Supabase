@@ -98,6 +98,12 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
     const esicRaw = ed.company_esic_provided || emp.company_esic_provided || record.company_esic_provided;
     const isEsicYes = esicRaw === 'Yes' || esicRaw === true || esicRaw === 'TRUE' || esicRaw === 'true';
 
+    const grossVal = emp.gross_salary || ed.gross_salary || ed.grossReal || c.grossReal || 0;
+    const epfVal = isPfYes ? (ed.epfDed ?? c.epfDed ?? 0) : 0;
+    const esicVal = isEsicYes ? (ed.esicDed ?? c.esicDed ?? 0) : 0;
+    const empEpfVal = isPfYes ? (ed.employerEPF ?? c.employerEPF ?? 0) : 0;
+    const empEsicVal = isEsicYes ? (ed.employerESIC ?? c.employerESIC ?? 0) : 0;
+
     return {
       // 1. Employee Profile
       employee_name: ed.employee_name ?? emp.employee_name ?? '',
@@ -117,12 +123,12 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
       ot: ed.ot ?? 0,
 
       // 3. Real Salary Structure
-      gross_salary: ed.gross_salary ?? ed.grossReal ?? emp.gross_salary ?? c.grossReal ?? 0,
-      basicReal: ed.basicReal ?? c.basicReal ?? 0,
-      hraReal: ed.hraReal ?? c.hraReal ?? 0,
-      convReal: ed.convReal ?? c.convReal ?? 0,
-      medReal: ed.medReal ?? c.medReal ?? 0,
-      specialReal: ed.specialReal ?? c.specialReal ?? 0,
+      gross_salary: grossVal,
+      basicReal: ed.basicReal ?? c.basicReal ?? Math.round(grossVal * 0.50),
+      hraReal: ed.hraReal ?? c.hraReal ?? Math.round(grossVal * 0.20),
+      convReal: ed.convReal ?? c.convReal ?? Math.round(grossVal * 0.10),
+      medReal: ed.medReal ?? c.medReal ?? Math.round(grossVal * 0.15),
+      specialReal: ed.specialReal ?? c.specialReal ?? Math.round(grossVal * 0.05),
 
       // 4. Earned Components
       grossEarned: ed.grossEarned ?? c.grossEarned ?? 0,
@@ -134,8 +140,8 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
       otAmount: ed.otAmount ?? c.otAmount ?? 0,
 
       // 5. Deductions
-      epfDed: ed.epfDed ?? c.epfDed ?? 0,
-      esicDed: ed.esicDed ?? c.esicDed ?? 0,
+      epfDed: epfVal,
+      esicDed: esicVal,
       advance: ed.advance ?? c.advance ?? 0,
       security_deposit: ed.security_deposit ?? c.securityDep ?? 0,
       late_deduction: ed.late_deduction ?? c.lateDeduction ?? 0,
@@ -150,8 +156,8 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
       totalPayable: ed.totalPayable ?? c.totalPayable ?? 0,
 
       // 7. Employer & Remarks
-      employerEPF: ed.employerEPF ?? c.employerEPF ?? 0,
-      employerESIC: ed.employerESIC ?? c.employerESIC ?? 0,
+      employerEPF: empEpfVal,
+      employerESIC: empEsicVal,
       ctc: ed.ctc ?? c.ctc ?? 0,
       remark: ed.remark ?? c.remark ?? '',
     };
@@ -166,24 +172,113 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
   if (!record) return null;
   const emp = record.employee || {};
 
-  // Handle generic input change
+  // Pure formula calculator from base gross, attendance, and policy settings
+  const calculateAll = (baseForm) => {
+    const m = Number(month ?? new Date().getMonth());
+    const y = Number(year ?? new Date().getFullYear());
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const calendarDays = daysInMonth || 30;
+
+    const gross = Number(baseForm.gross_salary || 0);
+    const present = Number(baseForm.present_days || 0);
+    const otDays = Number(baseForm.ot || 0);
+
+    // 1. Real Structure
+    const basicReal = Math.round(gross * 0.50);
+    const hraReal = Math.round(gross * 0.20);
+    const convReal = Math.round(gross * 0.10);
+    const medReal = Math.round(gross * 0.15);
+    const specialReal = Math.round(gross * 0.05);
+
+    // 2. Earned Components
+    const basicEarned = calendarDays ? Math.round((basicReal / calendarDays) * present) : 0;
+    const hraEarned = calendarDays ? Math.round((hraReal / calendarDays) * present) : 0;
+    const convEarned = calendarDays ? Math.round((convReal / calendarDays) * present) : 0;
+    const medEarned = calendarDays ? Math.round((medReal / calendarDays) * present) : 0;
+    const specialEarned = calendarDays ? Math.round((specialReal / calendarDays) * present) : 0;
+    const grossEarned = basicEarned + hraEarned + convEarned + medEarned + specialEarned;
+
+    // 3. OT
+    const perDay = calendarDays ? gross / calendarDays : 0;
+    const otAmount = Math.round(otDays * perDay);
+
+    // 4. Deductions
+    const isPf = baseForm.company_pf_provided === 'Yes';
+    const isEsic = baseForm.company_esic_provided === 'Yes';
+
+    const epfDed = isPf ? Math.round(basicEarned * 0.12) : 0;
+    const esicDed = isEsic ? Math.round(grossEarned * 0.0075) : 0;
+    const advance = Number(baseForm.advance || 0);
+    const secDep = Number(baseForm.security_deposit || 0);
+    const lateDed = Number(baseForm.late_deduction || 0);
+    const otherDed = Number(baseForm.other_deduction || 0);
+    const totalDed = epfDed + esicDed + advance + secDep + lateDed + otherDed;
+
+    // 5. Net & Payable
+    const reimb = Number(baseForm.reimbursement || 0);
+    const arrears = Number(baseForm.salary_arrears || 0);
+    const taDa = Number(baseForm.ta_da || 0);
+    const netSalary = Math.max(0, grossEarned - totalDed);
+    const totalPayable = netSalary + reimb + arrears + taDa;
+
+    // 6. Employer & CTC
+    const empEpf = isPf ? Math.round(basicEarned * 0.13) : 0;
+    const empEsic = isEsic ? Math.round(basicEarned * 0.0325) : 0;
+    const ctc = grossEarned + empEpf + empEsic;
+
+    return {
+      ...baseForm,
+      gross_salary: gross,
+      basicReal,
+      hraReal,
+      convReal,
+      medReal,
+      specialReal,
+      basicEarned,
+      hraEarned,
+      convEarned,
+      medEarned,
+      specialEarned,
+      grossEarned,
+      otAmount,
+      epfDed,
+      esicDed,
+      totalDed,
+      netSalary,
+      totalPayable,
+      employerEPF: empEpf,
+      employerESIC: empEsic,
+      ctc,
+    };
+  };
+
+  // Handle generic input change with live auto-recalculations
   const handleChange = (e) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     const isText = ['employee_name', 'rbp_joining_id', 'bank_account_number', 'ifsc_code', 'uan_number', 'esic_number', 'designation', 'company_pf_provided', 'company_esic_provided', 'remark', 'in_hand'].includes(name);
 
     setForm(prev => {
       const nextVal = isText ? value : (value === '' ? '' : Number(value));
       const updated = { ...prev, [name]: nextVal };
 
+      // Automatic full recalculation when gross salary, attendance, or PF/ESIC policy changes
+      if (['gross_salary', 'present_days', 'ot', 'working_days', 'company_pf_provided', 'company_esic_provided'].includes(name)) {
+        return calculateAll(updated);
+      }
+
       // Live auto-synchronize dependent deductions & net if changing deduction/allowance components directly
       if (['advance', 'security_deposit', 'late_deduction', 'other_deduction', 'epfDed', 'esicDed'].includes(name)) {
-        const epf = Number(name === 'epfDed' ? nextVal : updated.epfDed || 0);
-        const esic = Number(name === 'esicDed' ? nextVal : updated.esicDed || 0);
+        const isPf = updated.company_pf_provided === 'Yes';
+        const isEsic = updated.company_esic_provided === 'Yes';
+        const epf = isPf ? Number(name === 'epfDed' ? nextVal : updated.epfDed || 0) : 0;
+        const esic = isEsic ? Number(name === 'esicDed' ? nextVal : updated.esicDed || 0) : 0;
         const adv = Number(name === 'advance' ? nextVal : updated.advance || 0);
         const sec = Number(name === 'security_deposit' ? nextVal : updated.security_deposit || 0);
         const late = Number(name === 'late_deduction' ? nextVal : updated.late_deduction || 0);
         const oth = Number(name === 'other_deduction' ? nextVal : updated.other_deduction || 0);
         const totDed = epf + esic + adv + sec + late + oth;
+        updated.epfDed = epf;
+        updated.esicDed = esic;
         updated.totalDed = totDed;
 
         // Auto update net and total payable
@@ -210,81 +305,7 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
 
   // Re-calculate all standard formulas from base Gross + Present Days
   const handleAutoRecalculate = () => {
-    const m = Number(month ?? new Date().getMonth());
-    const y = Number(year ?? new Date().getFullYear());
-    const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const calendarDays = daysInMonth || 30;
-
-    const gross = Number(form.gross_salary || 0);
-    const present = Number(form.present_days || 0);
-    const otDays = Number(form.ot || 0);
-
-    // 1. Real Structure
-    const basicReal = Math.round(gross * 0.50);
-    const hraReal = Math.round(gross * 0.20);
-    const convReal = Math.round(gross * 0.10);
-    const medReal = Math.round(gross * 0.15);
-    const specialReal = Math.round(gross * 0.05);
-
-    // 2. Earned Components
-    const basicEarned = calendarDays ? Math.round((basicReal / calendarDays) * present) : 0;
-    const hraEarned = calendarDays ? Math.round((hraReal / calendarDays) * present) : 0;
-    const convEarned = calendarDays ? Math.round((convReal / calendarDays) * present) : 0;
-    const medEarned = calendarDays ? Math.round((medReal / calendarDays) * present) : 0;
-    const specialEarned = calendarDays ? Math.round((specialReal / calendarDays) * present) : 0;
-    const grossEarned = basicEarned + hraEarned + convEarned + medEarned + specialEarned;
-
-    // 3. OT
-    const perDay = calendarDays ? gross / calendarDays : 0;
-    const otAmount = Math.round(otDays * perDay);
-
-    // 4. Deductions
-    const isPf = form.company_pf_provided === 'Yes';
-    const isEsic = form.company_esic_provided === 'Yes';
-
-    const epfDed = isPf ? Math.round(basicEarned * 0.12) : 0;
-    const esicDed = isEsic ? Math.round(grossEarned * 0.0075) : 0;
-    const advance = Number(form.advance || 0);
-    const secDep = Number(form.security_deposit || 0);
-    const lateDed = Number(form.late_deduction || 0);
-    const otherDed = Number(form.other_deduction || 0);
-    const totalDed = epfDed + esicDed + advance + secDep + lateDed + otherDed;
-
-    // 5. Net & Payable
-    const reimb = Number(form.reimbursement || 0);
-    const arrears = Number(form.salary_arrears || 0);
-    const taDa = Number(form.ta_da || 0);
-    const netSalary = Math.max(0, grossEarned - totalDed);
-    const totalPayable = netSalary + reimb + arrears + taDa;
-
-    // 6. Employer & CTC
-    const empEpf = isPf ? Math.round(basicEarned * 0.13) : 0;
-    const empEsic = isEsic ? Math.round(basicEarned * 0.0325) : 0;
-    const ctc = grossEarned + empEpf + empEsic;
-
-    setForm(prev => ({
-      ...prev,
-      basicReal,
-      hraReal,
-      convReal,
-      medReal,
-      specialReal,
-      basicEarned,
-      hraEarned,
-      convEarned,
-      medEarned,
-      specialEarned,
-      grossEarned,
-      otAmount,
-      epfDed,
-      esicDed,
-      totalDed,
-      netSalary,
-      totalPayable,
-      employerEPF: empEpf,
-      employerESIC: empEsic,
-      ctc,
-    }));
+    setForm(prev => calculateAll(prev));
   };
 
   // Reset to default (clears all manual overrides)

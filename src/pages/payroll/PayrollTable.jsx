@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Edit2, Download, Printer, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, Edit2, Download, Printer, User, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { fmt } from './payrollConstants';
 
 const TH = ({ children, sticky, stickyLeft, leftOffset = 0, className = '' }) => (
@@ -56,6 +56,7 @@ const ActionBtn = ({ icon: Icon, label, onClick, color }) => {
     green: 'text-green-600 hover:bg-green-50 hover:text-green-700',
     purple: 'text-purple-600 hover:bg-purple-50 hover:text-purple-700',
     orange: 'text-orange-600 hover:bg-orange-50 hover:text-orange-700',
+    amber: 'text-amber-600 hover:bg-amber-50 hover:text-amber-700',
     slate: 'text-slate-600 hover:bg-slate-50 hover:text-slate-700',
   };
   return (
@@ -97,7 +98,7 @@ const SkeletonCard = () => (
   </div>
 );
 
-const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, onViewEmployee }) => {
+const PayrollCard = ({ record, idx, onView, onEdit, onReset, onDownloadPayslip, onPrint, onViewEmployee }) => {
   const emp = record.employee || {};
   const att = record.attendance || {};
   const c = record.calc || {};
@@ -118,9 +119,18 @@ const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, 
                   {emp.employee_name || '—'}
                 </h3>
                 {record?.edits && Object.keys(record.edits).length > 0 && (
-                  <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded shadow-xs" title="Custom overrides applied">
-                    Edited
-                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReset && onReset(record);
+                    }}
+                    className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded shadow-xs cursor-pointer transition-colors"
+                    title="Manual overrides active. Click to reset to Master calculations."
+                  >
+                    <span>Edited</span>
+                    {onReset && <RotateCcw className="w-2.5 h-2.5" />}
+                  </button>
                 )}
               </div>
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -263,6 +273,16 @@ const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, 
               <span>Edit</span>
             </button>
           )}
+          {record?.edits && Object.keys(record.edits).length > 0 && onReset && (
+            <button
+              onClick={() => onReset(record)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 bg-amber-50 border border-amber-200 transition-all duration-200"
+              title="Reset custom overrides to Master"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
           {onDownloadPayslip && (
             <ActionBtn icon={Download} label="Download Payslip" onClick={() => onDownloadPayslip(record)} color="purple" />
           )}
@@ -279,7 +299,7 @@ const PayrollCard = ({ record, idx, onView, onEdit, onDownloadPayslip, onPrint, 
 };
 
 export default function PayrollTable({
-  records = [], loading, onView, onEdit, onDownloadPayslip, onPrint, onViewEmployee
+  records = [], loading, onView, onEdit, onReset, onDownloadPayslip, onPrint, onViewEmployee
 }) {
   const [viewMode, setViewMode] = useState('table');
 
@@ -458,9 +478,18 @@ export default function PayrollTable({
                           <div className="flex items-center justify-between gap-1 w-full">
                             <span className="truncate">{emp?.employee_name || '—'}</span>
                             {record?.edits && Object.keys(record.edits).length > 0 && (
-                              <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded shadow-xs" title="Custom overrides applied">
-                                Edited
-                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onReset && onReset(record);
+                                }}
+                                className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded shadow-xs cursor-pointer transition-colors"
+                                title="Manual overrides active. Click to reset to Master calculations."
+                              >
+                                <span>Edited</span>
+                                {onReset && <RotateCcw className="w-2.5 h-2.5" />}
+                              </button>
                             )}
                           </div>
                         </TD>
@@ -610,7 +639,9 @@ export default function PayrollTable({
                           <div className="flex items-center gap-0.5">
                             <ActionBtn icon={Eye} label="View Payroll" onClick={() => onView(record)} color="blue" />
                             {onEdit && <ActionBtn icon={Edit2} label="Edit Payroll" onClick={() => onEdit(record)} color="green" />}
-                        
+                            {record?.edits && Object.keys(record.edits).length > 0 && onReset && (
+                              <ActionBtn icon={RotateCcw} label="Reset Overrides to Master" onClick={() => onReset(record)} color="amber" />
+                            )}
                           </div>
                         </TD>
                       </tr>
@@ -648,6 +679,7 @@ export default function PayrollTable({
                   idx={idx}
                   onView={onView}
                   onEdit={onEdit}
+                  onReset={onReset}
                   onDownloadPayslip={onDownloadPayslip}
                   onPrint={onPrint}
                   onViewEmployee={onViewEmployee}
