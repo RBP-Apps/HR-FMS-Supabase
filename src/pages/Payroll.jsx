@@ -747,6 +747,16 @@ export default function PayrollPage() {
               ? masterSalary
               : Number(row.gross_salary);
 
+            const isLegacyBasicEsic = row.employer_esic !== undefined && row.employer_esic !== null &&
+              Math.abs(Number(row.employer_esic) - (Number(row.basic_earned) * 0.0325)) <= 1.01 &&
+              Math.abs(Number(row.employer_esic) - (Number(row.gross_earned) * 0.0325)) > 1.01;
+            const effectiveEmpEsic = isLegacyBasicEsic
+              ? Math.round(Number(row.gross_earned) * 0.0325)
+              : Number(row.employer_esic);
+            const effectiveCtc = isLegacyBasicEsic
+              ? (Number(row.ctc) - Number(row.employer_esic) + effectiveEmpEsic)
+              : Number(row.ctc);
+
             const rowData = {
               gross_salary: effectiveSalary,
               grossReal: effectiveSalary,
@@ -770,8 +780,8 @@ export default function PayrollPage() {
               ta_da: Number(row.ta_da),
               totalPayable: Number(row.total_payable),
               employerEPF: isPf ? Number(row.employer_epf) : 0,
-              employerESIC: isEsic ? Number(row.employer_esic) : 0,
-              ctc: Number(row.ctc),
+              employerESIC: isEsic ? effectiveEmpEsic : 0,
+              ctc: effectiveCtc,
               remark: row.remark || '',
               employee_name: row.employee_name,
               rbp_joining_id: row.employee_code,
@@ -1360,54 +1370,63 @@ export default function PayrollPage() {
       if (error) throw error;
 
       const mapped = (data || []).map((row, idx) => {
-        const matchedEmp = employees.find(e => e.id === row.employee_id || e.rbp_joining_id === row.employee_code);
-        return {
-          id: row.id,
-          employee: {
-            id: row.employee_id,
-            rbp_joining_id: row.employee_code,
-            employee_name: row.employee_name,
-            gross_salary: Number(row.gross_salary),
-            department: matchedEmp?.department || 'N/A',
-            designation: matchedEmp?.designation || 'N/A',
-            bank_account_number: matchedEmp?.bank_account_number || '',
-            ifsc_code: matchedEmp?.ifsc_code || '',
-            uan_number: matchedEmp?.uan_number || '',
-            esic_number: matchedEmp?.esic_number || '',
-            company_pf_provided: matchedEmp?.company_pf_provided || (Number(row.epf_ded) > 0 ? 'Yes' : 'No'),
-            company_esic_provided: matchedEmp?.company_esic_provided || (Number(row.esic_ded) > 0 ? 'Yes' : 'No'),
-          },
-          attendance: {
-            present_days: 0,
-            working_days: 0,
-          },
-        calc: {
-          basicReal: 0, hraReal: 0, convReal: 0, medReal: 0, specialReal: 0, grossReal: row.gross_salary,
-          basicEarned: Number(row.basic_earned),
-          hraEarned: Number(row.hra_earned),
-          convEarned: Number(row.conv_earned),
-          medEarned: Number(row.med_earned),
-          specialEarned: Number(row.special_earned),
-          grossEarned: Number(row.gross_earned),
-          otAmount: Number(row.ot_amount),
-          epfDed: Number(row.epf_ded),
-          esicDed: Number(row.esic_ded),
-          advance: Number(row.advance),
-          securityDep: Number(row.security_dep),
-          lateDeduction: Number(row.late_deduction || 0),
-          otherDed: Number(row.other_ded),
-          totalDed: Number(row.total_ded),
-          reimbursement: Number(row.reimbursement),
-          salaryArrears: Number(row.salary_arrears),
-          netSalary: Number(row.net_salary),
-          taDA: Number(row.ta_da),
-          totalPayable: Number(row.total_payable),
-          employerEPF: Number(row.employer_epf),
-          employerESIC: Number(row.employer_esic),
-          ctc: Number(row.ctc),
-          remark: row.remark || ''
-        }
-      };
+          const isLegacyBasicEsic = row.employer_esic !== undefined && row.employer_esic !== null &&
+            Math.abs(Number(row.employer_esic) - (Number(row.basic_earned) * 0.0325)) <= 1.01 &&
+            Math.abs(Number(row.employer_esic) - (Number(row.gross_earned) * 0.0325)) > 1.01;
+          const effectiveEmpEsic = isLegacyBasicEsic
+            ? Math.round(Number(row.gross_earned) * 0.0325)
+            : Number(row.employer_esic);
+          const effectiveCtc = isLegacyBasicEsic
+            ? (Number(row.ctc) - Number(row.employer_esic) + effectiveEmpEsic)
+            : Number(row.ctc);
+
+          return {
+            id: row.id,
+            employee: {
+              id: row.employee_id,
+              rbp_joining_id: row.employee_code,
+              employee_name: row.employee_name,
+              gross_salary: Number(row.gross_salary),
+              department: matchedEmp?.department || 'N/A',
+              designation: matchedEmp?.designation || 'N/A',
+              bank_account_number: matchedEmp?.bank_account_number || '',
+              ifsc_code: matchedEmp?.ifsc_code || '',
+              uan_number: matchedEmp?.uan_number || '',
+              esic_number: matchedEmp?.esic_number || '',
+              company_pf_provided: matchedEmp?.company_pf_provided || (Number(row.epf_ded) > 0 ? 'Yes' : 'No'),
+              company_esic_provided: matchedEmp?.company_esic_provided || (Number(row.esic_ded) > 0 ? 'Yes' : 'No'),
+            },
+            attendance: {
+              present_days: 0,
+              working_days: 0,
+            },
+          calc: {
+            basicReal: 0, hraReal: 0, convReal: 0, medReal: 0, specialReal: 0, grossReal: row.gross_salary,
+            basicEarned: Number(row.basic_earned),
+            hraEarned: Number(row.hra_earned),
+            convEarned: Number(row.conv_earned),
+            medEarned: Number(row.med_earned),
+            specialEarned: Number(row.special_earned),
+            grossEarned: Number(row.gross_earned),
+            otAmount: Number(row.ot_amount),
+            epfDed: Number(row.epf_ded),
+            esicDed: Number(row.esic_ded),
+            advance: Number(row.advance),
+            securityDep: Number(row.security_dep),
+            lateDeduction: Number(row.late_deduction || 0),
+            otherDed: Number(row.other_ded),
+            totalDed: Number(row.total_ded),
+            reimbursement: Number(row.reimbursement),
+            salaryArrears: Number(row.salary_arrears),
+            netSalary: Number(row.net_salary),
+            taDA: Number(row.ta_da),
+            totalPayable: Number(row.total_payable),
+            employerEPF: Number(row.employer_epf),
+            employerESIC: effectiveEmpEsic,
+            ctc: effectiveCtc,
+            remark: row.remark || ''
+          }
+        };
     });
     setHistoryRecords(mapped);
       setSelectedHistoryLog(log);

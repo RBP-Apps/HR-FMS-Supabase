@@ -323,10 +323,10 @@ celebrating today                and remaining milestone days
        ├── Earned Proration: (Component / Total Calendar Days) * Paid Days
        ├── Statutory Contributions:
        │     ├── EPF: Employee 12% | Employer 13% of Earned Basic
-       │     └── ESIC: Employee 0.75% of Gross | Employer 3.25% of Basic
+       │     └── ESIC: Employee 0.75% of Gross | Employer 3.25% of Gross
        ├── Overtime (OT) Additions
        ├── Deductions (Advances, Security Deposit, Other)
-       └── Net Salary Payable = Gross Earned - Total Deductions
+       └── Net Salary Payable = Gross Earned + OT - Total Deductions
                    │
                    ▼
 [ Review, Adjustment & Locking ]
@@ -1413,12 +1413,12 @@ $$\text{Gross Earned } (G_{\text{earned}}) = \sum \text{All Earned Components}$$
 $$\text{Total Deductions} = \text{EPF}_{\text{ded}} + \text{ESIC}_{\text{ded}} + \text{Advance} + \text{Security Deposit} + \text{Other Deductions}$$
 
 ### Net Salary & Total Payable
-$$\text{Net Salary} = G_{\text{earned}} - \text{Total Deductions}$$
-$$\text{Total Payable} = \text{Net Salary} + \text{TA/DA} + \text{Reimbursements} + \text{Salary Arrears} + \text{OT Amount}$$
+$$\text{Net Salary} = G_{\text{earned}} + \text{OT Amount} - \text{Total Deductions}$$
+$$\text{Total Payable} = \text{Net Salary} + \text{TA/DA} + \text{Reimbursements} + \text{Salary Arrears}$$
 
 ### Employer Contributions & Cost to Company (CTC)
 $$\text{Employer EPF} = \text{Basic Earned} \times 13\%$$
-$$\text{Employer ESIC} = \text{Basic Earned} \times 3.25\%$$
+$$\text{Employer ESIC} = \text{Gross Earned} \times 3.25\%$$
 $$\text{Total CTC} = G_{\text{earned}} + \text{Employer EPF} + \text{Employer ESIC}$$
 
 ---

@@ -23,12 +23,12 @@
  *   ESIC = GROSS_earned * 0.75%
  *   TOTAL = EPF + ESIC + advance + security + otherDed
  *
- * NET SALARY PAYABLE = GROSS - TOTAL DEDUCTION
+ * NET SALARY PAYABLE = GROSS + OT - TOTAL DEDUCTION
  * TOTAL SALARY PAYABLE = NET + taDA + reimbursement + salaryArrears
  *
  * EMPLOYER:
  *   Employer EPF  = BASIC+DA_earned * 13%
- *   Employer ESIC = BASIC+DA_earned * 3.25%
+ *   Employer ESIC = GROSS_earned * 3.25%
  *   CTC = GROSS + Employer EPF + Employer ESIC
  */
 export function calcSalary(grossSalary, attendance, edits = {}, month, year, emp = {}) {
@@ -127,7 +127,7 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year, emp
   const inHand         = edits.in_hand !== undefined ? edits.in_hand : (emp?.in_hand || '');
 
   // --- NET ---
-  const autoNetSalary  = Math.max(0, grossEarned - totalDed);
+  const autoNetSalary  = Math.max(0, grossEarned + otAmount - totalDed);
   const netSalary      = autoNetSalary;
 
   const autoTotalPayable = netSalary + taDA + reimbursement + salaryArrears;
@@ -137,8 +137,12 @@ export function calcSalary(grossSalary, attendance, edits = {}, month, year, emp
   const autoEmployerEPF  = isPfProvided ? basicEarned * 0.13 : 0;
   const employerEPF      = isPfProvided ? numOr(edits.employerEPF, autoEmployerEPF) : 0;
 
-  const autoEmployerESIC = isEsicProvided ? basicEarned * 0.0325 : 0;
-  const employerESIC     = isEsicProvided ? numOr(edits.employerESIC, autoEmployerESIC) : 0;
+  const autoEmployerESIC = isEsicProvided ? grossEarned * 0.0325 : 0;
+  // If edits.employerESIC matches the legacy basicEarned * 3.25% calculation, discard the stale override
+  const isLegacyBasicEsic = edits.employerESIC !== undefined &&
+    Math.abs(Number(edits.employerESIC) - (basicEarned * 0.0325)) <= 1.01 &&
+    Math.abs(Number(edits.employerESIC) - autoEmployerESIC) > 1.01;
+  const employerESIC     = isEsicProvided ? (isLegacyBasicEsic ? autoEmployerESIC : numOr(edits.employerESIC, autoEmployerESIC)) : 0;
 
   const autoCtc          = grossEarned + employerEPF + employerESIC;
   const ctc              = autoCtc;

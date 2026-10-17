@@ -102,7 +102,10 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
     const epfVal = isPfYes ? (ed.epfDed ?? c.epfDed ?? 0) : 0;
     const esicVal = isEsicYes ? (ed.esicDed ?? c.esicDed ?? 0) : 0;
     const empEpfVal = isPfYes ? (ed.employerEPF ?? c.employerEPF ?? 0) : 0;
-    const empEsicVal = isEsicYes ? (ed.employerESIC ?? c.employerESIC ?? 0) : 0;
+    const isLegacyBasicCalc = ed.employerESIC !== undefined &&
+      Math.abs(Number(ed.employerESIC) - (Number(ed.basicEarned ?? c.basicEarned ?? 0) * 0.0325)) <= 1.01 &&
+      Math.abs(Number(ed.employerESIC) - (Number(ed.grossEarned ?? c.grossEarned ?? 0) * 0.0325)) > 1.01;
+    const empEsicVal = isEsicYes ? (isLegacyBasicCalc ? (c.employerESIC ?? 0) : (ed.employerESIC ?? c.employerESIC ?? 0)) : 0;
 
     return {
       // 1. Employee Profile
@@ -152,8 +155,12 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
       reimbursement: ed.reimbursement ?? c.reimbursement ?? 0,
       salary_arrears: ed.salary_arrears ?? c.salaryArrears ?? 0,
       ta_da: ed.ta_da ?? c.taDA ?? 0,
-      netSalary: ed.netSalary ?? c.netSalary ?? 0,
-      totalPayable: ed.totalPayable ?? c.totalPayable ?? 0,
+      netSalary: (ed.netSalary !== undefined && (Number(c.otAmount || ed.otAmount || 0) > 0) && Math.abs(Number(ed.netSalary) - Math.max(0, Number(c.grossEarned || ed.grossEarned || 0) - Number(c.totalDed || ed.totalDed || 0))) <= 1.01)
+        ? (c.netSalary ?? 0)
+        : (ed.netSalary ?? c.netSalary ?? 0),
+      totalPayable: (ed.netSalary !== undefined && (Number(c.otAmount || ed.otAmount || 0) > 0) && Math.abs(Number(ed.netSalary) - Math.max(0, Number(c.grossEarned || ed.grossEarned || 0) - Number(c.totalDed || ed.totalDed || 0))) <= 1.01)
+        ? (Number(c.netSalary || 0) + Number(ed.reimbursement ?? c.reimbursement ?? 0) + Number(ed.salary_arrears ?? c.salaryArrears ?? 0) + Number(ed.ta_da ?? c.taDA ?? 0))
+        : (ed.totalPayable ?? c.totalPayable ?? 0),
 
       // 7. Employer & Remarks
       employerEPF: empEpfVal,
@@ -218,12 +225,12 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
     const reimb = Number(baseForm.reimbursement || 0);
     const arrears = Number(baseForm.salary_arrears || 0);
     const taDa = Number(baseForm.ta_da || 0);
-    const netSalary = Math.max(0, grossEarned - totalDed);
+    const netSalary = Math.max(0, grossEarned + otAmount - totalDed);
     const totalPayable = netSalary + reimb + arrears + taDa;
 
     // 6. Employer & CTC
     const empEpf = isPf ? Math.round(basicEarned * 0.13) : 0;
-    const empEsic = isEsic ? Math.round(basicEarned * 0.0325) : 0;
+    const empEsic = isEsic ? Math.round(grossEarned * 0.0325) : 0;
     const ctc = grossEarned + empEpf + empEsic;
 
     return {
@@ -283,7 +290,17 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
 
         // Auto update net and total payable
         const grossEarn = Number(updated.grossEarned || 0);
-        const net = Math.max(0, grossEarn - totDed);
+        const otAmt = Number(updated.otAmount || 0);
+        const net = Math.max(0, grossEarn + otAmt - totDed);
+        updated.netSalary = net;
+        updated.totalPayable = net + Number(updated.reimbursement || 0) + Number(updated.salary_arrears || 0) + Number(updated.ta_da || 0);
+      }
+
+      if (name === 'otAmount') {
+        const grossEarn = Number(updated.grossEarned || 0);
+        const otAmt = Number(nextVal || 0);
+        const totDed = Number(updated.totalDed || 0);
+        const net = Math.max(0, grossEarn + otAmt - totDed);
         updated.netSalary = net;
         updated.totalPayable = net + Number(updated.reimbursement || 0) + Number(updated.salary_arrears || 0) + Number(updated.ta_da || 0);
       }
@@ -293,6 +310,13 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
         updated.totalPayable = net + Number(name === 'reimbursement' ? nextVal : updated.reimbursement || 0)
           + Number(name === 'salary_arrears' ? nextVal : updated.salary_arrears || 0)
           + Number(name === 'ta_da' ? nextVal : updated.ta_da || 0);
+      }
+
+      if (['employerEPF', 'employerESIC'].includes(name)) {
+        const grossEarn = Number(updated.grossEarned || 0);
+        const epf = Number(name === 'employerEPF' ? nextVal : updated.employerEPF || 0);
+        const esic = Number(name === 'employerESIC' ? nextVal : updated.employerESIC || 0);
+        updated.ctc = grossEarn + epf + esic;
       }
 
       return updated;
@@ -728,7 +752,7 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
                     onChange={handleChange}
                     unit="₹"
                     highlight
-                    badge="Gross - Ded"
+                    badge="Gross + OT - Ded"
                   />
                 )}
                 {matchesSearch('Total Payable total payable final') && (
@@ -764,7 +788,7 @@ export default function PayrollEditModal({ record, month, year, onClose, onSave 
                   <EditField label="EMP EPF 13%" name="employerEPF" type="number" value={form.employerEPF} onChange={handleChange} unit="₹" badge="13% Basic" />
                 )}
                 {matchesSearch('EMP ESIC 3.25% employer esic') && (
-                  <EditField label="EMP ESIC 3.25%" name="employerESIC" type="number" value={form.employerESIC} onChange={handleChange} unit="₹" badge="3.25% Basic" />
+                  <EditField label="EMP ESIC 3.25%" name="employerESIC" type="number" value={form.employerESIC} onChange={handleChange} unit="₹" badge="3.25% Gross" />
                 )}
                 {matchesSearch('CTC ctc company cost') && (
                   <EditField
