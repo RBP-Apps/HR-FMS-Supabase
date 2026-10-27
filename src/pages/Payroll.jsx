@@ -1247,6 +1247,8 @@ export default function PayrollPage() {
 
   // ─── Export live table to Excel ──────────────────────────────────
   const handleExcelExport = () => {
+    const roundVal = (v) => (v !== undefined && v !== null && !isNaN(Number(v)) ? Math.round(Number(v)) : v);
+
     const data = filteredRecords.map((r, i) => ({
       'SL': i + 1,
       'EMP CODE': r.employee.rbp_joining_id,
@@ -1257,28 +1259,28 @@ export default function PayrollPage() {
       'COMPANY PROVIDES ESIC': r.edits?.company_esic_provided || r.employee.company_esic_provided || 'No',
       'DESIGNATION': r.employee.designation,
       'DEPARTMENT': r.employee.department,
-      'PRESENT': r.attendance?.present_days ?? 0,
-      'WORKING DAYS': r.attendance?.working_days ?? 0,
-      'GROSS (Real)': r.employee.gross_salary,
-      'BASIC+DA (Real)': r.calc.basicReal,
-      'HRA (Real)': r.calc.hraReal,
-      'GROSS EARNED': r.calc.grossEarned,
-      'OT': r.calc.otAmount,
-      'EPF 12%': r.calc.epfDed,
-      'ESIC 0.75%': r.calc.esicDed,
-      'ADVANCE': r.calc.advance,
-      'SECURITY DEP': r.calc.securityDep,
-      'LATE DEDUCTION': r.calc.lateDeduction,
-      'OTHER DED': r.calc.otherDed,
-      'TOTAL DED': r.calc.totalDed,
-      'REIMBURSEMENT': r.calc.reimbursement,
-      'SALARY ARREARS': r.calc.salaryArrears,
-      'NET SALARY': r.calc.netSalary,
-      'TA DA': r.calc.taDA,
-      'TOTAL PAYABLE': r.calc.totalPayable,
-      'EMPLOYER EPF 13%': r.calc.employerEPF,
-      'EMPLOYER ESIC 3.25%': r.calc.employerESIC,
-      'CTC': r.calc.ctc,
+      'PRESENT': roundVal(r.attendance?.present_days ?? 0),
+      'WORKING DAYS': roundVal(r.attendance?.working_days ?? 0),
+      'GROSS (Real)': roundVal(r.employee.gross_salary),
+      'BASIC+DA (Real)': roundVal(r.calc.basicReal),
+      'HRA (Real)': roundVal(r.calc.hraReal),
+      'GROSS EARNED': roundVal(r.calc.grossEarned),
+      'OT': roundVal(r.calc.otAmount),
+      'EPF 12%': roundVal(r.calc.epfDed),
+      'ESIC 0.75%': roundVal(r.calc.esicDed),
+      'ADVANCE': roundVal(r.calc.advance),
+      'SECURITY DEP': roundVal(r.calc.securityDep),
+      'LATE DEDUCTION': roundVal(r.calc.lateDeduction),
+      'OTHER DED': roundVal(r.calc.otherDed),
+      'TOTAL DED': roundVal(r.calc.totalDed),
+      'REIMBURSEMENT': roundVal(r.calc.reimbursement),
+      'SALARY ARREARS': roundVal(r.calc.salaryArrears),
+      'NET SALARY': roundVal(r.calc.netSalary),
+      'TA DA': roundVal(r.calc.taDA),
+      'TOTAL PAYABLE': roundVal(r.calc.totalPayable),
+      'EMPLOYER EPF 13%': roundVal(r.calc.employerEPF),
+      'EMPLOYER ESIC 3.25%': roundVal(r.calc.employerESIC),
+      'CTC': roundVal(r.calc.ctc),
       'REMARK': r.calc.remark,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -1291,6 +1293,8 @@ export default function PayrollPage() {
   // ─── Export History Month to Excel ───────────────────────────────
   const handleHistoryExcelExport = () => {
     if (!selectedHistoryLog) return;
+    const roundVal = (v) => (v !== undefined && v !== null && !isNaN(Number(v)) ? Math.round(Number(v)) : v);
+
     const data = filteredHistoryRecords.map((r, i) => ({
       'SL': i + 1,
       'EMP CODE': r.employee.rbp_joining_id,
@@ -1299,29 +1303,29 @@ export default function PayrollPage() {
       'IFSC CODE': r.employee.ifsc_code || '',
       'COMPANY PROVIDES PF': r.employee.company_pf_provided || 'No',
       'COMPANY PROVIDES ESIC': r.employee.company_esic_provided || 'No',
-      'GROSS': r.calc.grossReal,
-      'BASIC EARNED': r.calc.basicEarned,
-      'HRA EARNED': r.calc.hraEarned,
-      'CONVEYANCE EARNED': r.calc.convEarned,
-      'MEDICAL EARNED': r.calc.medEarned,
-      'SPECIAL EARNED': r.calc.specialEarned,
-      'GROSS EARNED': r.calc.grossEarned,
-      'OT': r.calc.otAmount,
-      'EPF 12%': r.calc.epfDed,
-      'ESIC 0.75%': r.calc.esicDed,
-      'ADVANCE': r.calc.advance,
-      'SECURITY DEP': r.calc.securityDep,
-      'LATE DEDUCTION': r.calc.lateDeduction,
-      'OTHER DED': r.calc.otherDed,
-      'TOTAL DED': r.calc.totalDed,
-      'REIMBURSEMENT': r.calc.reimbursement,
-      'SALARY ARREARS': r.calc.salaryArrears,
-      'NET SALARY': r.calc.netSalary,
-      'TA DA': r.calc.taDA,
-      'TOTAL PAYABLE': r.calc.totalPayable,
-      'EMPLOYER EPF 13%': r.calc.employerEPF,
-      'EMPLOYER ESIC 3.25%': r.calc.employerESIC,
-      'CTC': r.calc.ctc,
+      'GROSS': roundVal(r.calc.grossReal),
+      'BASIC EARNED': roundVal(r.calc.basicEarned),
+      'HRA EARNED': roundVal(r.calc.hraEarned),
+      'CONVEYANCE EARNED': roundVal(r.calc.convEarned),
+      'MEDICAL EARNED': roundVal(r.calc.medEarned),
+      'SPECIAL EARNED': roundVal(r.calc.specialEarned),
+      'GROSS EARNED': roundVal(r.calc.grossEarned),
+      'OT': roundVal(r.calc.otAmount),
+      'EPF 12%': roundVal(r.calc.epfDed),
+      'ESIC 0.75%': roundVal(r.calc.esicDed),
+      'ADVANCE': roundVal(r.calc.advance),
+      'SECURITY DEP': roundVal(r.calc.securityDep),
+      'LATE DEDUCTION': roundVal(r.calc.lateDeduction),
+      'OTHER DED': roundVal(r.calc.otherDed),
+      'TOTAL DED': roundVal(r.calc.totalDed),
+      'REIMBURSEMENT': roundVal(r.calc.reimbursement),
+      'SALARY ARREARS': roundVal(r.calc.salaryArrears),
+      'NET SALARY': roundVal(r.calc.netSalary),
+      'TA DA': roundVal(r.calc.taDA),
+      'TOTAL PAYABLE': roundVal(r.calc.totalPayable),
+      'EMPLOYER EPF 13%': roundVal(r.calc.employerEPF),
+      'EMPLOYER ESIC 3.25%': roundVal(r.calc.employerESIC),
+      'CTC': roundVal(r.calc.ctc),
       'REMARK': r.calc.remark,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -1362,6 +1366,12 @@ export default function PayrollPage() {
   const loadHistoryMonth = async (log) => {
     setLoadingHistory(true);
     try {
+      let currentEmps = employees;
+      if (!currentEmps || currentEmps.length === 0) {
+        currentEmps = await fetchEmployees();
+        setEmployees(currentEmps);
+      }
+
       const { data, error } = await supabase
         .from('payroll_history')
         .select('*')
@@ -1369,68 +1379,87 @@ export default function PayrollPage() {
         .eq('year', log.year);
       if (error) throw error;
 
-      const mapped = (data || []).map((row, idx) => {
-          const isLegacyBasicEsic = row.employer_esic !== undefined && row.employer_esic !== null &&
-            Math.abs(Number(row.employer_esic) - (Number(row.basic_earned) * 0.0325)) <= 1.01 &&
-            Math.abs(Number(row.employer_esic) - (Number(row.gross_earned) * 0.0325)) > 1.01;
-          const effectiveEmpEsic = isLegacyBasicEsic
-            ? Math.round(Number(row.gross_earned) * 0.0325)
-            : Number(row.employer_esic);
-          const effectiveCtc = isLegacyBasicEsic
-            ? (Number(row.ctc) - Number(row.employer_esic) + effectiveEmpEsic)
-            : Number(row.ctc);
+      const daysInHistoryMonth = new Date(log.year, log.month, 0).getDate();
 
-          return {
-            id: row.id,
-            employee: {
-              id: row.employee_id,
-              rbp_joining_id: row.employee_code,
-              employee_name: row.employee_name,
-              gross_salary: Number(row.gross_salary),
-              department: matchedEmp?.department || 'N/A',
-              designation: matchedEmp?.designation || 'N/A',
-              bank_account_number: matchedEmp?.bank_account_number || '',
-              ifsc_code: matchedEmp?.ifsc_code || '',
-              uan_number: matchedEmp?.uan_number || '',
-              esic_number: matchedEmp?.esic_number || '',
-              company_pf_provided: matchedEmp?.company_pf_provided || (Number(row.epf_ded) > 0 ? 'Yes' : 'No'),
-              company_esic_provided: matchedEmp?.company_esic_provided || (Number(row.esic_ded) > 0 ? 'Yes' : 'No'),
-            },
-            attendance: {
-              present_days: 0,
-              working_days: 0,
-            },
+      const mapped = (data || []).map((row, idx) => {
+        const matchedEmp = (currentEmps || []).find(e =>
+          (row.employee_id && String(e.id) === String(row.employee_id)) ||
+          (row.employee_code && String(e.rbp_joining_id || '').trim().toLowerCase() === String(row.employee_code).trim().toLowerCase()) ||
+          (row.employee_name && String(e.employee_name || '').trim().toLowerCase() === String(row.employee_name).trim().toLowerCase())
+        );
+
+        const isLegacyBasicEsic = row.employer_esic !== undefined && row.employer_esic !== null &&
+          Math.abs(Number(row.employer_esic) - (Number(row.basic_earned) * 0.0325)) <= 1.01 &&
+          Math.abs(Number(row.employer_esic) - (Number(row.gross_earned) * 0.0325)) > 1.01;
+        const effectiveEmpEsic = isLegacyBasicEsic
+          ? Math.round(Number(row.gross_earned) * 0.0325)
+          : Number(row.employer_esic);
+        const effectiveCtc = isLegacyBasicEsic
+          ? (Number(row.ctc) - Number(row.employer_esic) + effectiveEmpEsic)
+          : Number(row.ctc);
+
+        const grossSalaryNum = Number(row.gross_salary || matchedEmp?.gross_salary || 0);
+
+        return {
+          id: row.id,
+          employee: {
+            id: row.employee_id,
+            rbp_joining_id: row.employee_code || matchedEmp?.rbp_joining_id || '',
+            employee_name: row.employee_name || matchedEmp?.employee_name || '',
+            gross_salary: grossSalaryNum,
+            company: matchedEmp?.company || log.company || 'RBP FMS',
+            department: matchedEmp?.department || 'N/A',
+            designation: matchedEmp?.designation || 'N/A',
+            bank_account_number: matchedEmp?.bank_account_number || '',
+            ifsc_code: matchedEmp?.ifsc_code || '',
+            uan_number: matchedEmp?.uan_number || '',
+            esic_number: matchedEmp?.esic_number || '',
+            in_hand: matchedEmp?.in_hand || '—',
+            company_pf_provided: matchedEmp?.company_pf_provided || (Number(row.epf_ded) > 0 ? 'Yes' : 'No'),
+            company_esic_provided: matchedEmp?.company_esic_provided || (Number(row.esic_ded) > 0 ? 'Yes' : 'No'),
+          },
+          attendance: {
+            present_days: row.present_days !== undefined && row.present_days !== null ? Number(row.present_days) : 0,
+            working_days: row.working_days !== undefined && row.working_days !== null ? Number(row.working_days) : daysInHistoryMonth,
+          },
           calc: {
-            basicReal: 0, hraReal: 0, convReal: 0, medReal: 0, specialReal: 0, grossReal: row.gross_salary,
-            basicEarned: Number(row.basic_earned),
-            hraEarned: Number(row.hra_earned),
-            convEarned: Number(row.conv_earned),
-            medEarned: Number(row.med_earned),
-            specialEarned: Number(row.special_earned),
-            grossEarned: Number(row.gross_earned),
-            otAmount: Number(row.ot_amount),
-            epfDed: Number(row.epf_ded),
-            esicDed: Number(row.esic_ded),
-            advance: Number(row.advance),
-            securityDep: Number(row.security_dep),
+            basicReal: Math.round(grossSalaryNum * 0.5),
+            hraReal: Math.round(grossSalaryNum * 0.25),
+            convReal: Math.round(grossSalaryNum * 0.15),
+            medReal: 0,
+            specialReal: Math.round(grossSalaryNum * 0.1),
+            grossReal: grossSalaryNum,
+            inHand: matchedEmp?.in_hand || '—',
+            basicEarned: Number(row.basic_earned || 0),
+            hraEarned: Number(row.hra_earned || 0),
+            convEarned: Number(row.conv_earned || 0),
+            medEarned: Number(row.med_earned || 0),
+            specialEarned: Number(row.special_earned || 0),
+            grossEarned: Number(row.gross_earned || 0),
+            otAmount: Number(row.ot_amount || 0),
+            epfDed: Number(row.epf_ded || 0),
+            esicDed: Number(row.esic_ded || 0),
+            advance: Number(row.advance || 0),
+            securityDep: Number(row.security_dep || 0),
             lateDeduction: Number(row.late_deduction || 0),
-            otherDed: Number(row.other_ded),
-            totalDed: Number(row.total_ded),
-            reimbursement: Number(row.reimbursement),
-            salaryArrears: Number(row.salary_arrears),
-            netSalary: Number(row.net_salary),
-            taDA: Number(row.ta_da),
-            totalPayable: Number(row.total_payable),
-            employerEPF: Number(row.employer_epf),
+            otherDed: Number(row.other_ded || 0),
+            totalDed: Number(row.total_ded || 0),
+            reimbursement: Number(row.reimbursement || 0),
+            salaryArrears: Number(row.salary_arrears || 0),
+            netSalary: Number(row.net_salary || 0),
+            taDA: Number(row.ta_da || 0),
+            totalPayable: Number(row.total_payable || 0),
+            employerEPF: Number(row.employer_epf || 0),
             employerESIC: effectiveEmpEsic,
             ctc: effectiveCtc,
             remark: row.remark || ''
           }
         };
-    });
-    setHistoryRecords(mapped);
+      });
+      setHistoryRecords(mapped);
       setSelectedHistoryLog(log);
     } catch (err) {
+      console.error(err);
       addToast('Failed to load history month records: ' + err.message, 'error');
     } finally {
       setLoadingHistory(false);

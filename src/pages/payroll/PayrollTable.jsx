@@ -162,7 +162,7 @@ const PayrollCard = ({ record, idx, onView, onEdit, onReset, onDownloadPayslip, 
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
               <span className="text-sm font-extrabold text-emerald-800">
-                {att.present_days ?? 0} <span className="text-xs font-normal text-emerald-600">/ {att.working_days ?? 0}</span>
+                {att.present_days !== undefined && att.present_days !== null && !isNaN(Number(att.present_days)) ? Math.round(Number(att.present_days)) : (att.present_days ?? 0)} <span className="text-xs font-normal text-emerald-600">/ {att.working_days !== undefined && att.working_days !== null && !isNaN(Number(att.working_days)) ? Math.round(Number(att.working_days)) : (att.working_days ?? 0)}</span>
               </span>
             </div>
           </div>
@@ -579,12 +579,12 @@ export default function PayrollTable({
                         <TD even={even}>
                           <span className="inline-flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-green-400" />
-                            {att?.present_days ?? 0}
+                            {att?.present_days !== undefined && att?.present_days !== null && !isNaN(Number(att.present_days)) ? Math.round(Number(att.present_days)) : (att?.present_days ?? 0)}
                           </span>
                         </TD>
 
                         {/* WORKING DAY */}
-                        <TD even={even}>{att?.working_days ?? 0}</TD>
+                        <TD even={even}>{att?.working_days !== undefined && att?.working_days !== null && !isNaN(Number(att.working_days)) ? Math.round(Number(att.working_days)) : (att?.working_days ?? 0)}</TD>
 
                         {/* REAL SALARY COLUMNS */}
                         <TD even={even} className="text-gray-700">{fmt(c.basicReal)}</TD>
