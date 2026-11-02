@@ -658,8 +658,11 @@ export default function PayrollPage() {
                   const inTime = record.inTime;
                   const outTime = record.outTime;
                   if (inTime && outTime) {
+                    const inMins = parseTimeToMinutes(inTime);
                     const outMins = parseTimeToMinutes(outTime);
-                    if (outMins !== null && outMins < 960) {
+                    if (inMins !== null && inMins > 720) {
+                      status = 'HD';
+                    } else if (outMins !== null && outMins < 960) {
                       status = 'HD';
                     } else {
                       status = 'P';

@@ -138,7 +138,7 @@ export function getLateHistoryForEmp(emp, attendanceArray, selectedYear, selecte
     if (!inTime) continue;
 
     const inMins = parseTimeToMinutes(inTime);
-    if (inMins !== null && inMins >= 586 && inMins <= 750) {
+    if (inMins !== null && inMins >= 586 && inMins <= 720) {
       // Check if HR granted permission in Late Approvals
       if (isLateApproved(emp, dateStr, lateApprovals)) {
         continue;

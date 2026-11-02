@@ -6,6 +6,8 @@ import {
   Navigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { NetworkProvider } from "./hooks/useNetworkStatus";
+import NetworkStatus from "./components/NetworkStatus";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -34,10 +36,12 @@ import AttendancedailyManagement from "./pages/AttendancedailyManagement";
 
 function App() {
   return (
-    <div className="gradient-bg min-h-screen">
-      <Router>
-        <Toaster position="top-right" />
-        <Routes>
+    <NetworkProvider>
+      <div className="gradient-bg min-h-screen">
+        <Router>
+          <NetworkStatus />
+          <Toaster position="top-right" containerStyle={{ top: 52 }} />
+          <Routes>
           <Route path="/login" element={<Login />} />
 
           <Route
@@ -73,6 +77,7 @@ function App() {
         </Routes>
       </Router>
     </div>
+    </NetworkProvider>
   );
 }
 

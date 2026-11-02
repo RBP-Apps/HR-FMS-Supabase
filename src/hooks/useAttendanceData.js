@@ -873,8 +873,14 @@ export default function useAttendanceData() {
                 outTime = record.outTime;
 
                 if (inTime && outTime) {
+                  const inMins = parseTimeToMinutes(inTime);
                   const outMins = parseTimeToMinutes(outTime);
-                  if (outMins !== null && outMins < 960) {
+
+                  if (inMins !== null && inMins > 720) {
+                    status = "HD";
+                    isHalfDay = true;
+                    remarks = "Half Day (Late In)";
+                  } else if (outMins !== null && outMins < 960) {
                     status = "HD";
                     isHalfDay = true;
                     remarks = "Half Day (Early Out)";

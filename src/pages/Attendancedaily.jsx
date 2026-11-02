@@ -121,7 +121,9 @@ const processBiometricAttendance = (data) => {
       finalOut = allTimes[allTimes.length - 1];
     }
 
+    const inMins = parseTimeToMinutes(finalIn);
     const outMins = parseTimeToMinutes(finalOut);
+    const isLateIn = inMins !== null && inMins > 720;
     const isEarlyOut = outMins !== null && outMins < 960;
 
     return {
@@ -137,7 +139,7 @@ const processBiometricAttendance = (data) => {
       outTime: finalOut,
       location: "Head Office",
       records: records,
-      status: (finalIn && finalOut && !isEarlyOut)
+      status: (finalIn && finalOut && !isEarlyOut && !isLateIn)
         ? "Present"
         : (finalIn || finalOut ? "Half Day" : "Absent"),
       workingHour: item.working_hour,
@@ -616,14 +618,16 @@ const fetchAttendanceData = async (
             allTimes.sort((a, b) => a.localeCompare(b));
             const finalIn = allTimes.length > 0 ? allTimes[0] : null;
             const finalOut = allTimes.length > 1 ? allTimes[allTimes.length - 1] : null;
+            const inMins = parseTimeToMinutes(finalIn);
             const outMins = parseTimeToMinutes(finalOut);
+            const isLateIn = inMins !== null && inMins > 720;
             const isEarlyOut = outMins !== null && outMins < 960;
             merged[existingIndex] = {
               ...existingItem,
               inTime: finalIn,
               outTime: finalOut,
               records: [...existingItem.records, ...newItem.records],
-              status: (finalIn && finalOut && !isEarlyOut) ? "Present" : (finalIn || finalOut ? "Half Day" : "Absent")
+              status: (finalIn && finalOut && !isEarlyOut && !isLateIn) ? "Present" : (finalIn || finalOut ? "Half Day" : "Absent")
             };
           } else {
             merged.push(newItem);

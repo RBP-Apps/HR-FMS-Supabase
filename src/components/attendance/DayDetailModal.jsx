@@ -117,8 +117,11 @@ export default function DayDetailModal({
   // Calculate expected status based on Biometric Logic
   let bioExpectedStatus = "Absent";
   if (hasBioIn && hasBioOut) {
+    const inMins = parseTimeToMinutes(bioRecord.inTime);
     const outMins = parseTimeToMinutes(bioRecord.outTime);
-    if (outMins !== null && outMins < 960) {
+    if (inMins !== null && inMins > 720) {
+      bioExpectedStatus = "Half Day (Late In)";
+    } else if (outMins !== null && outMins < 960) {
       bioExpectedStatus = "Half Day (Early Out)";
     } else {
       bioExpectedStatus = "Present";
@@ -136,7 +139,12 @@ export default function DayDetailModal({
   // Calculate expected status based on Field Logic
   let fieldExpectedStatus = "Absent";
   if (hasFieldIn && hasFieldMid && hasFieldOut) {
-    fieldExpectedStatus = "Present";
+    const fieldInMins = parseTimeToMinutes(fieldRecord.inTime);
+    if (fieldInMins !== null && fieldInMins > 720) {
+      fieldExpectedStatus = "Half Day (Late In)";
+    } else {
+      fieldExpectedStatus = "Present";
+    }
   } else if ((hasFieldIn && hasFieldMid && !hasFieldOut) || 
              (hasFieldIn && !hasFieldMid && hasFieldOut) || 
              (!hasFieldIn && hasFieldMid && hasFieldOut)) {
