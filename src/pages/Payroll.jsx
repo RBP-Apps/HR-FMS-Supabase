@@ -1262,7 +1262,7 @@ export default function PayrollPage() {
       'COMPANY PROVIDES ESIC': r.edits?.company_esic_provided || r.employee.company_esic_provided || 'No',
       'DESIGNATION': r.employee.designation,
       'DEPARTMENT': r.employee.department,
-      'PRESENT': roundVal(r.attendance?.present_days ?? 0),
+      'PRESENT': r.attendance?.present_days !== undefined && r.attendance?.present_days !== null && !isNaN(Number(r.attendance.present_days)) ? (Math.round(Number(r.attendance.present_days) * 10) / 10) : (r.attendance?.present_days ?? 0),
       'WORKING DAYS': roundVal(r.attendance?.working_days ?? 0),
       'GROSS (Real)': roundVal(r.employee.gross_salary),
       'BASIC+DA (Real)': roundVal(r.calc.basicReal),
