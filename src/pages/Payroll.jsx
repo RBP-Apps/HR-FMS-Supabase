@@ -1254,39 +1254,59 @@ export default function PayrollPage() {
 
     const data = filteredRecords.map((r, i) => ({
       'SL': i + 1,
-      'EMP CODE': r.employee.rbp_joining_id,
       'NAME': r.employee.employee_name,
+      'EMP CODE': r.employee.rbp_joining_id,
       'ACCOUNT NO': r.employee.bank_account_number || '',
       'IFSC CODE': r.employee.ifsc_code || '',
       'COMPANY PROVIDES PF': r.edits?.company_pf_provided || r.employee.company_pf_provided || 'No',
       'COMPANY PROVIDES ESIC': r.edits?.company_esic_provided || r.employee.company_esic_provided || 'No',
-      'DESIGNATION': r.employee.designation,
-      'DEPARTMENT': r.employee.department,
+      'UAN': r.employee.uan_number || '',
+      'ESIC': r.employee.esic_number || '',
+      'DESIGNATION': r.employee.designation || '',
+      'DEPARTMENT': r.employee.department || '',
+      'IN HAND': r.calc.inHand || r.employee.in_hand ? (isNaN(Number(r.calc.inHand || r.employee.in_hand)) ? (r.calc.inHand || r.employee.in_hand) : roundVal(r.calc.inHand || r.employee.in_hand)) : '',
       'PRESENT': r.attendance?.present_days !== undefined && r.attendance?.present_days !== null && !isNaN(Number(r.attendance.present_days)) ? (Math.round(Number(r.attendance.present_days) * 10) / 10) : (r.attendance?.present_days ?? 0),
       'WORKING DAYS': roundVal(r.attendance?.working_days ?? 0),
-      'GROSS (Real)': roundVal(r.employee.gross_salary),
+      // Real Salary Structure
       'BASIC+DA (Real)': roundVal(r.calc.basicReal),
       'HRA (Real)': roundVal(r.calc.hraReal),
-      'GROSS EARNED': roundVal(r.calc.grossEarned),
+      'CONV (Real)': roundVal(r.calc.convReal),
+      'MEDICAL (Real)': roundVal(r.calc.medReal),
+      'SPECIAL (Real)': roundVal(r.calc.specialReal),
+      'GROSS (Real)': roundVal(r.employee.gross_salary || r.calc.grossReal),
+      // Earned Components
+      'BASIC+DA (Earned)': roundVal(r.calc.basicEarned),
+      'HRA (Earned)': roundVal(r.calc.hraEarned),
+      'CONVEYANCE (Earned)': roundVal(r.calc.convEarned),
+      'MEDICAL (Earned)': roundVal(r.calc.medEarned),
+      'SPECIAL (Earned)': roundVal(r.calc.specialEarned),
+      'GROSS SALARY (Earned)': roundVal(r.calc.grossEarned),
+      // OT & Deductions
       'OT': roundVal(r.calc.otAmount),
       'EPF 12%': roundVal(r.calc.epfDed),
       'ESIC 0.75%': roundVal(r.calc.esicDed),
       'ADVANCE': roundVal(r.calc.advance),
-      'SECURITY DEP': roundVal(r.calc.securityDep),
+      'SECURITY DEP.': roundVal(r.calc.securityDep),
       'LATE DEDUCTION': roundVal(r.calc.lateDeduction),
-      'OTHER DED': roundVal(r.calc.otherDed),
-      'TOTAL DED': roundVal(r.calc.totalDed),
+      'OTHER DED.': roundVal(r.calc.otherDed),
+      'TOTAL DED.': roundVal(r.calc.totalDed),
+      // Net & Payouts
       'REIMBURSEMENT': roundVal(r.calc.reimbursement),
       'SALARY ARREARS': roundVal(r.calc.salaryArrears),
       'NET SALARY': roundVal(r.calc.netSalary),
       'TA DA': roundVal(r.calc.taDA),
       'TOTAL PAYABLE': roundVal(r.calc.totalPayable),
-      'EMPLOYER EPF 13%': roundVal(r.calc.employerEPF),
-      'EMPLOYER ESIC 3.25%': roundVal(r.calc.employerESIC),
+      'REMARK': r.calc.remark || '',
+      // Employer Contributions
+      'EMP EPF 13%': roundVal(r.calc.employerEPF),
+      'EMP ESIC 3.25%': roundVal(r.calc.employerESIC),
       'CTC': roundVal(r.calc.ctc),
-      'REMARK': r.calc.remark,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
+    const colWidths = Object.keys(data[0] || {}).map(key => ({
+      wch: Math.max(key.length + 3, 12)
+    }));
+    ws['!cols'] = colWidths;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Payroll_${MONTHS[filters.month]}_${filters.year}`);
     XLSX.writeFile(wb, `payroll_${filters.year}_${filters.month + 1}.xlsx`);
@@ -1300,38 +1320,59 @@ export default function PayrollPage() {
 
     const data = filteredHistoryRecords.map((r, i) => ({
       'SL': i + 1,
-      'EMP CODE': r.employee.rbp_joining_id,
       'NAME': r.employee.employee_name,
+      'EMP CODE': r.employee.rbp_joining_id,
       'ACCOUNT NO': r.employee.bank_account_number || '',
       'IFSC CODE': r.employee.ifsc_code || '',
       'COMPANY PROVIDES PF': r.employee.company_pf_provided || 'No',
       'COMPANY PROVIDES ESIC': r.employee.company_esic_provided || 'No',
-      'GROSS': roundVal(r.calc.grossReal),
-      'BASIC EARNED': roundVal(r.calc.basicEarned),
-      'HRA EARNED': roundVal(r.calc.hraEarned),
-      'CONVEYANCE EARNED': roundVal(r.calc.convEarned),
-      'MEDICAL EARNED': roundVal(r.calc.medEarned),
-      'SPECIAL EARNED': roundVal(r.calc.specialEarned),
-      'GROSS EARNED': roundVal(r.calc.grossEarned),
+      'UAN': r.employee.uan_number || '',
+      'ESIC': r.employee.esic_number || '',
+      'DESIGNATION': r.employee.designation || '',
+      'DEPARTMENT': r.employee.department || '',
+      'IN HAND': r.calc.inHand || r.employee.in_hand ? (isNaN(Number(r.calc.inHand || r.employee.in_hand)) ? (r.calc.inHand || r.employee.in_hand) : roundVal(r.calc.inHand || r.employee.in_hand)) : '',
+      'PRESENT': r.attendance?.present_days !== undefined && r.attendance?.present_days !== null && !isNaN(Number(r.attendance.present_days)) ? (Math.round(Number(r.attendance.present_days) * 10) / 10) : (r.attendance?.present_days ?? 0),
+      'WORKING DAYS': roundVal(r.attendance?.working_days ?? 0),
+      // Real Salary Structure
+      'BASIC+DA (Real)': roundVal(r.calc.basicReal),
+      'HRA (Real)': roundVal(r.calc.hraReal),
+      'CONV (Real)': roundVal(r.calc.convReal),
+      'MEDICAL (Real)': roundVal(r.calc.medReal),
+      'SPECIAL (Real)': roundVal(r.calc.specialReal),
+      'GROSS (Real)': roundVal(r.calc.grossReal),
+      // Earned Components
+      'BASIC+DA (Earned)': roundVal(r.calc.basicEarned),
+      'HRA (Earned)': roundVal(r.calc.hraEarned),
+      'CONVEYANCE (Earned)': roundVal(r.calc.convEarned),
+      'MEDICAL (Earned)': roundVal(r.calc.medEarned),
+      'SPECIAL (Earned)': roundVal(r.calc.specialEarned),
+      'GROSS SALARY (Earned)': roundVal(r.calc.grossEarned),
+      // OT & Deductions
       'OT': roundVal(r.calc.otAmount),
       'EPF 12%': roundVal(r.calc.epfDed),
       'ESIC 0.75%': roundVal(r.calc.esicDed),
       'ADVANCE': roundVal(r.calc.advance),
-      'SECURITY DEP': roundVal(r.calc.securityDep),
+      'SECURITY DEP.': roundVal(r.calc.securityDep),
       'LATE DEDUCTION': roundVal(r.calc.lateDeduction),
-      'OTHER DED': roundVal(r.calc.otherDed),
-      'TOTAL DED': roundVal(r.calc.totalDed),
+      'OTHER DED.': roundVal(r.calc.otherDed),
+      'TOTAL DED.': roundVal(r.calc.totalDed),
+      // Net & Payouts
       'REIMBURSEMENT': roundVal(r.calc.reimbursement),
       'SALARY ARREARS': roundVal(r.calc.salaryArrears),
       'NET SALARY': roundVal(r.calc.netSalary),
       'TA DA': roundVal(r.calc.taDA),
       'TOTAL PAYABLE': roundVal(r.calc.totalPayable),
+      'REMARK': r.calc.remark || '',
+      // Employer Contributions
       'EMPLOYER EPF 13%': roundVal(r.calc.employerEPF),
       'EMPLOYER ESIC 3.25%': roundVal(r.calc.employerESIC),
       'CTC': roundVal(r.calc.ctc),
-      'REMARK': r.calc.remark,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
+    const colWidths = Object.keys(data[0] || {}).map(key => ({
+      wch: Math.max(key.length + 3, 12)
+    }));
+    ws['!cols'] = colWidths;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Finalized_${MONTHS[selectedHistoryLog.month - 1]}_${selectedHistoryLog.year}`);
     XLSX.writeFile(wb, `finalized_payroll_${selectedHistoryLog.year}_${selectedHistoryLog.month}.xlsx`);
